@@ -38,7 +38,7 @@ struct ScorePanel: View {
                 VStack(spacing: 0) {
                     ForEach(Array(shown.enumerated()), id: \.offset) { _, line in
                         HStack {
-                            Text(line.label)
+                            Text(line.label).foregroundStyle(line.edition.map { Edition.color($0) } ?? Theme.ink)
                             Spacer()
                             if let m = line.money { Text("+$\(m)").foregroundStyle(Theme.brass) }
                             if let c = line.chips, c != 0 { Text("+\(num(c))").foregroundStyle(Theme.chips) }

@@ -363,7 +363,10 @@ final class GameModel {
                 if self.revealShown < r.lines.count {
                     self.revealShown += 1
                     let line = r.lines[self.revealShown - 1]
-                    if line.mult != nil || (line.xmult.map { $0 != 1 } ?? false) {
+                    if line.edition != nil {
+                        self.audio.play("doubled", pitch: 1.1 + 0.03 * Float(self.revealShown))
+                        self.shake(2)
+                    } else if line.mult != nil || (line.xmult.map { $0 != 1 } ?? false) {
                         self.audio.play("mult", pitch: 1 + 0.04 * Float(self.revealShown))
                         self.shake(2.5)
                     } else {

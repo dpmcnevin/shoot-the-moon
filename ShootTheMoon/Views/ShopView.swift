@@ -26,13 +26,19 @@ struct ShopView: View {
             }
             .frame(height: 290 + L.dy * 0.5)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Your relics \(v.relics.count)/\(v.relicSlots)").font(Theme.font(20, .bold))
+                Text("Your relics \(v.relicSlotsUsed)/\(v.relicSlots)").font(Theme.font(20, .bold))
                 HStack(spacing: 12) {
-                    ForEach(0..<v.relicSlots, id: \.self) { i in
+                    ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
                         if i < v.relics.count {
                             let r = v.relics[i]
                             VStack(alignment: .leading) {
-                                HStack(spacing: 8) { Icon(key: r.icon); Text(r.name).font(Theme.font(15)).lineLimit(2) }
+                                HStack(spacing: 8) {
+                                    Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key))
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        if let e = r.edition { EditionTag(edition: e, size: 11) }
+                                        Text(r.name).font(Theme.font(15)).lineLimit(2)
+                                    }
+                                }
                                 Spacer()
                                 GameButton("Sell $\(r.sell)", style: .plain, size: .small, sound: "sell") { model.sellRelic(i) }
                             }
@@ -88,13 +94,21 @@ struct ShopItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(kindLabel).font(Theme.font(14)).foregroundStyle(edge)
+            HStack(spacing: 6) {
+                if let e = item.edition { EditionTag(edition: e, size: 13) }
+                Text(kindLabel).font(Theme.font(14)).foregroundStyle(edge)
+            }
             HStack(alignment: .top) {
                 Text(item.name).font(Theme.font(20, .bold)).inkShadow()
                 Spacer()
-                if let s = item.seal { SealBadge(key: s, size: 42) } else if let i = item.icon { Icon(key: i, scale: 3) }
+                if let s = item.seal { SealBadge(key: s, size: 42) }
+                else if let i = item.icon { Icon(key: i, scale: 3).modifier(EditionShine(edition: item.edition?.key)) }
             }
             Text(item.text + (item.kind == "relic" ? "" : ".")).font(Theme.font(16)).foregroundStyle(Theme.inkDim)
+            if let e = item.edition {
+                Text("\(e.name): \(e.text.prefix(1).lowercased() + e.text.dropFirst())")
+                    .font(Theme.font(16)).foregroundStyle(Edition.color(e.key))
+            }
             if item.kind == "upgrade", let lvl = item.level {
                 Text("Lv.\(lvl) → Lv.\(lvl + 1): +\(num(item.nextChips ?? 0)) chips, +\(item.nextMult ?? 0, specifier: "%.1f") mult")
                     .font(Theme.font(16))

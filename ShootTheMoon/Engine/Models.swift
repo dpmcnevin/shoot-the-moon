@@ -62,6 +62,15 @@ struct LineV: Decodable, Hashable {
     let mult: Double?
     let xmult: Double?
     let money: Int?
+    /// Set on a relic edition's bonus line.
+    let edition: String?
+}
+
+/// A relic's edition: Etched, Lacquered, Prismatic or Phantom.
+struct EditionV: Decodable, Hashable {
+    let key: String
+    let name: String
+    let text: String
 }
 
 struct ResultV: Decodable {
@@ -95,6 +104,7 @@ struct ShopItemV: Decodable, Identifiable {
     let icon: String?
     let rarity: Int?
     let rarityName: String?
+    let edition: EditionV?
     let level: Int?
     let nextChips: Double?
     let nextMult: Double?
@@ -124,6 +134,7 @@ struct RelicV: Decodable, Identifiable {
     let icon: String
     let text: String
     let sell: Int
+    let edition: EditionV?
     var id: String { key }
 }
 
@@ -161,6 +172,7 @@ struct GameView: Decodable {
     let interest: Int
     let rerollCost: Int
     let relicSlots: Int
+    let relicSlotsUsed: Int
     let levels: [LevelV]
     let relics: [RelicV]
     let seals: [SealV]

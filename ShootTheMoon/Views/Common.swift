@@ -223,3 +223,81 @@ struct SpeedSlider: View {
         s == s.rounded() ? "\(Int(s))x" : String(format: "%gx", s)
     }
 }
+
+// MARK: - Relic editions
+
+enum Edition {
+    static func color(_ key: String?) -> Color {
+        switch key {
+        case "etched": Color(hex: 0xc9d6de)
+        case "lacquered": Color(hex: 0xe8573f)
+        case "prismatic": Color(hex: 0xd88cff)
+        case "phantom": Color(hex: 0x9fb0ff)
+        default: Theme.inkDim
+        }
+    }
+}
+
+/// The look of a relic edition over its icon: a moving sheen of engraved
+/// silver, a red gloss, a turning rainbow, or a pale see-through ghost.
+struct EditionShine: ViewModifier {
+    let edition: String?
+
+    func body(content: Content) -> some View {
+        switch edition {
+        case nil:
+            content
+        case "phantom":
+            content
+                .saturation(0.15)
+                .opacity(0.55)
+                .background(content.colorMultiply(Edition.color("phantom")).blur(radius: 3).opacity(0.9))
+        default:
+            TimelineView(.animation) { tl in
+                let t = tl.date.timeIntervalSinceReferenceDate
+                content.overlay {
+                    sheen(t).mask(content).allowsHitTesting(false)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sheen(_ t: Double) -> some View {
+        // A band sweeping corner to corner every couple of seconds.
+        let p = (t * 0.55).truncatingRemainder(dividingBy: 1) * 2.4 - 0.7
+        let band = LinearGradient(
+            stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.9), location: 0.5), .init(color: .clear, location: 1)],
+            startPoint: UnitPoint(x: p - 0.35, y: p - 0.35), endPoint: UnitPoint(x: p + 0.35, y: p + 0.35))
+        switch edition {
+        case "etched":
+            ZStack {
+                Color(hex: 0xc9d6de).opacity(0.35).blendMode(.color)
+                band.blendMode(.screen)
+            }
+        case "lacquered":
+            ZStack {
+                Color(hex: 0xe8573f).opacity(0.3).blendMode(.overlay)
+                band.blendMode(.screen)
+            }
+        default: // prismatic
+            ZStack {
+                AngularGradient(colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red],
+                                center: .center, angle: .degrees(t * 120))
+                    .opacity(0.65).blendMode(.overlay)
+                band.opacity(0.7).blendMode(.screen)
+            }
+        }
+    }
+}
+
+/// A small colored label naming an edition.
+struct EditionTag: View {
+    let edition: EditionV
+    var size = 12.0
+    var body: some View {
+        Text(edition.name.uppercased())
+            .font(Theme.font(size, .bold)).kerning(1)
+            .foregroundStyle(Edition.color(edition.key))
+    }
+}

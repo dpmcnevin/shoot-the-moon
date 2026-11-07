@@ -93,14 +93,17 @@ struct Sidebar: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Relics \(v.relics.count)/\(v.relicSlots)").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
-                ForEach(0..<v.relicSlots, id: \.self) { i in
+                Text("Relics \(v.relicSlotsUsed)/\(v.relicSlots)").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
                     if i < v.relics.count {
                         let r = v.relics[i]
                         HStack(spacing: 6) {
-                            Icon(key: r.icon)
+                            Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key))
                             RoundedRectangle(cornerRadius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: 24)
-                            Text(r.name).font(Theme.font(14)).lineLimit(1)
+                            VStack(alignment: .leading, spacing: -1) {
+                                if let e = r.edition { EditionTag(edition: e, size: 10) }
+                                Text(r.name).font(Theme.font(14)).lineLimit(1)
+                            }
                             Spacer(minLength: 0)
                         }
                         .frame(height: 36)
