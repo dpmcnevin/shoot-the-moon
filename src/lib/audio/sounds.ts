@@ -153,6 +153,73 @@ const recipes: Record<string, () => Buffer> = {
 		});
 		S.noise(b, 0, 0.5, { vol: 0.06, attack: 0.1, decay: 0.2, highpass: 0.95 });
 		return S.normalize(b, 0.65);
+	},
+
+	// ---------------------------------------------------------------- hearts
+
+	// Hearts are broken: a glassy crack, then a falling minor figure on bells.
+	hearts_broken: () => {
+		const b = S.buffer(1.3);
+		S.noise(b, 0, 0.09, { vol: 0.7, decay: 0.02, highpass: 0.93 });
+		S.noise(b, 0.012, 0.06, { vol: 0.4, decay: 0.015, highpass: 0.97 });
+		S.tone(b, 0, 0.12, 3200, { vol: 0.25, decay: 0.02, glide: 1800 });
+		[88, 84, 81, 76].forEach((n, i) => {
+			S.bell(b, 0.08 + i * 0.11, 0.7, S.midi(n) * (1 + (i % 2 ? 0.004 : -0.003)), 0.32);
+		});
+		S.tone(b, 0.5, 0.7, S.midi(57), { wave: 'tri', vol: 0.18, decay: 0.3, glide: S.midi(55) });
+		return S.normalize(b, 0.7);
+	},
+
+	// The queen of spades hits the table: a low dissonant stab and a sour bell.
+	queen_played: () => {
+		const b = S.buffer(1.0);
+		for (const n of [34, 35, 41]) {
+			S.tone(b, 0, 0.75, S.midi(n), { wave: 'saw', vol: 0.16, attack: 0.01, decay: 0.22 });
+		}
+		S.tone(b, 0.02, 0.8, S.midi(70), { vol: 0.3, decay: 0.25, fm: { ratio: 1.41, index: 2.5, decay: 0.2 } });
+		S.tone(b, 0.02, 0.8, S.midi(76), { vol: 0.18, decay: 0.2, fm: { ratio: 1.41, index: 2, decay: 0.2 } });
+		S.noise(b, 0, 0.15, { vol: 0.3, decay: 0.05, lowpass: 0.9 });
+		let y = 0;
+		const d = b.data;
+		for (let i = 0; i < d.length; i++) {
+			y += (d[i] - y) * 0.25;
+			d[i] = y;
+		}
+		return S.softClip(S.normalize(b, 0.85), 1.2);
+	},
+
+	// You took the queen: a long sad "wah-wah" slide down.
+	queen_taken: () => {
+		const b = S.buffer(1.8);
+		const notes = [[55, 54], [54, 53], [53, 52], [52, 47]];
+		notes.forEach(([from, to], i) => {
+			const long = i === notes.length - 1;
+			S.tone(b, i * 0.32, long ? 0.95 : 0.3, S.midi(from), {
+				wave: 'saw',
+				vol: 0.3,
+				attack: 0.02,
+				decay: long ? 0.6 : 0.2,
+				sustain: 0.3,
+				glide: S.midi(to),
+				vibrato: long ? [5.5, 0.012] : undefined
+			});
+		});
+		let y = 0;
+		const d = b.data;
+		for (let i = 0; i < d.length; i++) {
+			y += (d[i] - y) * 0.12;
+			d[i] = y;
+		}
+		return S.softClip(S.normalize(b, 0.85), 1.4);
+	},
+
+	// Someone else took the queen: a sly little two-note chime.
+	queen_dodged: () => {
+		const b = S.buffer(0.7);
+		S.bell(b, 0, 0.45, S.midi(79), 0.45);
+		S.bell(b, 0.12, 0.55, S.midi(86), 0.5);
+		S.tone(b, 0.12, 0.4, S.midi(74), { wave: 'tri', vol: 0.15, decay: 0.15 });
+		return S.normalize(b, 0.6);
 	}
 };
 

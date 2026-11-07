@@ -15,7 +15,9 @@ import * as save from './save.ts';
 import type { Action, Outcome } from './save.ts';
 import { fx } from './fx.svelte.ts';
 import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from './layout.ts';
-import { C, type Color } from '../ui/theme.ts';
+import { C, hex, type Color } from '../ui/theme.ts';
+
+const hexHeart = hex('#f08a8a');
 
 export const PHASE = R.PHASE;
 export const AI_DELAY = 0.45;
@@ -185,15 +187,47 @@ class Game {
 
 	// ------------------------------------------------------------------ tricks
 
+	/**
+	 * Cues for a card just played: hearts breaking (the first heart of the
+	 * hand) and the queen of spades hitting the table.
+	 */
+	private cueCard(card: Card, seat: number, wasBroken: boolean) {
+		const L = this.layout;
+		const [x, y] = trickXY(L, seat);
+		if (H.isQueenOfSpades(card)) {
+			sound.play('queen_played');
+			fx.shake(5);
+			fx.burst(x, y, 16, [C.ink, C.bad], 160, { life: 0.5, size: 5 });
+		} else if (card.suit === H.HEARTS && !wasBroken) {
+			sound.play('hearts_broken');
+			fx.burst(x, y, 22, [C.bad, hexHeart, C.ink], 220, { life: 0.8, size: 7 });
+			this.showToast('Hearts are broken!', C.bad);
+		}
+	}
+
 	private holdTrick(trick: Trick | null | undefined) {
 		if (!trick) return;
 		this.trickHold = { trick, timer: TRICK_HOLD };
 		const [x, y] = trickXY(this.layout, trick.winner);
+		if (trick.plays.some((p) => H.isQueenOfSpades(p.card))) {
+			// The queen is taken: doom for you, a sly chime for anyone else.
+			if (trick.winner === H.PLAYER) {
+				this.streak = 0;
+				sound.play('queen_taken');
+				fx.shake(10);
+				fx.burst(x, y, 30, [C.ink, C.bad], 140, { life: 1.0, size: 7, gravity: 300 });
+				this.showToast('You took the queen of spades!', C.bad);
+			} else {
+				sound.play('queen_dodged');
+				fx.burst(x, y, 24, [C.good, C.goldLight], 220, { life: 0.8, size: 6 });
+				this.showToast(`${H.SEAT_NAMES[trick.winner]} took the queen of spades`, C.good);
+			}
+			return;
+		}
 		if (trick.winner === H.PLAYER) {
 			if (trick.points > 0) {
 				this.streak = 0;
 				sound.play('trick_lose', { jitter: 0.04 });
-				if (trick.plays.some((p) => H.isQueenOfSpades(p.card))) fx.shake(6);
 			} else {
 				this.streak++;
 				sound.play('trick_win', { pitch: Math.min(1.5, 1 + 0.06 * (this.streak - 1)), volume: 0.7 });
@@ -219,8 +253,10 @@ class Game {
 	playCard(card: Card) {
 		const run = this._run!;
 		if (this.trickHold || !R.isPlayerTurn(run)) return;
+		const wasBroken = run.hand.state!.heartsBroken;
 		const tricks = this.act({ t: 'play', card: cards.code(card) }).tricks!;
 		sound.play('card_play', { jitter: 0.08 });
+		this.cueCard(card, H.PLAYER, wasBroken);
 		this.holdTrick(tricks[0]);
 		this.aiTimer = AI_DELAY;
 		this.bump();
@@ -397,8 +433,10 @@ class Game {
 		if (run.phase === PHASE.PLAY && !R.isPlayerTurn(run)) {
 			this.aiTimer -= dt;
 			if (this.aiTimer <= 0) {
+				const wasBroken = run.hand.state!.heartsBroken;
 				const step = this.act({ t: 'ai' }).step;
 				sound.play('card_play', { jitter: 0.08 });
+				if (step) this.cueCard(step.card, step.seat, wasBroken);
 				this.holdTrick(step?.trick);
 				this.aiTimer = AI_DELAY;
 				this.bump();
