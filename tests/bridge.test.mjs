@@ -65,10 +65,10 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const S = engine();
 	S.newRun('EDSAVE');
 	const save = JSON.parse(S.save());
-	assert.deepEqual(save.opts, { editions: true });
+	assert.deepEqual(save.opts, { editions: true, noRepeats: true });
 	const S2 = engine();
 	S2.restore(JSON.stringify(save));
-	assert.deepEqual(JSON.parse(S2.save()).opts, { editions: true });
+	assert.deepEqual(JSON.parse(S2.save()).opts, { editions: true, noRepeats: true });
 	// An old save without options restores as it was: no editions.
 	const S3 = engine();
 	S3.restore(JSON.stringify({ version: save.version, seed: 'OLD', actions: [] }));

@@ -176,7 +176,7 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		opts = { editions: true };
+		opts = { editions: true, noRepeats: true };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());

@@ -176,12 +176,16 @@ export interface Run {
 	boardPoints: number[];
 	/** Relics in the club can come with editions (off by default). */
 	editions: boolean;
+	/** A club never offers the same item twice at once (off by default, so
+	 *  older saves replay against the same offers). */
+	noRepeats: boolean;
 }
 
 export interface RunOptions {
 	money?: number;
 	aiSkill?: number;
 	editions?: boolean;
+	noRepeats?: boolean;
 }
 
 /** Relic slots in use: Phantom relics take none. */
@@ -237,7 +241,8 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		log: [],
 		stats: { handsPlayed: 0, moons: 0, cleanHands: 0, bestHand: 0, totalScore: 0, pointsTaken: 0 },
 		boardPoints: [0, 0, 0, 0, 0],
-		editions: opts.editions ?? false
+		editions: opts.editions ?? false,
+		noRepeats: opts.noRepeats ?? false
 	} as Run;
 	startBoard(run);
 	return run;
@@ -527,7 +532,20 @@ export function enterShop(run: Run) {
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items[i] = rollShopItem(run);
 }
 
+/** What makes two club items the same offer. */
+function offerKey(item: ShopItem): string {
+	return `${item.kind}:${item.def.key}`;
+}
+
 export function rollShopItem(run: Run): ShopItem {
+	let item = rollOffer(run);
+	if (!run.noRepeats) return item;
+	const taken = new Set((run.shop?.items ?? []).filter(Boolean).map(offerKey));
+	for (let i = 0; i < 30 && taken.has(offerKey(item)); i++) item = rollOffer(run);
+	return item;
+}
+
+function rollOffer(run: Run): ShopItem {
 	const roll = run.rng.next();
 	if (roll >= 0.12 && roll < 0.24) {
 		const def = packs.rollOp(run.rng);

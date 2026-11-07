@@ -355,3 +355,23 @@ test('a Phantom relic takes no relic slot', () => {
 	run.shop.items[2] = { kind: 'relic', def: relics.DEFS[0], name: 'x', cost: 0, edition: 'phantom' };
 	assert.ok(R.canBuy(run, 2)[0], 'a Phantom fits even when the slots are full');
 });
+
+test('with noRepeats, a club never offers the same item twice at once', () => {
+	const key = (it) => `${it.kind}:${it.def.key}`;
+	let repeatsWithout = 0;
+	for (let i = 0; i < 300; i++) {
+		for (const noRepeats of [true, false]) {
+			const run = R.newRun('REP' + i, { noRepeats, money: 1000 });
+			run.phase = R.PHASE.BOARD_WON;
+			R.enterShop(run);
+			for (let k = 0; k < 4; k++) {
+				const keys = run.shop.items.map(key);
+				const dupes = keys.length - new Set(keys).size;
+				if (noRepeats) assert.equal(dupes, 0, keys.join(' '));
+				else repeatsWithout += dupes;
+				R.reroll(run);
+			}
+		}
+	}
+	assert.ok(repeatsWithout > 0, 'the old behavior does repeat (so the test means something)');
+});
