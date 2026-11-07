@@ -16,6 +16,15 @@ export function shop(run: Run) {
 			bestScore = -1;
 		run.shop!.items.forEach((item, i) => {
 			if (item.sold || run.money < item.cost) return;
+			if (item.kind === 'seal') {
+				// The one obvious seal: ward the queen of spades.
+				const score = item.def.key === 'ward' && run.seals.QS !== 'ward' ? 25 : -1;
+				if (score > bestScore) {
+					best = i;
+					bestScore = score;
+				}
+				return;
+			}
 			if (item.kind === 'upgrade') {
 				const score = item.def.key === 'dodge' ? 30 : item.def.key === 'clean' ? 14 : 6;
 				if (score > bestScore) {
@@ -42,7 +51,8 @@ export function shop(run: Run) {
 			});
 			run_.sellRelic(run, wi);
 		}
-		if (!run_.buy(run, best)[0]) break;
+		const it = run.shop!.items[best];
+		if (!run_.buy(run, best, it.kind === 'seal' ? 'QS' : undefined)[0]) break;
 	}
 	if (run.money >= 20 && run_.reroll(run)) {
 		run.shop!.items.forEach((_, i) => {

@@ -11,6 +11,8 @@
 	import { C, css } from '../ui/theme.ts';
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
+	import SealBadge from './SealBadge.svelte';
+	import SealPicker from './SealPicker.svelte';
 
 	const L = $derived(game.layout);
 	const portrait = $derived(L.orientation === 'portrait');
@@ -26,7 +28,8 @@
 	const nextLabel = $derived(
 		run.board === R.BOARDS_PER_TABLE && run.table === R.TABLES ? 'Claim victory' : run.board === R.BOARDS_PER_TABLE ? 'Next table' : 'Next board'
 	);
-	const edge = (it: R.ShopItem) => (it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : 'var(--brass)');
+	const edge = (it: R.ShopItem) =>
+		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : 'var(--brass)';
 	function canBuy(i: number) {
 		void game.v;
 		return R.canBuy(run, i);
@@ -59,13 +62,18 @@
 						<div class="kind" style:color={edge(item)}>{relics.RARITY_NAME[item.def.rarity]} relic</div>
 						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
 						<p>{item.def.text}</p>
-					{:else}
+					{:else if item.kind === 'upgrade'}
 						{@const lvl = run.levels[item.def.key]}
 						{@const next = R.upgradeBonus(item.def.key, lvl + 1)}
 						<div class="kind brass">Upgrade</div>
 						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
 						<p>{item.def.text}.</p>
 						<p class="ink">Lv.{lvl} → Lv.{lvl + 1}: +{next[0]} chips, +{next[1].toFixed(1)} mult</p>
+					{:else}
+						<div class="kind" style:color={item.def.color}>Seal</div>
+						<div class="title-row"><h3>{item.name}</h3><SealBadge seal={item.def.key} size={44} /></div>
+						<p>{item.def.text}.</p>
+						<p class="ink">You choose the card.</p>
 					{/if}
 					<div class="buy">
 						{#if item.sold}
@@ -96,6 +104,8 @@
 			{/each}
 		</div>
 	</div>
+
+	{#if game.sealPick !== null}<SealPicker />{/if}
 
 	<div class="foot">
 		<Button variant="plain" sound="reroll" enabled={run.money >= run.rerollCost} onclick={() => game.reroll()} style="width: 190px; height: 44px">Reroll ${run.rerollCost}</Button>

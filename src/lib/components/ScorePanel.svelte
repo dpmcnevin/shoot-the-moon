@@ -38,6 +38,7 @@
 
 	function parts(i: (typeof rv.items)[number]) {
 		const out: { text: string; cls: string }[] = [];
+		if (i.money) out.push({ text: '+$' + i.money, cls: 'money' });
 		if (i.chips) out.push({ text: `+${num(i.chips)}`, cls: 'chips' });
 		if (i.mult) out.push({ text: `+${i.mult.toFixed(2)} mult`, cls: 'multc' });
 		if (i.xmult && i.xmult !== 1) out.push({ text: `x${i.xmult.toFixed(2)}`, cls: 'multc' });
@@ -153,6 +154,9 @@
 	}
 	.chips {
 		color: var(--chips);
+	}
+	.money {
+		color: var(--brass);
 	}
 	.multc {
 		color: var(--mult);

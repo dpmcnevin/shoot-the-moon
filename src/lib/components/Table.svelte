@@ -13,6 +13,7 @@
 	import CardSprite from './CardSprite.svelte';
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
+	import { sealOf, pointsTaken as sealPoints, trickPoints } from '../game/seals.ts';
 
 	let { scale = 1 }: { scale?: number } = $props();
 
@@ -116,13 +117,14 @@
 				spawn = { x: o[0], y: o[1], r: 0.5, faceUp: false };
 			}
 			if (drag?.moved && drag.id === id) {
-				out.push({ id, card: s.card, x: drag.x, y: drag.y, r: 0, s: 1.14, faceUp: true, z: 95, lift: 26,
+				out.push({ id, card: s.card, seal: sealOf(run.seals, s.card), x: drag.x, y: drag.y, r: 0, s: 1.14, faceUp: true, z: 95, lift: 26,
 					highlight: legal.has(s.card) && overTrick(drag.x, drag.y) ? css(C.good) : null });
 				return;
 			}
 			out.push({
 				id,
 				card: s.card,
+				seal: sealOf(run.seals, s.card),
 				x: s.cx,
 				y: s.cy - lift,
 				r: hovered || picked ? 0 : s.r,
@@ -170,6 +172,7 @@
 			out.push({
 				id: cardId(p.card),
 				card: p.card,
+				seal: sealOf(run.seals, p.card),
 				x,
 				y,
 				r: tossAngle(p.card),
@@ -186,7 +189,7 @@
 		const placed = new Set(out.map((p) => p.id));
 		for (const sw of game.sweeps) {
 			if (placed.has(sw.id)) continue;
-			out.push({ id: sw.id, card: sw.card, x: sw.x, y: sw.y, r: tossAngle(sw.card) + 0.4, s: 0.5, faceUp: true, z: 70, fade: true });
+			out.push({ id: sw.id, card: sw.card, seal: sealOf(run.seals, sw.card), x: sw.x, y: sw.y, r: tossAngle(sw.card) + 0.4, s: 0.5, faceUp: true, z: 70, fade: true });
 		}
 		return out;
 	});
@@ -275,14 +278,15 @@
 	// ---------------------------------------------------------- labels
 	const livePoints = $derived.by(() => {
 		void game.v;
-		return hand.state ? H.pointsTaken(hand.state) : [0, 0, 0, 0, 0];
+		return hand.state ? sealPoints(run.seals, hand.state.taken) : [0, 0, 0, 0, 0];
 	});
 	const turn = $derived(hand.state && !hand.state.complete ? hand.state.turn : null);
 	const passTo = $derived(hand.passDir === 'hold' ? null : H.SEAT_NAMES[H.passTarget(H.PLAYER, hand.passDir)]);
 
 	const trickText = $derived.by(() => {
-		const t = game.trickHold?.trick;
-		if (!t) return null;
+		const raw = game.trickHold?.trick;
+		if (!raw) return null;
+		const t = { ...raw, points: trickPoints(run.seals, raw) };
 		if (t.winner === H.PLAYER) return t.points > 0 ? { text: `You take ${t.points} point${t.points > 1 ? 's' : ''}`, good: false } : { text: 'Your trick, no points', good: true };
 		return t.points > 0 ? { text: `${H.SEAT_NAMES[t.winner]} takes ${t.points}`, good: true } : { text: `${H.SEAT_NAMES[t.winner]}'s trick`, good: true };
 	});

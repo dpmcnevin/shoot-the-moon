@@ -9,6 +9,7 @@
 	import { settings } from '../ui/settings.svelte.ts';
 	import { CARD_H, CARD_W } from '../ui/theme.ts';
 	import * as sound from '../audio/sound.ts';
+	import SealBadge from './SealBadge.svelte';
 
 	let { p }: { p: Placement } = $props();
 
@@ -89,6 +90,7 @@
 						style:box-shadow="{shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA})"
 					>
 						<img src={front} alt="" draggable="false" />
+						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={22} /></span>{/if}
 						{#if p.dim}<div class="dim"></div>{/if}
 						{#if p.highlight}<div class="ring" style:border-color={p.highlight}></div>{/if}
 					</div>
@@ -186,6 +188,13 @@
 	}
 	.back {
 		transform: rotateY(180deg);
+	}
+	/* Under the corner index, on the strip of the card a fanned hand leaves showing. */
+	.seal-spot {
+		position: absolute;
+		left: 3px;
+		top: 38px;
+		display: flex;
 	}
 	.dim {
 		position: absolute;

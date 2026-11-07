@@ -132,3 +132,60 @@ test('a save replays to the same run', () => {
 	assert.equal(copy.money, run.money);
 	assert.equal(copy.rng.state, run.rng.state);
 });
+
+// ------------------------------------------------------------------ seals
+
+import * as seals from '../src/lib/game/seals.ts';
+
+test('Ward and Thorn change the points a card carries', () => {
+	const qs = cards.card(cards.SPADES, 12), h5 = cards.card(cards.HEARTS, 5), c3 = cards.card(cards.CLUBS, 3);
+	const map = { QS: 'ward', '3C': 'thorn' };
+	assert.equal(seals.cardPoints(map, qs), 0);
+	assert.equal(seals.cardPoints(map, h5), 1);
+	assert.equal(seals.cardPoints(map, c3), 3);
+});
+
+test('Homing cards are always dealt to you', () => {
+	for (let i = 0; i < 30; i++) {
+		const run = R.newRun('HOME' + i);
+		run.seals = { QS: 'homing', '2C': 'homing' };
+		R.startHand(run);
+		const mine = run.hand.dealt[H.PLAYER].map(cards.code);
+		assert.ok(mine.includes('QS') && mine.includes('2C'), mine.join(' '));
+		for (let s = 1; s <= 4; s++) assert.equal(run.hand.dealt[s].length, 13);
+	}
+});
+
+test('Gilded pays money and Crown adds mult when you win with them', () => {
+	let paid = 0, crowned = 0;
+	for (let i = 0; i < 60; i++) {
+		const run = R.newRun('GILD' + i);
+		run.seals = {};
+		for (const c of cards.newDeck()) if (c.suit === cards.CLUBS) run.seals[cards.code(c)] = i % 2 ? 'gilded' : 'crown';
+		const before = run.money;
+		const b = finish(run);
+		const mine = run.hand.state.tricks.filter((t) => t.winner === H.PLAYER);
+		if (i % 2) {
+			const expect = 2 * mine.reduce((n, t) => n + t.plays.filter((p) => p.card.suit === cards.CLUBS).length, 0);
+			assert.equal(run.money - before, expect);
+			paid += expect;
+		} else {
+			const expect = mine.filter((t) => t.winningCard.suit === cards.CLUBS).length;
+			assert.equal(b.lines.filter((l) => l.mult === 0.5).length, expect);
+			crowned += expect;
+		}
+	}
+	assert.ok(paid > 0 && crowned > 0);
+});
+
+test('buying a seal puts it on the chosen card', () => {
+	const run = R.newRun('SEALBUY');
+	run.phase = R.PHASE.BOARD_WON;
+	run.money = 100;
+	R.enterShop(run);
+	run.shop.items[0] = { kind: 'seal', def: seals.SEALS.ward, name: 'Ward Seal', cost: 6 };
+	assert.deepEqual(R.buy(run, 0), [false, 'choose a card for the seal']);
+	assert.ok(R.buy(run, 0, 'QS')[0]);
+	assert.equal(run.seals.QS, 'ward');
+	assert.equal(run.money, 94);
+});

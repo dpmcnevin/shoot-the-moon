@@ -26,6 +26,7 @@ export const REVEAL_STEP = 0.3;
 
 export interface RevealItem {
 	label: string;
+	money?: number;
 	chips?: number;
 	mult?: number;
 	xmult?: number;
@@ -74,6 +75,8 @@ class Game {
 	toast = $state.raw<{ text: string; color: Color; id: number } | null>(null);
 	sweeps = $state.raw<Sweep[]>([]);
 	shopRolls = $state(0);
+	/** Shop slot of a seal waiting for you to pick its card. */
+	sealPick = $state<number | null>(null);
 
 	private _run: Run | null = null;
 	private actions: Action[] = [];
@@ -81,6 +84,7 @@ class Game {
 	private aiTimer = 0;
 	private streak = 0;
 	private toastTimer = 0;
+	private pickAt: [number, number] = [0, 0];
 	readonly handIntro = new WeakMap<object, number>();
 
 	get run(): Run | null {
@@ -296,15 +300,29 @@ class Game {
 		this.bump();
 	}
 
-	buy(i: number, x: number, y: number) {
+	buy(i: number, x: number, y: number, card?: string) {
 		const run = this._run!;
 		if (!R.canBuy(run, i)[0]) return;
-		if (this.act({ t: 'buy', slot: i }).ok) {
+		if (run.shop!.items[i].kind === 'seal' && !card) {
+			this.sealPick = i;
+			this.pickAt = [x, y];
+			sound.play('select');
+			return;
+		}
+		this.sealPick = null;
+		if (this.act({ t: 'buy', slot: i, card }).ok) {
 			sound.play('coin');
 			fx.burst(x, y, 30, C.confetti, 300, { life: 0.9 });
 			fx.shake(3);
 		}
 		this.bump();
+	}
+
+	/** Put the waiting seal on a card. */
+	placeSeal(code: string) {
+		const i = this.sealPick;
+		if (i === null) return;
+		this.buy(i, this.pickAt[0], this.pickAt[1], code);
 	}
 
 	sellRelic(i: number) {
@@ -334,6 +352,7 @@ class Game {
 
 	escape() {
 		if (this.screen === 'menu') this.showHelp = false;
+		else if (this.sealPick !== null) this.sealPick = null;
 		else this.screen = 'menu';
 	}
 

@@ -1,6 +1,7 @@
 // What the table wants each card sprite to do this frame.
 
 import type { Card } from '../rules/cards.ts';
+import type { SealKey } from '../game/seals.ts';
 
 export interface Spawn {
 	x: number;
@@ -34,6 +35,8 @@ export interface Placement {
 	/** Seconds to wait before flipping to `faceUp`. */
 	flipDelay?: number;
 	hovered?: boolean;
+	/** A seal shown on the face, if the card carries one. */
+	seal?: SealKey;
 	/** Used only when the sprite is first created. */
 	spawn?: Spawn;
 }

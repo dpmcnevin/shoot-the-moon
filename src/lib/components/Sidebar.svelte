@@ -12,6 +12,9 @@
 	import { settings } from '../ui/settings.svelte.ts';
 	import { C, css } from '../ui/theme.ts';
 	import Icon from './Icon.svelte';
+	import SealBadge from './SealBadge.svelte';
+	import * as seals from '../game/seals.ts';
+	import * as cards from '../rules/cards.ts';
 
 	const L = $derived(game.layout);
 	const portrait = $derived(L.orientation === 'portrait');
@@ -32,7 +35,7 @@
 	const reached = $derived(run.score >= run.target);
 	const points = $derived.by(() => {
 		void game.v;
-		return hand.state ? H.pointsTaken(hand.state) : [0, 0, 0, 0, 0];
+		return hand.state ? seals.pointsTaken(run.seals, hand.state.taken) : [0, 0, 0, 0, 0];
 	});
 	const passLabel = $derived(
 		hand.passDir === 'hold' ? 'No passing' : `Pass ${hand.passDir} to ${H.SEAT_NAMES[H.passTarget(H.PLAYER, hand.passDir)]}`
@@ -95,6 +98,22 @@
 			{/each}
 		</div>
 	</section>
+
+	{#if Object.keys(run.seals).length > 0}
+		<section class="seals">
+			<div class="label">Seals</div>
+			<div class="seal-list">
+				{#each Object.entries(run.seals) as [code, key] (code)}
+					{@const c = cards.newDeck().find((x) => cards.code(x) === code)!}
+					<span class="sealed" title="{seals.SEALS[key].name} on {cards.name(c)}: {seals.SEALS[key].text}">
+						<SealBadge seal={key} size={16} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}
+							>{cards.name(c)}</span
+						>
+					</span>
+				{/each}
+			</div>
+		</section>
+	{/if}
 
 	<section class="relics">
 		<div class="label">Relics {run.relics.length}/{R.RELIC_SLOTS}</div>
@@ -274,6 +293,19 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
+	}
+	.seal-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 10px;
+		margin-top: 4px;
+		font-size: 14px;
+		font-weight: 700;
+	}
+	.sealed {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 	}
 	.relic-list {
 		display: flex;

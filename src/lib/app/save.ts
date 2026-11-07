@@ -18,7 +18,7 @@ export type Action =
 	| { t: 'playOut' }
 	| { t: 'continue' }
 	| { t: 'shop' }
-	| { t: 'buy'; slot: number }
+	| { t: 'buy'; slot: number; card?: string }
 	| { t: 'sellRelic'; slot: number }
 	| { t: 'reroll' }
 	| { t: 'leave' };
@@ -29,7 +29,7 @@ export interface Save {
 	actions: Action[];
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2; // 2: seals change the shop and the deal
 const STORAGE_KEY = 'shoot-the-moon.save';
 
 export interface Outcome {
@@ -65,7 +65,7 @@ export function applyAction(run: Run, a: Action): Outcome {
 			R.enterShop(run);
 			return { ok: true };
 		case 'buy':
-			return { ok: R.buy(run, a.slot)[0] };
+			return { ok: R.buy(run, a.slot, a.card)[0] };
 		case 'sellRelic':
 			return { ok: R.sellRelic(run, a.slot) };
 		case 'reroll':

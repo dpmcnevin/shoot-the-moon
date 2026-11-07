@@ -13,6 +13,8 @@ import * as H from '../rules/hearts.ts';
 import * as ai from '../rules/ai.ts';
 import * as rngLib from '../rules/rng.ts';
 import * as relics from './relics.ts';
+import * as seals from './seals.ts';
+import type { SealDef, SealMap } from './seals.ts';
 import type { Card, Hands } from '../rules/cards.ts';
 import type { HandState, PassDir, Trick } from '../rules/hearts.ts';
 import type { RNG } from '../rules/rng.ts';
@@ -36,7 +38,7 @@ export const MOON_CHIPS = 78;
 export const CLEAN_BONUS = 10;
 
 // Target for the first board of each table, fitted with tools/simulate.
-export const TABLE_BASE = [35, 70, 130, 230, 400, 680, 1150, 1900];
+export const TABLE_BASE = [35, 70, 125, 220, 380, 640, 1060, 1740];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -53,6 +55,8 @@ export type Phase = (typeof PHASE)[keyof typeof PHASE];
 
 export interface Line {
 	label: string;
+	/** Money earned (Gilded seals), paid when the hand is banked. */
+	money?: number;
 	chips?: number;
 	mult?: number;
 	xmult?: number;
@@ -66,6 +70,7 @@ export interface Breakdown {
 	myPoints: number;
 	shooter: number | null;
 	points: number[];
+	money: number;
 }
 
 export interface Hand {
@@ -123,7 +128,8 @@ export function upgradeBonus(key: UpgradeKey, level: number): [number, number] {
 
 export type ShopItem =
 	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean };
 
 export interface Payout {
 	board: number;
@@ -143,6 +149,8 @@ export interface Run {
 	money: number;
 	relics: Relic[];
 	levels: Record<UpgradeKey, number>;
+	/** Seals on cards, by card code. */
+	seals: SealMap;
 	score: number;
 	target: number;
 	handsLeft: number;
@@ -192,6 +200,7 @@ export function newRun(seed?: string | number, opts: { money?: number; aiSkill?:
 		money: opts.money ?? STARTING_MONEY,
 		relics: [],
 		levels: { dodge: 1, clean: 1, moon: 1 },
+		seals: {},
 		score: 0,
 		target: 0,
 		handsLeft: 0,
@@ -219,6 +228,7 @@ export function startBoard(run: Run) {
 /** Deal a hand and ask for a pass (or go straight to play on a hold hand). */
 export function startHand(run: Run) {
 	const dealt = cards.deal(run.rng);
+	seals.applyHoming(run.seals, dealt);
 	const passDir = H.PASS_ROTATION[run.handCount % H.PASS_ROTATION.length];
 	run.hand = { dealt, passDir, passed: [], received: [], state: null, result: null, receivedFrom: new Map() };
 	if (passDir === 'hold') {
@@ -310,15 +320,13 @@ export function playOut(run: Run) {
 function scoreContext(run: Run): ScoreCtx {
 	const hand = run.hand;
 	const st = hand.state!;
-	const pts = H.pointsTaken(st);
+	const pts = seals.pointsTaken(run.seals, st.taken);
 	const mine = st.taken[H.PLAYER];
 	const heartsTaken = mine.filter((c) => c.suit === H.HEARTS).length;
 	let shooter = H.moonShooter(st);
 	// Half Moon: every heart counts as the moon, even without the queen.
 	if (shooter === null && heartsTaken === 13 && run.relics.some((r) => r.def.halfMoon)) shooter = H.PLAYER;
 	const myTricks = st.tricks.filter((t) => t.winner === H.PLAYER);
-	const myHand = hand.dealt; // after passing, before play
-	void myHand;
 	const afterPass = [...st.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card)];
 	const voids = [1, 2, 3, 4].filter((s) => !afterPass.some((c) => c.suit === s)).length;
 	return {
@@ -356,8 +364,9 @@ export function scoreHand(run: Run): Breakdown {
 	} else if (ctx.shooter !== null) {
 		lines.push({ label: `${H.SEAT_NAMES[ctx.shooter]} shot the moon`, chips: 0 });
 	} else {
-		chips = (H.TOTAL_POINTS - ctx.myPoints) * baseX;
-		lines.push({ label: `Dodged ${H.TOTAL_POINTS - ctx.myPoints} of 26 points`, chips });
+		const dodged = Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
+		chips = dodged * baseX;
+		lines.push({ label: `Dodged ${dodged} of 26 points`, chips });
 		if (ctx.myPoints === 0) {
 			chips += CLEAN_BONUS;
 			lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
@@ -384,7 +393,25 @@ export function scoreHand(run: Run): Breakdown {
 			lines.push({ label: relic.name, chips: e.chips || undefined, mult: e.mult || undefined, xmult: e.xmult });
 		}
 	}
-	const points = H.pointsTaken(st);
+	// Seals on the cards that changed hands this deal.
+	let money = 0;
+	for (const t of st.tricks) {
+		for (const p of t.plays) {
+			const seal = seals.sealOf(run.seals, p.card);
+			if (!seal) continue;
+			const name = `${seals.SEALS[seal].name.replace(' Seal', '')} ${cards.name(p.card)}`;
+			if (seal === 'gilded' && t.winner === H.PLAYER) {
+				money += 2;
+				lines.push({ label: name, money: 2 });
+			} else if (seal === 'thorn' && t.winner !== H.PLAYER && ctx.shooter === null) {
+				chips += 12;
+				lines.push({ label: `${name} (to ${H.SEAT_NAMES[t.winner]})`, chips: 12 });
+			} else if (seal === 'crown' && t.winner === H.PLAYER && t.winningCard === p.card) {
+				mult += 0.5;
+				lines.push({ label: name, mult: 0.5 });
+			}
+		}
+	}
 	return {
 		lines,
 		chips,
@@ -392,7 +419,8 @@ export function scoreHand(run: Run): Breakdown {
 		total: Math.max(0, Math.floor(chips * mult)),
 		myPoints: ctx.myPoints,
 		shooter: ctx.shooter,
-		points
+		points: seals.pointsTaken(run.seals, st.taken),
+		money
 	};
 }
 
@@ -403,6 +431,7 @@ export function finishHand(run: Run): Breakdown {
 	const b = scoreHand(run);
 	hand.result = b;
 	run.score += b.total;
+	run.money += b.money;
 	run.handsLeft--;
 	run.handCount++;
 	for (let s = 1; s <= 4; s++) run.boardPoints[s] += b.points[s];
@@ -462,7 +491,12 @@ export function enterShop(run: Run) {
 }
 
 export function rollShopItem(run: Run): ShopItem {
-	if (run.rng.next() < 0.3) {
+	const roll = run.rng.next();
+	if (roll < 0.12) {
+		const def = seals.SEALS[seals.SEAL_KEYS[run.rng.int(1, seals.SEAL_KEYS.length) - 1]];
+		return { kind: 'seal', def, name: def.name, cost: def.cost };
+	}
+	if (roll < 0.42) {
 		const r = run.rng.next();
 		const key: UpgradeKey = r < 0.6 ? 'dodge' : r < 0.85 ? 'clean' : 'moon';
 		const def = UPGRADES[key];
@@ -484,13 +518,18 @@ export function canBuy(run: Run, i: number): [boolean, string?] {
 	return [true];
 }
 
-export function buy(run: Run, i: number): [boolean, string?] {
+/** Buy a shop item. A seal needs the code of the card to put it on ("QS"). */
+export function buy(run: Run, i: number, cardCode?: string): [boolean, string?] {
 	const check = canBuy(run, i);
 	if (!check[0]) return check;
 	const item = run.shop!.items[i];
+	if (item.kind === 'seal' && !cards.newDeck().some((c) => cards.code(c) === cardCode)) {
+		return [false, 'choose a card for the seal'];
+	}
 	run.money -= item.cost;
 	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def));
-	else run.levels[item.def.key]++;
+	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
+	else run.seals[cardCode!] = item.def.key;
 	item.sold = true;
 	return [true];
 }
