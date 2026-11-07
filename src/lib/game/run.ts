@@ -20,7 +20,7 @@ import type { SealDef, SealMap } from './seals.ts';
 import type { Card, Hands } from '../rules/cards.ts';
 import type { HandState, PassDir, Trick } from '../rules/hearts.ts';
 import type { RNG } from '../rules/rng.ts';
-import type { Relic, RelicDef, ScoreCtx } from './relics.ts';
+import type { EditionKey, Relic, RelicDef, ScoreCtx } from './relics.ts';
 
 export const TABLES = 8;
 export const BOARDS_PER_TABLE = 3;
@@ -62,6 +62,8 @@ export interface Line {
 	chips?: number;
 	mult?: number;
 	xmult?: number;
+	/** Set on a relic edition's line, for its own sound and color. */
+	edition?: EditionKey;
 }
 
 export interface Breakdown {
@@ -131,7 +133,7 @@ export function upgradeBonus(key: UpgradeKey, level: number): [number, number] {
 }
 
 export type ShopItem =
-	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean; edition?: EditionKey }
 	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'pack'; def: PackOpDef; name: string; cost: number; sold?: boolean };
@@ -172,6 +174,19 @@ export interface Run {
 	lastPayout?: Payout;
 	/** Running points per seat across the board, for the table display. */
 	boardPoints: number[];
+	/** Relics in the club can come with editions (off by default). */
+	editions: boolean;
+}
+
+export interface RunOptions {
+	money?: number;
+	aiSkill?: number;
+	editions?: boolean;
+}
+
+/** Relic slots in use: Phantom relics take none. */
+export function relicSlotsUsed(run: Run): number {
+	return run.relics.filter((r) => r.edition !== 'phantom').length;
 }
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -196,7 +211,7 @@ export function boardName(run: Run): string {
 
 // ------------------------------------------------------------------ run
 
-export function newRun(seed?: string | number, opts: { money?: number; aiSkill?: number } = {}): Run {
+export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 	seed = seed ?? rngLib.randomSeedString(rngLib.newRng());
 	const run = {
 		seed,
@@ -221,7 +236,8 @@ export function newRun(seed?: string | number, opts: { money?: number; aiSkill?:
 		aiSkill: opts.aiSkill ?? ai.DEFAULT_SKILL,
 		log: [],
 		stats: { handsPlayed: 0, moons: 0, cleanHands: 0, bestHand: 0, totalScore: 0, pointsTaken: 0 },
-		boardPoints: [0, 0, 0, 0, 0]
+		boardPoints: [0, 0, 0, 0, 0],
+		editions: opts.editions ?? false
 	} as Run;
 	startBoard(run);
 	return run;
@@ -405,6 +421,14 @@ export function scoreHand(run: Run): Breakdown {
 			if (e.xmult) mult *= e.xmult;
 			lines.push({ label: relic.name, chips: e.chips || undefined, mult: e.mult || undefined, xmult: e.xmult });
 		}
+		const ed = relic.edition ? relics.EDITIONS[relic.edition] : null;
+		if (ed?.effect) {
+			const f = ed.effect;
+			if (f.chips) chips += f.chips;
+			if (f.mult) mult += f.mult;
+			if (f.xmult) mult *= f.xmult;
+			lines.push({ label: `${ed.name} ${relic.name}`, chips: f.chips, mult: f.mult, xmult: f.xmult, edition: ed.key });
+		}
 	}
 	// Seals on the cards that changed hands this deal.
 	let money = 0;
@@ -524,14 +548,18 @@ export function rollShopItem(run: Run): ShopItem {
 		...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))
 	];
 	const def = relics.randomUnowned(run.rng, owned) ?? relics.DEFS[0];
-	return { kind: 'relic', def, name: def.name, cost: def.cost };
+	// Only roll when editions are on, so runs without them keep their
+	// exact sequence of shop offers.
+	const edition = run.editions ? relics.rollEdition(run.rng) : undefined;
+	if (!edition) return { kind: 'relic', def, name: def.name, cost: def.cost };
+	return { kind: 'relic', def, name: def.name, cost: def.cost + relics.EDITIONS[edition].cost, edition };
 }
 
 export function canBuy(run: Run, i: number): [boolean, string?] {
 	const item = run.shop?.items[i];
 	if (!item || item.sold) return [false, 'gone'];
 	if (run.money < item.cost) return [false, 'too expensive'];
-	if (item.kind === 'relic' && run.relics.length >= RELIC_SLOTS) return [false, 'no relic slots'];
+	if (item.kind === 'relic' && item.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slots'];
 	return [true];
 }
 
@@ -547,7 +575,7 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 		if (!ok[0]) return ok;
 	}
 	run.money -= item.cost;
-	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def));
+	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def, item.edition));
 	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
 	else if (item.kind === 'seal') run.seals[String(cardId)] = item.def.key;
 	else packs.apply(run, item.def, cardId!);

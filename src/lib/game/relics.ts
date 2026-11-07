@@ -64,6 +64,48 @@ export interface Relic {
 	name: string;
 	cost: number;
 	state: RelicState;
+	edition?: EditionKey;
+}
+
+// ------------------------------------------------------------------ editions
+//
+// A relic in the club sometimes comes with an edition: a bonus on top of
+// what the relic does, every hand, for a higher price. Off unless the run
+// turns them on (the iPad app does; the web game doesn't yet).
+
+export type EditionKey = 'etched' | 'lacquered' | 'prismatic' | 'phantom';
+
+export interface EditionDef {
+	key: EditionKey;
+	name: string;
+	text: string;
+	/** Added to the relic's price. */
+	cost: number;
+	/** The bonus every hand, or null (Phantom's gift is the slot). */
+	effect: Effect | null;
+	/** Relative chance among editions. */
+	weight: number;
+}
+
+export const EDITIONS: Record<EditionKey, EditionDef> = {
+	etched: { key: 'etched', name: 'Etched', text: '+10 chips every hand', cost: 3, effect: { chips: 10 }, weight: 0.4 },
+	lacquered: { key: 'lacquered', name: 'Lacquered', text: '+0.5 mult every hand', cost: 4, effect: { mult: 0.5 }, weight: 0.3 },
+	prismatic: { key: 'prismatic', name: 'Prismatic', text: 'x1.25 mult every hand', cost: 6, effect: { xmult: 1.25 }, weight: 0.2 },
+	phantom: { key: 'phantom', name: 'Phantom', text: 'Takes no relic slot', cost: 5, effect: null, weight: 0.1 }
+};
+export const EDITION_KEYS = Object.keys(EDITIONS) as EditionKey[];
+
+/** Chance a relic offered in the club has an edition. */
+export const EDITION_CHANCE = 0.08;
+
+export function rollEdition(rng: RNG): EditionKey | undefined {
+	if (rng.next() >= EDITION_CHANCE) return undefined;
+	let roll = rng.next();
+	for (const k of EDITION_KEYS) {
+		roll -= EDITIONS[k].weight;
+		if (roll < 0) return k;
+	}
+	return 'etched';
 }
 
 export interface RelicDef {
@@ -229,8 +271,9 @@ export function get(key: string): RelicDef | undefined {
 	return BY_KEY[key];
 }
 
-export function instantiate(def: RelicDef): Relic {
-	return { key: def.key, def, name: def.name, cost: def.cost, state: {} };
+export function instantiate(def: RelicDef, edition?: EditionKey): Relic {
+	const cost = def.cost + (edition ? EDITIONS[edition].cost : 0);
+	return { key: def.key, def, name: def.name, cost, state: {}, ...(edition ? { edition } : {}) };
 }
 
 export function textFor(relic: Relic): string {

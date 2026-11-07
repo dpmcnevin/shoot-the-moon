@@ -1,4 +1,5 @@
 // Headless balance simulator. Run with: node tools/simulate.ts [runs] [prefix]
+// (EDITIONS=1 to turn on relic editions, as the iPad app does)
 
 import * as run_ from '../src/lib/game/run.ts';
 import { playRun } from './bot.ts';
@@ -12,7 +13,7 @@ let wins = 0,
 	hands = 0;
 const scores: number[] = [];
 for (let i = 1; i <= runs; i++) {
-	const run = playRun(prefix + i);
+	const run = playRun(prefix + i, { editions: process.env.EDITIONS === '1' });
 	if (run.phase === run_.PHASE.VICTORY) wins++;
 	const t = Math.min(run.table, run_.TABLES);
 	reached[t] = (reached[t] ?? 0) + 1;

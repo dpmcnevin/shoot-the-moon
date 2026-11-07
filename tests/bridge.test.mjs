@@ -60,3 +60,17 @@ test('the bridge renders pixel art as RGBA', () => {
 	assert.equal(JSON.parse(S.sealImage('ward')).w, 14);
 	assert.equal(JSON.parse(S.iconImage('clean_sweep')).w, 18);
 });
+
+test('the bridge turns editions on for new runs and keeps them through a save', () => {
+	const S = engine();
+	S.newRun('EDSAVE');
+	const save = JSON.parse(S.save());
+	assert.deepEqual(save.opts, { editions: true });
+	const S2 = engine();
+	S2.restore(JSON.stringify(save));
+	assert.deepEqual(JSON.parse(S2.save()).opts, { editions: true });
+	// An old save without options restores as it was: no editions.
+	const S3 = engine();
+	S3.restore(JSON.stringify({ version: save.version, seed: 'OLD', actions: [] }));
+	assert.equal(JSON.parse(S3.save()).opts, undefined);
+});

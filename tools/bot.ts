@@ -61,9 +61,10 @@ export function shop(run: Run) {
 				}
 				return;
 			}
-			let score = value(item.def);
-			if (run.relics.length >= run_.RELIC_SLOTS) {
-				const weakest = Math.min(...run.relics.map((r) => value(r.def)));
+			let score = value(item.def) + (item.edition ? EDITION_VALUE[item.edition] : 0);
+			const slotted = run.relics.filter((r) => r.edition !== 'phantom');
+			if (item.edition !== 'phantom' && run_.relicSlotsUsed(run) >= run_.RELIC_SLOTS) {
+				const weakest = Math.min(...slotted.map((r) => value(r.def)));
 				if (score <= weakest + 5) return;
 			}
 			if (score > bestScore) {
@@ -72,10 +73,13 @@ export function shop(run: Run) {
 			}
 		});
 		if (best < 0) break;
-		if (run.shop!.items[best].kind === 'relic' && run.relics.length >= run_.RELIC_SLOTS) {
-			let wi = 0;
+		const pick = run.shop!.items[best];
+		if (pick.kind === 'relic' && pick.edition !== 'phantom' && run_.relicSlotsUsed(run) >= run_.RELIC_SLOTS) {
+			// Sell the weakest relic that takes a slot (never a Phantom).
+			let wi = -1;
 			run.relics.forEach((r, i) => {
-				if (value(r.def) < value(run.relics[wi].def)) wi = i;
+				if (r.edition === 'phantom') return;
+				if (wi < 0 || value(r.def) < value(run.relics[wi].def)) wi = i;
 			});
 			run_.sellRelic(run, wi);
 		}
@@ -96,8 +100,11 @@ export function shop(run: Run) {
 	run_.leaveShop(run);
 }
 
-export function playRun(seed: string | number): Run {
-	const run = run_.newRun(seed);
+/** What an edition adds to a relic, in the same rough units as `value`. */
+const EDITION_VALUE: Record<string, number> = { etched: 6, lacquered: 10, prismatic: 16, phantom: 8 };
+
+export function playRun(seed: string | number, opts: run_.RunOptions = {}): Run {
+	const run = run_.newRun(seed, opts);
 	for (let k = 0; k < 5000; k++) {
 		if (run.phase === run_.PHASE.PASS) {
 			run_.commitPass(run, ai.choosePass(run.hand.dealt[H.PLAYER], run.rng, run.aiSkill));

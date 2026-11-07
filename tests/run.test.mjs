@@ -289,3 +289,69 @@ test('taking the queen of spades breaks hearts', () => {
 	assert.equal(st.heartsBroken, true, 'hearts are broken once the queen is taken');
 	assert.ok(H.legalPlays(st, 4).some((c) => c.suit === cards.HEARTS));
 });
+
+// ------------------------------------------------------------------ editions
+
+/** Every relic offer across many fresh shops. */
+function relicOffers(editions) {
+	const out = [];
+	for (let i = 0; i < 300; i++) {
+		const run = R.newRun('ED' + i, { editions });
+		run.phase = R.PHASE.BOARD_WON;
+		R.enterShop(run);
+		out.push(...run.shop.items.filter((it) => it.kind === 'relic'));
+	}
+	return out;
+}
+
+test('editions are off unless the run turns them on, and leave its shops alone', () => {
+	assert.ok(relicOffers(false).every((it) => !it.edition));
+	// Same seed, editions off: the same offers as a run made the old way.
+	const a = R.newRun('SAME');
+	const b = R.newRun('SAME', { editions: false });
+	for (const r of [a, b]) {
+		r.phase = R.PHASE.BOARD_WON;
+		R.enterShop(r);
+	}
+	assert.deepEqual(a.shop.items.map((i) => i.name), b.shop.items.map((i) => i.name));
+});
+
+test('with editions on, some relic offers have one and cost more', () => {
+	const offers = relicOffers(true);
+	const with_ = offers.filter((it) => it.edition);
+	assert.ok(with_.length > offers.length * 0.03 && with_.length < offers.length * 0.15, `${with_.length} of ${offers.length}`);
+	for (const it of with_) assert.equal(it.cost, it.def.cost + relics.EDITIONS[it.edition].cost);
+	assert.ok(new Set(with_.map((it) => it.edition)).size >= 3);
+});
+
+test('edition bonuses score on their own line, every hand', () => {
+	const run = R.newRun('EDSCORE', { editions: true });
+	run.relics.push(relics.instantiate(relics.get('house_rules'), 'etched'));
+	run.relics.push(relics.instantiate(relics.get('full_moon'), 'prismatic'));
+	const b = finish(run);
+	const etched = b.lines.find((l) => l.edition === 'etched');
+	const prism = b.lines.find((l) => l.edition === 'prismatic');
+	assert.equal(etched.chips, relics.EDITIONS.etched.effect.chips);
+	assert.equal(prism.xmult, relics.EDITIONS.prismatic.effect.xmult);
+	assert.match(etched.label, /^Etched /);
+});
+
+test('a Phantom relic takes no relic slot', () => {
+	const run = R.newRun('PHANTOM', { editions: true });
+	for (const key of ['house_rules', 'full_moon', 'bleeding_heart', 'collector'])
+		run.relics.push(relics.instantiate(relics.get(key)));
+	run.relics.push(relics.instantiate(relics.DEFS.find((d) => !run.relics.some((r) => r.key === d.key)), 'phantom'));
+	assert.equal(run.relics.length, 5);
+	assert.equal(R.relicSlotsUsed(run), 4);
+	// One slot is still free for an ordinary relic.
+	run.phase = R.PHASE.BOARD_WON;
+	R.enterShop(run);
+	const def = relics.DEFS.find((d) => !run.relics.some((r) => r.key === d.key));
+	run.shop.items[0] = { kind: 'relic', def, name: def.name, cost: 0 };
+	assert.ok(R.buy(run, 0)[0]);
+	assert.equal(R.relicSlotsUsed(run), 5);
+	run.shop.items[1] = { kind: 'relic', def: relics.DEFS[0], name: 'x', cost: 0 };
+	assert.equal(R.canBuy(run, 1)[1], 'no relic slots');
+	run.shop.items[2] = { kind: 'relic', def: relics.DEFS[0], name: 'x', cost: 0, edition: 'phantom' };
+	assert.ok(R.canBuy(run, 2)[0], 'a Phantom fits even when the slots are full');
+});

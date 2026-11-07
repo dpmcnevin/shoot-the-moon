@@ -26,6 +26,8 @@ export interface Save {
 	version: number;
 	seed: string | number;
 	actions: Action[];
+	/** Run options (the iPad app turns on editions); absent on web saves. */
+	opts?: R.RunOptions;
 }
 
 export const SAVE_VERSION = 3; // 3: the pack can change; cards are saved by id
@@ -76,7 +78,7 @@ export function applyAction(run: Run, a: Action): Outcome {
 }
 
 export function replay(save: Save): Run {
-	const run = R.newRun(save.seed);
+	const run = R.newRun(save.seed, save.opts);
 	for (const a of save.actions) applyAction(run, a);
 	return run;
 }

@@ -25,6 +25,8 @@ import type { Trick } from '../src/lib/rules/hearts.ts';
 
 let run: Run | null = null;
 let actions: Action[] = [];
+/** Options the current run was started with (saved with it). */
+let opts: R.RunOptions | undefined;
 
 // ------------------------------------------------------------------ encoding
 
@@ -75,7 +77,7 @@ function shopView() {
 		const [ok, why] = R.canBuy(r, i);
 		const base = { slot: i, kind: it.kind, name: it.name, cost: it.cost, sold: !!it.sold, canBuy: ok, why: why ?? null };
 		if (it.kind === 'relic')
-			return { ...base, text: it.def.text, icon: it.def.icon, rarity: it.def.rarity, rarityName: relics.RARITY_NAME[it.def.rarity] };
+			return { ...base, text: it.def.text, icon: it.def.icon, rarity: it.def.rarity, rarityName: relics.RARITY_NAME[it.def.rarity], edition: editionView(it.edition) };
 		if (it.kind === 'upgrade') {
 			const lvl = r.levels[it.def.key];
 			const [c, m] = R.upgradeBonus(it.def.key, lvl + 1);
@@ -84,6 +86,12 @@ function shopView() {
 		if (it.kind === 'seal') return { ...base, text: it.def.text, seal: it.def.key, color: it.def.color };
 		return { ...base, text: it.def.text, icon: it.def.icon, op: it.def.key };
 	});
+}
+
+function editionView(key: relics.EditionKey | undefined) {
+	if (!key) return null;
+	const e = relics.EDITIONS[key];
+	return { key: e.key, name: e.name, text: e.text };
 }
 
 function view() {
@@ -110,11 +118,12 @@ function view() {
 		interest: R.interest(r),
 		rerollCost: r.rerollCost,
 		relicSlots: R.RELIC_SLOTS,
+		relicSlotsUsed: R.relicSlotsUsed(r),
 		levels: Object.values(R.UPGRADES).map((u) => {
 			const [c, m] = R.upgradeBonus(u.key, r.levels[u.key]);
 			return { key: u.key, name: u.name, text: u.text, icon: u.icon, level: r.levels[u.key], chips: c, mult: m };
 		}),
-		relics: r.relics.map((x) => ({ key: x.key, name: x.name, rarity: x.def.rarity, rarityName: relics.RARITY_NAME[x.def.rarity], icon: x.def.icon, text: relics.textFor(x), sell: Math.max(1, Math.floor(x.cost / 2)) })),
+		relics: r.relics.map((x) => ({ key: x.key, name: x.name, rarity: x.def.rarity, rarityName: relics.RARITY_NAME[x.def.rarity], icon: x.def.icon, text: relics.textFor(x), sell: Math.max(1, Math.floor(x.cost / 2)), edition: editionView(x.edition) })),
 		seals: Object.entries(r.seals).map(([id, key]) => {
 			const c = r.pack.find((p) => String(p.id) === id);
 			return { cardId: Number(id), key, name: seals.SEALS[key].name, text: seals.SEALS[key].text, card: c ? cardView(c) : null };
@@ -167,7 +176,8 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined);
+		opts = { editions: true };
+		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());
 	},
@@ -175,12 +185,13 @@ const api = {
 		const s = JSON.parse(json) as Save;
 		if (s.version !== SAVE_VERSION) throw new Error('old save');
 		run = replay(s);
+		opts = s.opts;
 		actions = s.actions.slice();
 		return JSON.stringify(view());
 	},
 	save(): string {
 		if (!run) return '';
-		return JSON.stringify({ version: SAVE_VERSION, seed: run.seed, actions });
+		return JSON.stringify({ version: SAVE_VERSION, seed: run.seed, actions, ...(opts ? { opts } : {}) });
 	},
 	act,
 	view: () => JSON.stringify(view()),
