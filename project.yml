@@ -1,0 +1,61 @@
+name: ShootTheMoon
+options:
+  bundleIdPrefix: net.corrupt
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+
+targets:
+  ShootTheMoon:
+    type: application
+    platform: iOS
+    sources:
+      - path: ShootTheMoon
+        excludes:
+          - "Resources/**"
+      # Made by the pre-build step, so they may not exist yet when the
+      # project is generated: list them by name rather than by scanning.
+      - path: ShootTheMoon/Resources/game-bundle.js
+        optional: true
+        buildPhase: resources
+      - path: ShootTheMoon/Resources/Audio
+        type: folder
+        optional: true
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Shoot the Moon
+        PRODUCT_BUNDLE_IDENTIFIER: net.corrupt.shoot-the-moon
+        TARGETED_DEVICE_FAMILY: "2" # iPad only
+        SUPPORTS_MACCATALYST: false
+        SWIFT_VERSION: "6.0"
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UIRequiresFullScreen: true
+        INFOPLIST_KEY_UIStatusBarHidden: true
+        INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance: false
+        INFOPLIST_KEY_CFBundleDisplayName: Shoot the Moon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.card-games
+        GENERATE_INFOPLIST_FILE: true
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    preBuildScripts:
+      - name: "Build JS engine bundle and audio"
+        script: |
+          set -e
+          # Xcode's build PATH omits Homebrew and nvm; add the usual places.
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$PATH"
+          if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true; fi
+          # The engine and the audio come from the web game's repo.
+          WEB="${SHOOT_THE_MOON_WEB:-$HOME/src/node/shoot-the-moon}"
+          if [ ! -f "$WEB/bridge/entry.ts" ]; then
+            echo "error: web repo not found at $WEB (set SHOOT_THE_MOON_WEB)"; exit 1
+          fi
+          RES="$SRCROOT/ShootTheMoon/Resources"
+          cd "$WEB"
+          [ -d node_modules ] || npm install --silent
+          BRIDGE_OUT="$RES/game-bundle.js" npm run --silent build:bridge
+          # The audio takes a few seconds to render; only when missing.
+          if [ ! -f "$RES/Audio/music.json" ]; then node tools/render-audio.ts "$RES/Audio"; fi
+        basedOnDependencyAnalysis: false
