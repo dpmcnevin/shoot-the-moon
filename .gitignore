@@ -1,7 +1,8 @@
-# Generated: xcodegen generate, and the pre-build step (from the web repo)
+# Generated: xcodegen generate (the project and Info.plist), and the pre-build step (from the web repo)
 ShootTheMoon.xcodeproj
 ShootTheMoon/Resources/game-bundle.js
 ShootTheMoon/Resources/Audio/
 build/
 .DS_Store
 xcuserdata/
+ShootTheMoon/Info.plist

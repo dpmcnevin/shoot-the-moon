@@ -37,14 +37,20 @@ private func lockWindow() {
     }
 }
 
-/// The fixed 1280x720 stage, scaled to fit the screen, with the current screen,
-/// overlays, particles and screen shake.
+/// The 1280-point-wide stage, as tall as the screen's aspect, scaled to fit,
+/// with the current screen, overlays, particles and screen shake.
 struct RootView: View {
     @Environment(GameModel.self) private var model
 
     var body: some View {
         GeometryReader { geo in
             let _ = fit(geo.size)
+            // Until the layout matches the screen's shape (the first frame
+            // after launch), draw only the background rather than a
+            // letterboxed stage.
+            if geo.size.width > 0 && Self.wantedHeight(geo.size) != model.layout.H {
+                Theme.bg
+            } else {
             TimelineView(.animation(paused: Date() > model.shakeUntil)) { tl in
                 let L = model.layout
                 let scale = min(geo.size.width / L.W, geo.size.height / L.H)
@@ -57,16 +63,22 @@ struct RootView: View {
                     .scaleEffect(scale)
                     .frame(width: geo.size.width, height: geo.size.height)
             }
+            }
         }
         .background(Theme.bg)
         .ignoresSafeArea()
     }
 
     /// Match the stage's height to the screen's aspect, so there are no bars.
+    /// The stage height this screen size calls for (clamped as the layout is).
+    static func wantedHeight(_ size: CGSize) -> Double {
+        TableLayout.make(height: 1280 * size.height / size.width).H
+    }
+
     private func fit(_ size: CGSize) {
         guard size.width > 0 else { return }
-        let h = (1280 * size.height / size.width).rounded()
-        if abs(h - model.layout.H) >= 1 {
+        let h = 1280 * size.height / size.width
+        if Self.wantedHeight(size) != model.layout.H {
             DispatchQueue.main.async { model.layout = .make(height: h) }
         }
     }
