@@ -43,8 +43,14 @@
 	let drag = $state.raw<Drag | null>(null);
 	let stageEl: HTMLElement | null = null;
 
-	function ordered(list: Card[]): Card[] {
+	/** Display order: suits spades, hearts, diamonds, clubs, each low to high. */
+	function bySuitLowToHigh(list: Card[]): Card[] {
+		return list.slice().sort((a, b) => (a.suit !== b.suit ? b.suit - a.suit : a.rank - b.rank));
+	}
+
+	function ordered(input: Card[]): Card[] {
 		void orderV;
+		const list = bySuitLowToHigh(input);
 		const saved = order.get(game.rawHand);
 		if (!saved) return list;
 		const rank = new Map(saved.map((id, i) => [id, i]));
