@@ -5,8 +5,5 @@ node_modules
 vite.config.ts.timestamp-*
 .claude/
 
-# iOS (generated: xcodegen generate in ios/, npm run build:ios-bridge, npm run render-audio)
-ios/ShootTheMoon.xcodeproj
-ios/ShootTheMoon/Resources/game-bundle.js
-ios/ShootTheMoon/Resources/Audio/
-ios/build/
+# The engine bundle for the iPad app, built by `npm run build:bridge` for the tests
+/.bridge/

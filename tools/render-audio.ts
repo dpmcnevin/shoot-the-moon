@@ -1,10 +1,10 @@
-// Pre-renders the game's audio for the iPad app: every sound effect as a WAV
+// Pre-renders the game's audio for the iPad app (~/src/xcode/ios/ShootTheMoon): every sound effect as a WAV
 // file, and several generative music takes as lossless ALAC (.caf), plus a
 // manifest with each take's seam point. The app's JavaScriptCore has no JIT,
 // so rendering audio on the device would be far too slow; the web build keeps
 // rendering live.
 //
-// Run with: node tools/render-audio.ts [takes]
+// Run with: node tools/render-audio.ts <out-dir> [takes]
 
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -12,8 +12,9 @@ import { join } from 'node:path';
 import { defs, renderTakeAll } from '../src/lib/audio/sounds.ts';
 import type { Buffer as SynthBuffer } from '../src/lib/audio/synth.ts';
 
-const OUT = new URL('../ios/ShootTheMoon/Resources/Audio/', import.meta.url).pathname;
-const takes = Number(process.argv[2]) || 6;
+const OUT = process.argv[2];
+if (!OUT) throw new Error('usage: node tools/render-audio.ts <out-dir> [takes]');
+const takes = Number(process.argv[3]) || 6;
 
 function wav(buf: SynthBuffer): Uint8Array {
 	const n = buf.data.length;

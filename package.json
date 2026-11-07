@@ -9,9 +9,9 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"test": "npm run build:ios-bridge --silent && node --test 'tests/*.test.mjs'",
+		"test": "npm run build:bridge --silent && node --test 'tests/*.test.mjs'",
 		"simulate": "node tools/simulate.ts",
-		"build:ios-bridge": "esbuild ios/bridge/entry.ts --bundle --format=iife --target=es2022 --outfile=ios/ShootTheMoon/Resources/game-bundle.js",
+		"build:bridge": "esbuild bridge/entry.ts --bundle --format=iife --target=es2022 --outfile=${BRIDGE_OUT:-.bridge/game-bundle.js}",
 		"render-audio": "node tools/render-audio.ts"
 	},
 	"devDependencies": {

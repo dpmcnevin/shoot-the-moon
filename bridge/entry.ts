@@ -8,20 +8,20 @@
 // appended to the log that `save()` returns, so saves are interchangeable.
 
 import './polyfills.ts';
-import * as cards from '../../src/lib/rules/cards.ts';
-import * as H from '../../src/lib/rules/hearts.ts';
-import * as R from '../../src/lib/game/run.ts';
-import * as relics from '../../src/lib/game/relics.ts';
-import * as seals from '../../src/lib/game/seals.ts';
-import * as packs from '../../src/lib/game/pack.ts';
-import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../../src/lib/app/save.ts';
-import { faceBitmap, backBitmap } from '../../src/lib/ui/pixelcards.ts';
-import { bitmap as iconBitmap } from '../../src/lib/ui/icons.ts';
-import { sealBitmap } from '../../src/lib/ui/sealart.ts';
-import { toRGBA, type Bitmap } from '../../src/lib/ui/pixel.ts';
-import type { Card } from '../../src/lib/rules/cards.ts';
-import type { Run } from '../../src/lib/game/run.ts';
-import type { Trick } from '../../src/lib/rules/hearts.ts';
+import * as cards from '../src/lib/rules/cards.ts';
+import * as H from '../src/lib/rules/hearts.ts';
+import * as R from '../src/lib/game/run.ts';
+import * as relics from '../src/lib/game/relics.ts';
+import * as seals from '../src/lib/game/seals.ts';
+import * as packs from '../src/lib/game/pack.ts';
+import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/lib/app/save.ts';
+import { faceBitmap, backBitmap } from '../src/lib/ui/pixelcards.ts';
+import { bitmap as iconBitmap } from '../src/lib/ui/icons.ts';
+import { sealBitmap } from '../src/lib/ui/sealart.ts';
+import { toRGBA, type Bitmap } from '../src/lib/ui/pixel.ts';
+import type { Card } from '../src/lib/rules/cards.ts';
+import type { Run } from '../src/lib/game/run.ts';
+import type { Trick } from '../src/lib/rules/hearts.ts';
 
 let run: Run | null = null;
 let actions: Action[] = [];

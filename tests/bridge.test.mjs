@@ -1,4 +1,4 @@
-// The native app's engine bridge: evaluate the bundle the way the app does
+// The iPad app's engine bridge (the app lives in ~/src/xcode/ios/ShootTheMoon): evaluate the bundle the way the app does
 // (no DOM, no TextEncoder) and play through its JSON API.
 
 import { test } from 'node:test';
@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 
-const path = new URL('../ios/ShootTheMoon/Resources/game-bundle.js', import.meta.url);
+const path = new URL('../.bridge/game-bundle.js', import.meta.url);
 
 function engine() {
-	if (!existsSync(path)) throw new Error('run `npm run build:ios-bridge` first');
+	if (!existsSync(path)) throw new Error('run `npm run build:bridge` first');
 	// A bare context, like JavaScriptCore: no TextEncoder, btoa or DOM.
 	const ctx = vm.createContext({ console });
 	vm.runInContext(readFileSync(path, 'utf8'), ctx);
