@@ -63,6 +63,7 @@ struct MenuView: View {
                 }
                 .frame(width: 330)
                 .padding(.top, 10)
+                SpeedSlider(width: 330)
             }
             .position(x: L.W / 2, y: 430 + L.dy * 1.2)
             if !moved.isEmpty || !faceDown.isEmpty {

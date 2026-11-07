@@ -199,6 +199,12 @@ struct TableView: View {
     }
 
     private func tap(_ c: CardV) {
+        // A tap while a finished trick is still showing clears it and, if
+        // it's now your lead, plays the card too: one tap, not two.
+        if model.trickHold != nil {
+            model.endTrickHold()
+            return model.play(c.id)
+        }
         if model.skip() { return }
         if model.view?.phase == .pass { return model.togglePass(c.id) }
         model.play(c.id)

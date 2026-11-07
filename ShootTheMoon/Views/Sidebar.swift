@@ -112,6 +112,7 @@ struct Sidebar: View {
                 }
             }
             Spacer(minLength: 0)
+            SpeedSlider(width: model.layout.sidebar.width - 36)
             Text("Seed \(v.seed)").font(Theme.font(12)).foregroundStyle(Theme.inkFaint)
         }
         .foregroundStyle(Theme.ink)

@@ -28,10 +28,15 @@ final class GameModel {
         let seed: UInt64
     }
 
-    // Timing, as in the web game.
+    // Timing, as in the web game, at 1x play speed.
     static let aiDelay = 0.45
     static let trickHold = 1.0
     static let revealStep = 0.3
+    static let speedRange = 0.5...3.0
+
+    private var aiSeconds: Double { Self.aiDelay / speed }
+    private var holdSeconds: Double { Self.trickHold / speed }
+    private var revealSeconds: Double { Self.revealStep / speed }
 
     let engine: GameEngine
     let art: PixelArt
@@ -65,6 +70,8 @@ final class GameModel {
     var music: Bool { didSet { UserDefaults.standard.set(music, forKey: "music"); audio.musicEnabled = music } }
     var sfx: Bool { didSet { UserDefaults.standard.set(sfx, forKey: "sfx"); audio.sfxEnabled = sfx } }
     var fourColor: Bool { didSet { UserDefaults.standard.set(fourColor, forKey: "fourColor") } }
+    /// How fast the opponents play and the table moves on: 0.5x to 3x.
+    var speed: Double { didSet { UserDefaults.standard.set(speed, forKey: "speed") } }
 
     private var lastPhase: Phase?
     private var aiTask: Task<Void, Never>?
@@ -79,6 +86,7 @@ final class GameModel {
         music = d.object(forKey: "music") as? Bool ?? true
         sfx = d.object(forKey: "sfx") as? Bool ?? true
         fourColor = d.object(forKey: "fourColor") as? Bool ?? true
+        speed = (d.object(forKey: "speed") as? Double ?? 1).clamped(to: Self.speedRange)
         audio.musicEnabled = music
         audio.sfxEnabled = sfx
         restore()
@@ -216,8 +224,9 @@ final class GameModel {
     private func pump() {
         guard screen == .run, aiTask == nil, trickHold == nil, let v = view,
               v.phase == .play, !v.hand.isPlayerTurn else { return }
+        let wait = aiSeconds
         aiTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.aiDelay))
+            try? await Task.sleep(for: .seconds(wait))
             guard let self, !Task.isCancelled else { return }
             self.aiTask = nil
             self.aiStep()
@@ -284,8 +293,9 @@ final class GameModel {
             audio.play("deal", volume: 0.5)
         }
         let held = trick
+        let wait = holdSeconds
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.trickHold))
+            try? await Task.sleep(for: .seconds(wait))
             guard let self, self.trickHold == held else { return }
             self.endTrickHold()
         }
@@ -348,7 +358,7 @@ final class GameModel {
         revealDone = false
         Task { [weak self] in
             while let self, !self.revealDone, let r = self.view?.result {
-                try? await Task.sleep(for: .seconds(Self.revealStep))
+                try? await Task.sleep(for: .seconds(self.revealSeconds))
                 if self.revealDone { return }
                 if self.revealShown < r.lines.count {
                     self.revealShown += 1
@@ -491,4 +501,8 @@ final class GameModel {
     }
 
     func toMenu() { screen = .menu }
+}
+
+extension Comparable {
+    func clamped(to r: ClosedRange<Self>) -> Self { min(max(self, r.lowerBound), r.upperBound) }
 }

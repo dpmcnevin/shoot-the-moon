@@ -191,3 +191,35 @@ struct ToastView: View {
         }
     }
 }
+
+/// Play speed: how quickly the opponents play and the table moves on.
+struct SpeedSlider: View {
+    @Environment(GameModel.self) private var model
+    var width = 260.0
+
+    var body: some View {
+        @Bindable var model = model
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text("Speed").foregroundStyle(Theme.inkDim)
+                Spacer()
+                Text(label(model.speed)).monospacedDigit().foregroundStyle(Theme.ink)
+            }
+            .font(Theme.font(14))
+            Slider(value: $model.speed, in: GameModel.speedRange, step: 0.25) {
+                Text("Play speed")
+            } minimumValueLabel: {
+                Image(systemName: "tortoise.fill").font(.system(size: 13)).foregroundStyle(Theme.inkDim)
+            } maximumValueLabel: {
+                Image(systemName: "hare.fill").font(.system(size: 13)).foregroundStyle(Theme.inkDim)
+            }
+            .tint(Theme.brass)
+            .accessibilityValue(label(model.speed))
+        }
+        .frame(width: width)
+    }
+
+    private func label(_ s: Double) -> String {
+        s == s.rounded() ? "\(Int(s))x" : String(format: "%gx", s)
+    }
+}
