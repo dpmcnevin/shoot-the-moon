@@ -90,7 +90,7 @@
 						style:box-shadow="{shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA})"
 					>
 						<img src={front} alt="" draggable="false" />
-						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={22} /></span>{/if}
+						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={28} /></span>{/if}
 						{#if p.dim}<div class="dim"></div>{/if}
 						{#if p.highlight}<div class="ring" style:border-color={p.highlight}></div>{/if}
 					</div>
@@ -192,8 +192,8 @@
 	/* Under the corner index, on the strip of the card a fanned hand leaves showing. */
 	.seal-spot {
 		position: absolute;
-		left: 3px;
-		top: 38px;
+		left: 1px;
+		top: 34px;
 		display: flex;
 	}
 	.dim {

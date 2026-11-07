@@ -1,40 +1,19 @@
-<!-- A wax seal: a colored disc with the seal's letter. -->
+<!-- A wax seal, drawn as pixel art and scaled with hard pixels. -->
 <script lang="ts">
 	import { SEALS, type SealKey } from '../game/seals.ts';
+	import { seal as sealImage } from '../ui/images.ts';
 
 	let { seal, size = 20 }: { seal: SealKey; size?: number } = $props();
 	const def = $derived(SEALS[seal]);
 </script>
 
-<span
-	class="seal"
-	title={def.name}
-	style:--c={def.color}
-	style:width="{size}px"
-	style:height="{size}px"
-	style:font-size="{size * 0.58}px">{def.glyph}</span
->
+<img class="seal" src={sealImage(seal)} width={size} height={size} alt={def.name} title={def.name} draggable="false" />
 
 <style>
 	.seal {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+		display: inline-block;
 		flex: none;
-		border-radius: 50%;
-		background: radial-gradient(
-			circle at 35% 30%,
-			color-mix(in srgb, var(--c) 60%, white),
-			var(--c) 55%,
-			color-mix(in srgb, var(--c) 70%, black)
-		);
-		box-shadow:
-			0 0 0 1.5px color-mix(in srgb, var(--c) 60%, black),
-			1px 2px 0 rgba(0, 0, 0, 0.35);
-		color: #fff8e8;
-		font-weight: 800;
-		line-height: 1;
-		text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
-		font-family: Georgia, 'Times New Roman', serif;
+		image-rendering: pixelated;
+		filter: drop-shadow(1px 2px 0 rgba(0, 0, 0, 0.35));
 	}
 </style>

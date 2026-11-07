@@ -18,6 +18,8 @@ export type Seat = 1 | 2 | 3 | 4;
 export interface Card {
 	suit: number;
 	rank: number;
+	/** Identity within a run's pack (packs can hold duplicates). */
+	id?: number;
 }
 export type Hand = Card[];
 /** Four hands indexed by seat; slot 0 is unused. */

@@ -14,6 +14,8 @@ import * as ai from '../rules/ai.ts';
 import * as rngLib from '../rules/rng.ts';
 import * as relics from './relics.ts';
 import * as seals from './seals.ts';
+import * as packs from './pack.ts';
+import type { PackOpDef } from './pack.ts';
 import type { SealDef, SealMap } from './seals.ts';
 import type { Card, Hands } from '../rules/cards.ts';
 import type { HandState, PassDir, Trick } from '../rules/hearts.ts';
@@ -32,13 +34,13 @@ export const MAX_INTEREST = 5;
 export const MONEY_PER_BOARD = 4;
 export const MONEY_PER_UNUSED_HAND = 1;
 
-/** Chips for shooting the moon, before relics: three times a perfect dodge. */
+/** Chips for shooting the moon with a standard pack: three times a perfect dodge. */
 export const MOON_CHIPS = 78;
 /** Bonus chips for a hand where you take no points at all. */
 export const CLEAN_BONUS = 10;
 
 // Target for the first board of each table, fitted with tools/simulate.
-export const TABLE_BASE = [35, 70, 125, 220, 380, 640, 1060, 1740];
+export const TABLE_BASE = [34, 67, 120, 208, 360, 610, 1005, 1650];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -82,6 +84,8 @@ export interface Hand {
 	result: Breakdown | null;
 	/** Card objects that came to you in the pass, for the UI. */
 	receivedFrom: Map<Card, number>;
+	/** Leftover cards when the pack doesn't split evenly; won with the first trick. */
+	kitty: Card[];
 }
 
 export interface Stats {
@@ -129,7 +133,8 @@ export function upgradeBonus(key: UpgradeKey, level: number): [number, number] {
 export type ShopItem =
 	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'pack'; def: PackOpDef; name: string; cost: number; sold?: boolean };
 
 export interface Payout {
 	board: number;
@@ -149,8 +154,11 @@ export interface Run {
 	money: number;
 	relics: Relic[];
 	levels: Record<UpgradeKey, number>;
-	/** Seals on cards, by card code. */
+	/** Seals on cards, by pack card id. */
 	seals: SealMap;
+	/** The run's pack: every hand is dealt from it. */
+	pack: Card[];
+	nextCardId: number;
 	score: number;
 	target: number;
 	handsLeft: number;
@@ -201,6 +209,8 @@ export function newRun(seed?: string | number, opts: { money?: number; aiSkill?:
 		relics: [],
 		levels: { dodge: 1, clean: 1, moon: 1 },
 		seals: {},
+		pack: packs.standardPack(),
+		nextCardId: 53,
 		score: 0,
 		target: 0,
 		handsLeft: 0,
@@ -227,10 +237,10 @@ export function startBoard(run: Run) {
 
 /** Deal a hand and ask for a pass (or go straight to play on a hold hand). */
 export function startHand(run: Run) {
-	const dealt = cards.deal(run.rng);
+	const { hands: dealt, kitty } = H.dealPack(run.rng, run.pack);
 	seals.applyHoming(run.seals, dealt);
 	const passDir = H.PASS_ROTATION[run.handCount % H.PASS_ROTATION.length];
-	run.hand = { dealt, passDir, passed: [], received: [], state: null, result: null, receivedFrom: new Map() };
+	run.hand = { dealt, passDir, passed: [], received: [], state: null, result: null, receivedFrom: new Map(), kitty };
 	if (passDir === 'hold') {
 		beginPlay(run);
 	} else {
@@ -251,13 +261,13 @@ export function commitPass(run: Run, chosen: Card[], opts?: { stepwise?: boolean
 	const received = H.applyPasses(hand.dealt, passes, hand.passDir);
 	hand.passed = chosen.slice();
 	hand.received = received[H.PLAYER];
-	const from = H.passTarget(H.PLAYER, hand.passDir === 'left' ? 'right' : hand.passDir === 'right' ? 'left' : hand.passDir);
+	const from = H.passSource(H.PLAYER, hand.passDir);
 	for (const c of hand.received) hand.receivedFrom.set(c, from);
 	beginPlay(run, opts);
 }
 
 function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
-	run.hand.state = H.newHand(run.hand.dealt);
+	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts: (c) => seals.cardPoints(run.seals, c) });
 	run.phase = PHASE.PLAY;
 	if (!opts?.stepwise) advanceAI(run);
 }
@@ -320,12 +330,13 @@ export function playOut(run: Run) {
 function scoreContext(run: Run): ScoreCtx {
 	const hand = run.hand;
 	const st = hand.state!;
-	const pts = seals.pointsTaken(run.seals, st.taken);
+	const pts = H.pointsTaken(st);
 	const mine = st.taken[H.PLAYER];
 	const heartsTaken = mine.filter((c) => c.suit === H.HEARTS).length;
 	let shooter = H.moonShooter(st);
 	// Half Moon: every heart counts as the moon, even without the queen.
-	if (shooter === null && heartsTaken === 13 && run.relics.some((r) => r.def.halfMoon)) shooter = H.PLAYER;
+	const packHearts = st.pack.filter((c) => c.suit === H.HEARTS).length;
+	if (shooter === null && packHearts > 0 && heartsTaken === packHearts && run.relics.some((r) => r.def.halfMoon)) shooter = H.PLAYER;
 	const myTricks = st.tricks.filter((t) => t.winner === H.PLAYER);
 	const afterPass = [...st.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card)];
 	const voids = [1, 2, 3, 4].filter((s) => !afterPass.some((c) => c.suit === s)).length;
@@ -359,14 +370,16 @@ export function scoreHand(run: Run): Breakdown {
 		mult = 1;
 	if (ctx.shooter === H.PLAYER) {
 		const moonX = run.relics.reduce((x, r) => x * (r.def.moonX ?? 1), 1);
-		chips = MOON_CHIPS * moonX * baseX;
+		chips = 3 * st.totalPoints * moonX * baseX;
 		lines.push({ label: 'Shot the moon!', chips });
 	} else if (ctx.shooter !== null) {
 		lines.push({ label: `${H.SEAT_NAMES[ctx.shooter]} shot the moon`, chips: 0 });
 	} else {
+		// Always out of 26, whatever the pack holds: burning point cards makes
+		// dodging safer without shrinking the prize; copying them raises the risk.
 		const dodged = Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
 		chips = dodged * baseX;
-		lines.push({ label: `Dodged ${dodged} of 26 points`, chips });
+		lines.push({ label: ctx.myPoints > 0 ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point', chips });
 		if (ctx.myPoints === 0) {
 			chips += CLEAN_BONUS;
 			lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
@@ -419,7 +432,7 @@ export function scoreHand(run: Run): Breakdown {
 		total: Math.max(0, Math.floor(chips * mult)),
 		myPoints: ctx.myPoints,
 		shooter: ctx.shooter,
-		points: seals.pointsTaken(run.seals, st.taken),
+		points: H.pointsTaken(st),
 		money
 	};
 }
@@ -492,11 +505,15 @@ export function enterShop(run: Run) {
 
 export function rollShopItem(run: Run): ShopItem {
 	const roll = run.rng.next();
+	if (roll >= 0.12 && roll < 0.24) {
+		const def = packs.rollOp(run.rng);
+		return { kind: 'pack', def, name: def.name, cost: def.cost };
+	}
 	if (roll < 0.12) {
 		const def = seals.SEALS[seals.SEAL_KEYS[run.rng.int(1, seals.SEAL_KEYS.length) - 1]];
 		return { kind: 'seal', def, name: def.name, cost: def.cost };
 	}
-	if (roll < 0.42) {
+	if (roll < 0.5) {
 		const r = run.rng.next();
 		const key: UpgradeKey = r < 0.6 ? 'dodge' : r < 0.85 ? 'clean' : 'moon';
 		const def = UPGRADES[key];
@@ -518,18 +535,22 @@ export function canBuy(run: Run, i: number): [boolean, string?] {
 	return [true];
 }
 
-/** Buy a shop item. A seal needs the code of the card to put it on ("QS"). */
-export function buy(run: Run, i: number, cardCode?: string): [boolean, string?] {
+/** Buy a shop item. Seals and pack items need the id of a card in the pack. */
+export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	const check = canBuy(run, i);
 	if (!check[0]) return check;
 	const item = run.shop!.items[i];
-	if (item.kind === 'seal' && !cards.newDeck().some((c) => cards.code(c) === cardCode)) {
-		return [false, 'choose a card for the seal'];
+	const card = run.pack.find((c) => c.id === cardId);
+	if (item.kind === 'seal' && !card) return [false, 'choose a card for the seal'];
+	if (item.kind === 'pack') {
+		const ok = packs.canApply(run, item.def, card);
+		if (!ok[0]) return ok;
 	}
 	run.money -= item.cost;
 	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def));
 	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
-	else run.seals[cardCode!] = item.def.key;
+	else if (item.kind === 'seal') run.seals[String(cardId)] = item.def.key;
+	else packs.apply(run, item.def, cardId!);
 	item.sold = true;
 	return [true];
 }

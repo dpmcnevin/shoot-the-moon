@@ -1,18 +1,25 @@
 // The rules of Hearts: passing, legal plays, tricks and points.
 //
 // Four players, no partners. You sit South. Each hand: everyone passes three
-// cards (left, right, across, or not at all, in rotation), the holder of the
-// two of clubs leads, players follow suit if they can, and the highest card
-// of the led suit wins the trick. Every heart taken costs a point and the
-// queen of spades costs thirteen, unless one player takes all 26 points:
-// shooting the moon.
+// cards (left, right, across, or not at all, in rotation), the lowest club
+// leads (normally the two), players follow suit if they can, and the
+// highest card of the led suit wins the trick. Every heart taken costs a
+// point and the queen of spades costs thirteen, unless one player takes
+// every point: shooting the moon.
 //
-// Standard rules: no points on the first trick unless a hand holds nothing
-// else, and hearts can't be led until one has been played (or the leader
-// holds only hearts).
+// The pack can change over a run (cards burned, copied, promoted, recolored),
+// so nothing here assumes a standard 52: hands are the pack split four ways,
+// any leftover cards form a kitty that goes to the winner of the first trick
+// (a real Hearts variant), and the moon means taking every point in the pack.
+//
+// Standard rules otherwise: no points on the first trick unless a hand holds
+// nothing else, and hearts can't be led until they're broken: by a heart
+// being played, or by someone taking the queen of spades (a common house
+// rule), or when the leader holds only hearts.
 
 import * as cards from './cards.ts';
 import type { Card, Hand, Hands } from './cards.ts';
+import type { RNG } from './rng.ts';
 
 export const { CLUBS, DIAMONDS, HEARTS, SPADES, NORTH, EAST, SOUTH, WEST } = cards;
 
@@ -20,25 +27,29 @@ export const { CLUBS, DIAMONDS, HEARTS, SPADES, NORTH, EAST, SOUTH, WEST } = car
 export const SEAT_NAMES: Record<number, string> = { 1: 'North', 2: 'East', 3: 'South', 4: 'West' };
 export const PLAYER = cards.SOUTH;
 
+/** Points in a standard pack. */
 export const TOTAL_POINTS = 26;
 
 export type PassDir = 'left' | 'right' | 'across' | 'hold';
 export const PASS_ROTATION: PassDir[] = ['left', 'right', 'across', 'hold'];
 
+/** How many points a card carries. Seals can change this; see game/seals.ts. */
+export type PointsFn = (c: Card) => number;
+
 export function isQueenOfSpades(c: Card): boolean {
 	return c.suit === SPADES && c.rank === 12;
 }
 
-/** Penalty points a card carries. */
+/** Penalty points a card carries under the standard rules. */
 export function points(c: Card): number {
 	if (c.suit === HEARTS) return 1;
 	if (isQueenOfSpades(c)) return 13;
 	return 0;
 }
 
-export function pointsIn(list: Card[]): number {
+export function pointsIn(list: Card[], pts: PointsFn = points): number {
 	let n = 0;
-	for (const c of list) n += points(c);
+	for (const c of list) n += pts(c);
 	return n;
 }
 
@@ -50,9 +61,32 @@ export function passTarget(seat: number, dir: PassDir): number {
 	return seat;
 }
 
+/** Who passes to a seat in a given direction. */
+export function passSource(seat: number, dir: PassDir): number {
+	const opposite: Record<PassDir, PassDir> = { left: 'right', right: 'left', across: 'across', hold: 'hold' };
+	return passTarget(seat, opposite[dir]);
+}
+
 /**
- * Exchange the passed cards. `passes[seat]` is the three cards that seat
- * gives away. Returns, for each seat, the cards it received.
+ * Deal a pack: shuffle it, give each seat an equal share, and leave any
+ * remainder as the kitty. Every deal gets fresh card objects carrying the
+ * pack card's id, so a card can be tracked across a hand.
+ */
+export function dealPack(rng: RNG, pack: Card[]): { hands: Hands; kitty: Card[] } {
+	const deck = rng.shuffle(pack.map((c) => ({ suit: c.suit, rank: c.rank, id: c.id })));
+	const per = Math.floor(deck.length / 4);
+	const hands: Hands = [[], [], [], [], []];
+	let i = 0;
+	for (let seat = 1; seat <= 4; seat++) {
+		for (let n = 0; n < per; n++) hands[seat].push(deck[i++]);
+		cards.sortHand(hands[seat]);
+	}
+	return { hands, kitty: deck.slice(i) };
+}
+
+/**
+ * Exchange the passed cards. `passes[seat]` is the cards that seat gives
+ * away. Returns, for each seat, the cards it received.
  */
 export function applyPasses(hands: Hands, passes: Card[][], dir: PassDir): Card[][] {
 	const received: Card[][] = [[], [], [], [], []];
@@ -85,7 +119,10 @@ export interface Trick {
 	plays: Played[];
 	winner: number;
 	winningCard: Card;
+	/** Points in the trick (including the kitty, on the first trick). */
 	points: number;
+	/** The kitty, which goes with the first trick. */
+	kitty: Card[];
 }
 
 export interface HandState {
@@ -102,22 +139,47 @@ export interface HandState {
 	voids: Record<number, boolean>[];
 	played: Played[];
 	complete: boolean;
+	/** Tricks in this hand (the hand size). */
+	handSize: number;
+	/** Face-down leftovers, won with the first trick. */
+	kitty: Card[];
+	/** The card that must open the hand. */
+	firstLead: Card;
+	/** Every card in play this hand (hands plus kitty), for counting. */
+	pack: Card[];
+	/** Points per card for this hand. */
+	pts: PointsFn;
+	/** Total points in the pack. */
+	totalPoints: number;
 }
 
-/** Seat holding the two of clubs. */
-export function twoOfClubsSeat(hands: Hands): number {
+/** The card that opens the hand: the lowest club, else the lowest card. */
+export function firstLeadCard(hands: Hands): { seat: number; card: Card } {
+	let best: { seat: number; card: Card } | null = null;
+	const better = (c: Card, b: Card) => {
+		const cc = c.suit === CLUBS,
+			bc = b.suit === CLUBS;
+		if (cc !== bc) return cc;
+		if (c.rank !== b.rank) return c.rank < b.rank;
+		return c.suit < b.suit;
+	};
 	for (let seat = 1; seat <= 4; seat++) {
-		if (hands[seat].some((c) => c.suit === CLUBS && c.rank === 2)) return seat;
+		for (const c of hands[seat]) if (!best || better(c, best.card)) best = { seat, card: c };
 	}
-	throw new Error('no two of clubs');
+	if (!best) throw new Error('no cards dealt');
+	return best;
 }
 
-export function newHand(hands: Hands): HandState {
-	const leader = twoOfClubsSeat(hands);
+export function newHand(hands: Hands, opts: { kitty?: Card[]; pts?: PointsFn } = {}): HandState {
+	const kitty = opts.kitty ?? [];
+	const pts = opts.pts ?? points;
+	const first = firstLeadCard(hands);
+	const copy: Hands = [[], ...[1, 2, 3, 4].map((s) => cards.copyHand(hands[s]))];
+	const pack = [...copy.slice(1).flat(), ...kitty];
 	return {
-		hands: [[], ...[1, 2, 3, 4].map((s) => cards.copyHand(hands[s]))],
-		turn: leader,
-		leader,
+		hands: copy,
+		turn: first.seat,
+		leader: first.seat,
 		trick: [],
 		ledSuit: null,
 		tricks: [],
@@ -125,7 +187,13 @@ export function newHand(hands: Hands): HandState {
 		taken: [[], [], [], [], []],
 		voids: [{}, {}, {}, {}, {}],
 		played: [],
-		complete: false
+		complete: false,
+		handSize: copy[1].length,
+		kitty: kitty.slice(),
+		firstLead: first.card,
+		pack,
+		pts,
+		totalPoints: pointsIn(pack, pts)
 	};
 }
 
@@ -135,10 +203,7 @@ export function legalPlays(state: HandState, seat: number): Card[] {
 	const firstTrick = state.tricks.length === 0;
 	if (state.trick.length === 0) {
 		// Leading.
-		if (firstTrick) {
-			const two = hand.find((c) => c.suit === CLUBS && c.rank === 2);
-			if (two) return [two];
-		}
+		if (firstTrick && hand.includes(state.firstLead)) return [state.firstLead];
 		if (!state.heartsBroken) {
 			const nonHearts = hand.filter((c) => c.suit !== HEARTS);
 			if (nonHearts.length > 0) return nonHearts;
@@ -149,7 +214,7 @@ export function legalPlays(state: HandState, seat: number): Card[] {
 	if (suited.length > 0) return suited;
 	if (firstTrick) {
 		// No points on the first trick, unless there's nothing else to throw.
-		const clean = hand.filter((c) => points(c) === 0);
+		const clean = hand.filter((c) => state.pts(c) <= 0);
 		if (clean.length > 0) return clean;
 	}
 	return hand.slice();
@@ -159,7 +224,7 @@ export function isLegal(state: HandState, seat: number, card: Card): boolean {
 	return legalPlays(state, seat).includes(card);
 }
 
-/** Highest card of the led suit wins; there are no trumps. */
+/** Highest card of the led suit wins; there are no trumps. Ties go to the first played. */
 export function trickWinner(trick: Played[]): Played {
 	const led = trick[0].card.suit;
 	let best = trick[0];
@@ -185,6 +250,7 @@ export function play(state: HandState, seat: number, card: Card): Trick | null {
 		return null;
 	}
 	const win = trickWinner(state.trick);
+	const kitty = state.tricks.length === 0 ? state.kitty : [];
 	const done: Trick = {
 		index: state.tricks.length + 1,
 		leader: state.leader,
@@ -192,41 +258,54 @@ export function play(state: HandState, seat: number, card: Card): Trick | null {
 		plays: state.trick,
 		winner: win.seat,
 		winningCard: win.card,
-		points: pointsIn(state.trick.map((p) => p.card))
+		points: pointsIn(state.trick.map((p) => p.card), state.pts) + pointsIn(kitty, state.pts),
+		kitty
 	};
 	state.tricks.push(done);
+	// Taking the queen of spades breaks hearts.
+	if (state.trick.some((p) => isQueenOfSpades(p.card))) state.heartsBroken = true;
 	for (const p of state.trick) state.taken[win.seat].push(p.card);
+	for (const c of kitty) state.taken[win.seat].push(c);
 	state.trick = [];
 	state.ledSuit = null;
 	state.leader = win.seat;
 	state.turn = win.seat;
-	if (state.tricks.length >= 13) state.complete = true;
+	if (state.tricks.length >= state.handSize) state.complete = true;
 	return done;
 }
 
 /** Points each seat took this hand (raw, before any moon rule). */
 export function pointsTaken(state: HandState): number[] {
-	return [0, 1, 2, 3, 4].map((s) => (s === 0 ? 0 : pointsIn(state.taken[s])));
+	return [0, 1, 2, 3, 4].map((s) => (s === 0 ? 0 : pointsIn(state.taken[s], state.pts)));
 }
 
-/** The seat that took all 26 points, if any. */
+/** The seat that took every point in the pack, if any. */
 export function moonShooter(state: HandState): number | null {
+	if (state.totalPoints <= 0) return null;
 	const pts = pointsTaken(state);
-	for (let s = 1; s <= 4; s++) if (pts[s] === TOTAL_POINTS) return s;
+	for (let s = 1; s <= 4; s++) if (pts[s] === state.totalPoints) return s;
 	return null;
 }
 
-/** Highest unseen rank of a suit, from one seat's view (its own hand counts as seen). */
+/** Highest rank of a suit some other seat might still hold, from one seat's view. */
 export function highestOutstanding(state: HandState, suit: number, known: Hand): number | null {
-	const seen = new Set<number>();
-	for (const p of state.played) if (p.card.suit === suit) seen.add(p.card.rank);
-	for (const p of state.trick) if (p.card.suit === suit) seen.add(p.card.rank);
-	for (const c of known) if (c.suit === suit) seen.add(c.rank);
-	for (let r = 14; r >= 2; r--) if (!seen.has(r)) return r;
+	const left = new Map<number, number>();
+	for (const c of state.pack) if (c.suit === suit) left.set(c.rank, (left.get(c.rank) ?? 0) + 1);
+	const seen = [...state.played.map((p) => p.card), ...state.trick.map((p) => p.card), ...known];
+	for (const c of seen) if (c.suit === suit && left.has(c.rank)) left.set(c.rank, left.get(c.rank)! - 1);
+	for (let r = 14; r >= 2; r--) if ((left.get(r) ?? 0) > 0) return r;
 	return null;
 }
 
-/** Has the queen of spades been played yet? */
+/** How many queens of spades are still unseen from one seat's view. */
+export function queensOutstanding(state: HandState, known: Hand): number {
+	let n = state.pack.filter(isQueenOfSpades).length;
+	n -= state.played.filter((p) => isQueenOfSpades(p.card)).length;
+	n -= known.filter(isQueenOfSpades).length;
+	return Math.max(0, n);
+}
+
+/** Have all the queens of spades been played? */
 export function queenGone(state: HandState): boolean {
-	return state.played.some((p) => isQueenOfSpades(p.card));
+	return state.played.filter((p) => isQueenOfSpades(p.card)).length >= state.pack.filter(isQueenOfSpades).length;
 }

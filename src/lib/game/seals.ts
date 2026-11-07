@@ -47,11 +47,15 @@ export const SEALS: Record<SealKey, SealDef> = {
 
 export const SEAL_KEYS = Object.keys(SEALS) as SealKey[];
 
-/** Seals on cards, by card code ("7D"). */
+/** Seals on cards, by pack card id (or code, for cards outside a pack). */
 export type SealMap = Record<string, SealKey>;
 
+export function sealKey(c: Card): string {
+	return c.id !== undefined ? String(c.id) : cards.code(c);
+}
+
 export function sealOf(seals: SealMap, c: Card): SealKey | undefined {
-	return seals[cards.code(c)];
+	return seals[sealKey(c)];
 }
 
 /** Points a card carries, with Ward and Thorn applied. */

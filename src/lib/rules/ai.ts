@@ -69,7 +69,7 @@ function chooseLead(state: HandState, seat: number, legal: Card[]): Card {
 	const hand = state.hands[seat];
 	const holdQueen = hand.some(H.isQueenOfSpades);
 	// Flush out the queen with a low spade while she's still out there.
-	if (!H.queenGone(state) && !holdQueen) {
+	if (!holdQueen && H.queensOutstanding(state, hand) > 0) {
 		const lowSpades = legal.filter((c) => c.suit === H.SPADES && c.rank < 12);
 		if (lowSpades.length > 0) return highest(lowSpades);
 	}
@@ -90,7 +90,7 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 	const led = state.ledSuit!;
 	const following = legal[0].suit === led;
 	const win = H.trickWinner(state.trick);
-	const trickPts = H.pointsIn(state.trick.map((p) => p.card));
+	const trickPts = H.pointsIn(state.trick.map((p) => p.card), state.pts) + (state.tricks.length === 0 ? H.pointsIn(state.kitty, state.pts) : 0);
 	const last = state.trick.length === 3;
 	const threat = moonThreat(state, seat);
 
@@ -98,7 +98,7 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 		// Void: a free discard. Stop a moon shot by keeping points away from
 		// the shooter; otherwise unload the most dangerous card.
 		if (threat !== null && win.seat === threat) {
-			const clean = legal.filter((c) => H.points(c) === 0);
+			const clean = legal.filter((c) => state.pts(c) <= 0);
 			if (clean.length > 0) return highest(clean);
 		}
 		const queen = legal.find(H.isQueenOfSpades);
@@ -107,8 +107,8 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 			const bigSpade = legal.filter((c) => c.suit === H.SPADES && c.rank > 12);
 			if (bigSpade.length > 0) return highest(bigSpade);
 		}
-		const hearts = legal.filter((c) => c.suit === H.HEARTS);
-		if (hearts.length > 0) return highest(hearts);
+		const pointy = legal.filter((c) => state.pts(c) > 0);
+		if (pointy.length > 0) return pointy.reduce((a, b) => (state.pts(b) > state.pts(a) || (state.pts(b) === state.pts(a) && b.rank > a.rank) ? b : a));
 		return highest(legal);
 	}
 

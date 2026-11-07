@@ -6,8 +6,23 @@ import * as ai from '../src/lib/rules/ai.ts';
 import * as H from '../src/lib/rules/hearts.ts';
 import type { Run } from '../src/lib/game/run.ts';
 import type { RelicDef } from '../src/lib/game/relics.ts';
+import * as packs from '../src/lib/game/pack.ts';
+import type { PackOpDef } from '../src/lib/game/pack.ts';
 
 const value = (d: RelicDef) => d.rarity * 10 + d.cost;
+
+/** The card a simple player would use a pack item on, if any. */
+function packTarget(run: Run, def: PackOpDef): number | undefined {
+	if (def.key === 'burn') {
+		const q = run.pack.find((c) => c.suit === 4 && c.rank === 12);
+		return q && packs.canApply(run, def, q)[0] ? q.id : undefined;
+	}
+	if (def.key === 'recolor' && def.suit !== 3) {
+		const h = run.pack.filter((c) => c.suit === 3).sort((a, b) => b.rank - a.rank)[0];
+		return h ? h.id : undefined;
+	}
+	return undefined;
+}
 
 export function shop(run: Run) {
 	run_.enterShop(run);
@@ -16,9 +31,22 @@ export function shop(run: Run) {
 			bestScore = -1;
 		run.shop!.items.forEach((item, i) => {
 			if (item.sold || run.money < item.cost) return;
+			if (item.kind === 'pack') {
+				// Burn the queen of spades, or recolor a heart into a safe suit.
+				const target = packTarget(run, item.def);
+				// Measured: flat pack fixes cost this bot more than they gain (relics
+				// compound), so the balance baseline is a player who skips them.
+				const score = target === undefined ? -1 : -1;
+				if (score > bestScore) {
+					best = i;
+					bestScore = score;
+				}
+				return;
+			}
 			if (item.kind === 'seal') {
 				// The one obvious seal: ward the queen of spades.
-				const score = item.def.key === 'ward' && run.seals.QS !== 'ward' ? 25 : -1;
+				const qs = run.pack.find((c) => c.suit === 4 && c.rank === 12);
+				const score = item.def.key === 'ward' && qs && run.seals[String(qs.id)] !== 'ward' ? 25 : -1;
 				if (score > bestScore) {
 					best = i;
 					bestScore = score;
@@ -52,7 +80,13 @@ export function shop(run: Run) {
 			run_.sellRelic(run, wi);
 		}
 		const it = run.shop!.items[best];
-		if (!run_.buy(run, best, it.kind === 'seal' ? 'QS' : undefined)[0]) break;
+		const card =
+			it.kind === 'seal'
+				? run.pack.find((c) => c.suit === 4 && c.rank === 12)?.id
+				: it.kind === 'pack'
+					? packTarget(run, it.def)
+					: undefined;
+		if (!run_.buy(run, best, card)[0]) break;
 	}
 	if (run.money >= 20 && run_.reroll(run)) {
 		run.shop!.items.forEach((_, i) => {

@@ -4,7 +4,6 @@
 // of actions taken. The game applies every action through `applyAction` and
 // appends it to the log; loading replays the log through the same function.
 
-import * as cards from '../rules/cards.ts';
 import * as H from '../rules/hearts.ts';
 import * as R from '../game/run.ts';
 import type { Card } from '../rules/cards.ts';
@@ -12,13 +11,13 @@ import type { Run } from '../game/run.ts';
 import type { Trick } from '../rules/hearts.ts';
 
 export type Action =
-	| { t: 'pass'; cards: string[] }
-	| { t: 'play'; card: string }
+	| { t: 'pass'; cards: number[] }
+	| { t: 'play'; card: number }
 	| { t: 'ai' }
 	| { t: 'playOut' }
 	| { t: 'continue' }
 	| { t: 'shop' }
-	| { t: 'buy'; slot: number; card?: string }
+	| { t: 'buy'; slot: number; card?: number }
 	| { t: 'sellRelic'; slot: number }
 	| { t: 'reroll' }
 	| { t: 'leave' };
@@ -29,7 +28,7 @@ export interface Save {
 	actions: Action[];
 }
 
-export const SAVE_VERSION = 2; // 2: seals change the shop and the deal
+export const SAVE_VERSION = 3; // 3: the pack can change; cards are saved by id
 const STORAGE_KEY = 'shoot-the-moon.save';
 
 export interface Outcome {
@@ -38,9 +37,9 @@ export interface Outcome {
 	step?: ReturnType<typeof R.stepAI>;
 }
 
-function find(hand: Card[], code: string): Card {
-	const c = hand.find((x) => cards.code(x) === code);
-	if (!c) throw new Error(`replay: ${code} not in hand`);
+function find(hand: Card[], id: number): Card {
+	const c = hand.find((x) => x.id === id);
+	if (!c) throw new Error(`replay: card ${id} not in hand`);
 	return c;
 }
 

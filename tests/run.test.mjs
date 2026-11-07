@@ -115,9 +115,9 @@ test('a save replays to the same run', () => {
 		return applyAction(run, a);
 	};
 	for (let k = 0; k < 600; k++) {
-		if (run.phase === R.PHASE.PASS) act({ t: 'pass', cards: me.sample(run.hand.dealt[H.PLAYER], 3).map(cards.code) });
+		if (run.phase === R.PHASE.PASS) act({ t: 'pass', cards: me.sample(run.hand.dealt[H.PLAYER], 3).map((c) => c.id) });
 		else if (run.phase === R.PHASE.PLAY) {
-			if (R.isPlayerTurn(run)) act({ t: 'play', card: cards.code(me.pick(H.legalPlays(run.hand.state, H.PLAYER))) });
+			if (R.isPlayerTurn(run)) act({ t: 'play', card: me.pick(H.legalPlays(run.hand.state, H.PLAYER)).id });
 			else act({ t: 'ai' });
 		} else if (run.phase === R.PHASE.HAND_SCORED) act({ t: 'continue' });
 		else if (run.phase === R.PHASE.BOARD_WON) {
@@ -148,7 +148,8 @@ test('Ward and Thorn change the points a card carries', () => {
 test('Homing cards are always dealt to you', () => {
 	for (let i = 0; i < 30; i++) {
 		const run = R.newRun('HOME' + i);
-		run.seals = { QS: 'homing', '2C': 'homing' };
+		const idOf = (code) => String(run.pack.find((c) => cards.code(c) === code).id);
+		run.seals = { [idOf('QS')]: 'homing', [idOf('2C')]: 'homing' };
 		R.startHand(run);
 		const mine = run.hand.dealt[H.PLAYER].map(cards.code);
 		assert.ok(mine.includes('QS') && mine.includes('2C'), mine.join(' '));
@@ -161,7 +162,7 @@ test('Gilded pays money and Crown adds mult when you win with them', () => {
 	for (let i = 0; i < 60; i++) {
 		const run = R.newRun('GILD' + i);
 		run.seals = {};
-		for (const c of cards.newDeck()) if (c.suit === cards.CLUBS) run.seals[cards.code(c)] = i % 2 ? 'gilded' : 'crown';
+		for (const c of run.pack) if (c.suit === cards.CLUBS) run.seals[String(c.id)] = i % 2 ? 'gilded' : 'crown';
 		const before = run.money;
 		const b = finish(run);
 		const mine = run.hand.state.tricks.filter((t) => t.winner === H.PLAYER);
@@ -185,7 +186,106 @@ test('buying a seal puts it on the chosen card', () => {
 	R.enterShop(run);
 	run.shop.items[0] = { kind: 'seal', def: seals.SEALS.ward, name: 'Ward Seal', cost: 6 };
 	assert.deepEqual(R.buy(run, 0), [false, 'choose a card for the seal']);
-	assert.ok(R.buy(run, 0, 'QS')[0]);
-	assert.equal(run.seals.QS, 'ward');
+	const qs = run.pack.find((c) => cards.code(c) === 'QS');
+	assert.ok(R.buy(run, 0, qs.id)[0]);
+	assert.equal(run.seals[String(qs.id)], 'ward');
 	assert.equal(run.money, 94);
+});
+
+// ------------------------------------------------------------------ the pack
+
+import * as packs from '../src/lib/game/pack.ts';
+
+function shopWith(run, def) {
+	run.phase = R.PHASE.BOARD_WON;
+	run.money = 100;
+	R.enterShop(run);
+	run.shop.items[0] = { kind: 'pack', def, name: def.name, cost: def.cost };
+}
+
+test('Burn removes a card; odd packs leave a kitty for the first trick', () => {
+	const run = R.newRun('BURN');
+	const qs = run.pack.find((c) => cards.code(c) === 'QS');
+	shopWith(run, packs.OPS.burn);
+	assert.ok(R.buy(run, 0, qs.id)[0]);
+	assert.equal(run.pack.length, 51);
+	assert.ok(!run.pack.some((c) => cards.code(c) === 'QS'));
+	R.leaveShop(run);
+	assert.equal(run.hand.kitty.length, 3, '51 cards: 12 each, 3 in the kitty');
+	for (let s = 1; s <= 4; s++) assert.equal(run.hand.dealt[s].length, 12);
+	finish(run);
+	const st = run.hand.state;
+	assert.equal(st.tricks.length, 12);
+	assert.equal(st.totalPoints, 13, 'no queen: only the hearts carry points');
+	const first = st.tricks[0];
+	for (const c of st.kitty) assert.ok(st.taken[first.winner].includes(c), 'the kitty goes with the first trick');
+	const pts = H.pointsTaken(st);
+	assert.equal(pts.reduce((a, b) => a + b, 0), 13);
+});
+
+test('Copy makes duplicates that play and score correctly', () => {
+	const run = R.newRun('COPY');
+	const qs = run.pack.find((c) => cards.code(c) === 'QS');
+	for (let k = 0; k < 4; k++) {
+		shopWith(run, packs.OPS.copy);
+		assert.ok(R.buy(run, 0, qs.id)[0]);
+	}
+	assert.equal(run.pack.filter((c) => cards.code(c) === 'QS').length, 5);
+	assert.equal(run.pack.length, 56);
+	R.leaveShop(run);
+	for (let s = 1; s <= 4; s++) assert.equal(run.hand.dealt[s].length, 14);
+	finish(run);
+	assert.equal(run.hand.state.totalPoints, 13 + 5 * 13);
+	assert.equal(H.pointsTaken(run.hand.state).reduce((a, b) => a + b, 0), 78);
+});
+
+test('Recolor and Promote change cards; limits are enforced', () => {
+	const run = R.newRun('RECOLOR');
+	const ah = run.pack.find((c) => cards.code(c) === 'AH');
+	shopWith(run, packs.recolorDef(cards.CLUBS));
+	assert.ok(R.buy(run, 0, ah.id)[0]);
+	assert.equal(cards.code(run.pack.find((c) => c.id === ah.id)), 'AC');
+	const two = run.pack.find((c) => cards.code(c) === '2C');
+	shopWith(run, packs.OPS.promote);
+	assert.ok(R.buy(run, 0, two.id)[0]);
+	assert.equal(run.pack.filter((c) => cards.code(c) === '3C').length, 2);
+	const ace = run.pack.find((c) => c.rank === 14);
+	shopWith(run, packs.OPS.promote);
+	assert.equal(R.buy(run, 0, ace.id)[0], false, "an ace can't be promoted");
+	R.leaveShop(run);
+	finish(run);
+	assert.equal(run.hand.state.totalPoints, 25);
+});
+
+test('with no two of clubs, the lowest club leads', () => {
+	const run = R.newRun('NOTWO');
+	const two = run.pack.find((c) => cards.code(c) === '2C');
+	shopWith(run, packs.OPS.burn);
+	assert.ok(R.buy(run, 0, two.id)[0]);
+	R.leaveShop(run);
+	if (run.phase === R.PHASE.PASS) R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	assert.equal(cards.code(run.hand.state.firstLead), '3C');
+});
+
+test('the pack stays between 36 and 64 cards', () => {
+	const run = { pack: packs.standardPack().slice(0, 36), nextCardId: 99, seals: {} };
+	assert.equal(packs.canApply(run, packs.OPS.burn, run.pack[0])[0], false);
+	const big = { pack: Array.from({ length: 64 }, (_, i) => ({ suit: 1, rank: 2, id: i })), nextCardId: 99, seals: {} };
+	assert.equal(packs.canApply(big, packs.OPS.copy, big.pack[0])[0], false);
+});
+
+test('taking the queen of spades breaks hearts', () => {
+	const hands = [[], [cards.card(cards.SPADES, 3), cards.card(cards.CLUBS, 2), cards.card(cards.HEARTS, 2)],
+		[cards.card(cards.SPADES, 12), cards.card(cards.CLUBS, 9), cards.card(cards.HEARTS, 3)],
+		[cards.card(cards.SPADES, 5), cards.card(cards.CLUBS, 5), cards.card(cards.HEARTS, 4)],
+		[cards.card(cards.SPADES, 14), cards.card(cards.CLUBS, 7), cards.card(cards.HEARTS, 5)]];
+	const st = H.newHand(hands);
+	for (const s of [1, 2, 3, 4]) H.play(st, s, H.legalPlays(st, s).find((c) => c.suit === cards.CLUBS));
+	assert.equal(st.heartsBroken, false);
+	// East (9C) won and leads a spade: the queen falls under the ace.
+	assert.equal(st.turn, 2);
+	H.play(st, 2, st.hands[2].find((c) => c.suit === cards.SPADES));
+	for (const s of [3, 4, 1]) H.play(st, s, H.legalPlays(st, s).find((c) => c.suit === cards.SPADES));
+	assert.equal(st.heartsBroken, true, 'hearts are broken once the queen is taken');
+	assert.ok(H.legalPlays(st, 4).some((c) => c.suit === cards.HEARTS));
 });

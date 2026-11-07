@@ -12,6 +12,7 @@ import type { Trick } from '../rules/hearts.ts';
 import type { Hand, Run } from '../game/run.ts';
 import * as sound from '../audio/sound.ts';
 import * as save from './save.ts';
+import * as packs from '../game/pack.ts';
 import type { Action, Outcome } from './save.ts';
 import { fx } from './fx.svelte.ts';
 import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from './layout.ts';
@@ -84,6 +85,8 @@ class Game {
 	private aiTimer = 0;
 	private streak = 0;
 	private toastTimer = 0;
+	/** Set when taking the queen is what breaks hearts, for the cue. */
+	private queenBroke = false;
 	private pickAt: [number, number] = [0, 0];
 	readonly handIntro = new WeakMap<object, number>();
 
@@ -182,7 +185,7 @@ class Game {
 	commitPass() {
 		const run = this._run!;
 		if (run.phase !== PHASE.PASS || this.passPick.length !== 3) return;
-		this.act({ t: 'pass', cards: this.passPick.map(cards.code) });
+		this.act({ t: 'pass', cards: this.passPick.map((c) => c.id!) });
 		this.passPick = [];
 		this.aiTimer = AI_DELAY * 1.6;
 		sound.play('reroll', { volume: 0.7 });
@@ -220,12 +223,14 @@ class Game {
 				sound.play('queen_taken');
 				fx.shake(10);
 				fx.burst(x, y, 30, [C.ink, C.bad], 140, { life: 1.0, size: 7, gravity: 300 });
-				this.showToast('You took the queen of spades!', C.bad);
+				this.showToast(this.queenBroke ? 'You took the queen, and hearts are broken!' : 'You took the queen of spades!', C.bad);
 			} else {
 				sound.play('queen_dodged');
 				fx.burst(x, y, 24, [C.good, C.goldLight], 220, { life: 0.8, size: 6 });
-				this.showToast(`${H.SEAT_NAMES[trick.winner]} took the queen of spades`, C.good);
+				this.showToast(`${H.SEAT_NAMES[trick.winner]} took the queen${this.queenBroke ? ', and hearts are broken' : ' of spades'}`, C.good);
 			}
+			if (this.queenBroke) setTimeout(() => sound.play('hearts_broken', { volume: 0.8 }), 650);
+			this.queenBroke = false;
 			return;
 		}
 		if (trick.winner === H.PLAYER) {
@@ -250,7 +255,8 @@ class Game {
 		this.trickHold = null;
 		const [x, y] = seatOrigin(this.layout, hold.trick.winner);
 		const until = performance.now() + 450;
-		this.sweeps = [...this.sweeps, ...hold.trick.plays.map((p) => ({ id: cardId(p.card), card: p.card, x, y, until }))];
+		const swept = [...hold.trick.plays.map((p) => p.card), ...hold.trick.kitty];
+		this.sweeps = [...this.sweeps, ...swept.map((card) => ({ id: cardId(card), card, x, y, until }))];
 		sound.play('deal', { volume: 0.6, pitch: 0.8 });
 	}
 
@@ -258,9 +264,10 @@ class Game {
 		const run = this._run!;
 		if (this.trickHold || !R.isPlayerTurn(run)) return;
 		const wasBroken = run.hand.state!.heartsBroken;
-		const tricks = this.act({ t: 'play', card: cards.code(card) }).tricks!;
+		const tricks = this.act({ t: 'play', card: card.id! }).tricks!;
 		sound.play('card_play', { jitter: 0.08 });
 		this.cueCard(card, H.PLAYER, wasBroken);
+		this.queenBroke = !wasBroken && card.suit !== H.HEARTS && run.hand.state!.heartsBroken;
 		this.holdTrick(tricks[0]);
 		this.aiTimer = AI_DELAY;
 		this.bump();
@@ -300,10 +307,11 @@ class Game {
 		this.bump();
 	}
 
-	buy(i: number, x: number, y: number, card?: string) {
+	buy(i: number, x: number, y: number, card?: number) {
 		const run = this._run!;
 		if (!R.canBuy(run, i)[0]) return;
-		if (run.shop!.items[i].kind === 'seal' && !card) {
+		const kind = run.shop!.items[i].kind;
+		if ((kind === 'seal' || kind === 'pack') && card === undefined) {
 			this.sealPick = i;
 			this.pickAt = [x, y];
 			sound.play('select');
@@ -318,11 +326,21 @@ class Game {
 		this.bump();
 	}
 
-	/** Put the waiting seal on a card. */
-	placeSeal(code: string) {
+	/** Use the waiting seal or pack item on a card. */
+	placeSeal(id: number) {
 		const i = this.sealPick;
 		if (i === null) return;
-		this.buy(i, this.pickAt[0], this.pickAt[1], code);
+		const run = this._run!;
+		const item = run.shop!.items[i];
+		if (item.kind === 'pack') {
+			const ok = packs.canApply(run, item.def, run.pack.find((c) => c.id === id));
+			if (!ok[0]) {
+				this.showToast(`Can't: ${ok[1]}`, C.bad);
+				sound.play('trick_lose', { volume: 0.5 });
+				return;
+			}
+		}
+		this.buy(i, this.pickAt[0], this.pickAt[1], id);
 	}
 
 	sellRelic(i: number) {
@@ -455,7 +473,10 @@ class Game {
 				const wasBroken = run.hand.state!.heartsBroken;
 				const step = this.act({ t: 'ai' }).step;
 				sound.play('card_play', { jitter: 0.08 });
-				if (step) this.cueCard(step.card, step.seat, wasBroken);
+				if (step) {
+					this.cueCard(step.card, step.seat, wasBroken);
+					this.queenBroke = !wasBroken && step.card.suit !== H.HEARTS && !!run.hand.state?.heartsBroken;
+				}
 				this.holdTrick(step?.trick);
 				this.aiTimer = AI_DELAY;
 				this.bump();

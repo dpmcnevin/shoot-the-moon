@@ -12,6 +12,8 @@ import * as icons from './icons.ts';
 import * as cardart from './cardart.ts';
 import { toCanvas } from './pixel.ts';
 import { CARD_H, CARD_W } from './theme.ts';
+import { sealBitmap } from './sealart.ts';
+import type { SealKey } from '../game/seals.ts';
 
 const cache = new Map<string, string>();
 
@@ -67,4 +69,9 @@ function smooth(draw: (g: CanvasRenderingContext2D) => void): string {
 /** An icon tile (18x18 native), rasterised at 8x for crisp scaling. */
 export function icon(key: string): string {
 	return cached(`icon|${key}`, () => url(toCanvas(icons.bitmap(key), 8)));
+}
+
+/** A pixel-art wax seal (14x14 native), rasterised at 8x for crisp scaling. */
+export function seal(key: SealKey): string {
+	return cached(`seal|${key}`, () => url(toCanvas(sealBitmap(key), 8)));
 }

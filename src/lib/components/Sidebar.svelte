@@ -41,6 +41,10 @@
 		hand.passDir === 'hold' ? 'No passing' : `Pass ${hand.passDir} to ${H.SEAT_NAMES[H.passTarget(H.PLAYER, hand.passDir)]}`
 	);
 	const ORDER = [3, 4, 1, 2]; // you, then clockwise
+	const packPoints = $derived.by(() => {
+		void game.v;
+		return run.pack.reduce((n, c) => n + seals.cardPoints(run.seals, c), 0);
+	});
 </script>
 
 <aside
@@ -72,6 +76,7 @@
 
 	<section class="this-hand">
 		<div class="label">This hand · <span class="ink">{passLabel}</span></div>
+		<div class="pack-line">Pack {run.pack.length} · {packPoints} points{hand.kitty.length ? ` · kitty ${hand.kitty.length}` : ''}</div>
 		<div class="points">
 			{#each ORDER as s (s)}
 				<div class="pt" class:me={s === H.PLAYER}>
@@ -106,7 +111,7 @@
 				{#each Object.entries(run.seals) as [code, key] (code)}
 					{@const c = cards.newDeck().find((x) => cards.code(x) === code)!}
 					<span class="sealed" title="{seals.SEALS[key].name} on {cards.name(c)}: {seals.SEALS[key].text}">
-						<SealBadge seal={key} size={16} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}
+						<SealBadge seal={key} size={14} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}
 							>{cards.name(c)}</span
 						>
 					</span>
@@ -252,6 +257,11 @@
 	}
 	.dot.used {
 		background: var(--panel-edge);
+	}
+	.pack-line {
+		font-size: 12px;
+		color: var(--ink-faint);
+		margin-top: 2px;
 	}
 	.points {
 		display: grid;

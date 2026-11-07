@@ -162,6 +162,23 @@
 			});
 		}
 
+		// The kitty: face down beside the trick until the first trick wins it.
+		if (hand.kitty.length && !(hand.state && hand.state.tricks.length > 0)) {
+			hand.kitty.forEach((c, i) => {
+				out.push({
+					id: cardId(c),
+					card: c,
+					x: L.tableCX + L.ovalRX - 64 + i * 7,
+					y: L.trickCY - L.ovalRY + 64 + i * 3,
+					r: 0.2 + i * 0.08,
+					s: 0.55,
+					faceUp: false,
+					z: 4 + i,
+					spawn: fresh ? { x: L.tableCX, y: L.trickCY, delay: 0.3, faceUp: false } : undefined
+				});
+			});
+		}
+
 		// The trick, or the one held after it finished.
 		const plays = game.trickHold ? game.trickHold.trick.plays : (hand.state?.trick ?? []);
 		const winner = game.trickHold?.trick.winner;
@@ -352,6 +369,12 @@
 	<div class="hold-note" style:left="{L.tableCX - 150}px" style:top="{L.trickCY - 14}px">No passing this hand</div>
 {/if}
 
+{#if hand.kitty.length && !(hand.state && hand.state.tricks.length > 0)}
+	<div class="kitty-label" style:left="{L.tableCX + L.ovalRX - 104}px" style:top="{L.trickCY - L.ovalRY + 104}px">
+		Kitty · {hand.kitty.length}
+	</div>
+{/if}
+
 {#if trickText}
 	<div class="trick-text" class:good={trickText.good} style:left="{L.tableCX - 150}px" style:top="{L.trickCY + 150}px">
 		{trickText.text}
@@ -486,6 +509,15 @@
 	}
 	.trick-text.good {
 		color: var(--good);
+	}
+	.kitty-label {
+		position: absolute;
+		width: 80px;
+		text-align: center;
+		font-size: 12px;
+		color: var(--ink-dim);
+		pointer-events: none;
+		z-index: 50;
 	}
 	.playout {
 		position: absolute;
