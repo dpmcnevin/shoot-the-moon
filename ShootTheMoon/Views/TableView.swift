@@ -90,16 +90,16 @@ struct TableView: View {
             let picked = model.passPick.contains(c.id)
             let legal = model.isLegal(c.id)
             let hovered = model.hovered == c.id && (legal || passing)
-            let lift = picked ? 30.0 : hovered ? 22 : (legal ? 8 : 0)
+            let lift = (picked ? 30.0 : hovered ? 22 : (legal ? 8 : 0)) * L.handScale
             let received = hand.received.contains(c.id) && hand.tricksPlayed == 0
             var p = Placement(
                 id: key(c.id), card: c, faceUp: true, x: s.cx, y: s.cy - lift,
-                r: picked || hovered ? 0 : s.r, s: hovered ? 1.1 : 1, z: hovered ? 45 : 10 + Double(i), lift: lift,
+                r: picked || hovered ? 0 : s.r, s: (hovered ? 1.1 : 1) * L.handScale, z: hovered ? 45 : 10 + Double(i), lift: lift,
                 highlight: picked ? Theme.ploy : (received || hovered ? Theme.brass : nil),
                 dim: hand.isPlayerTurn && model.trickHold == nil && !legal)
             if let d = drag, d.moved, d.id == c.id {
                 let drop = legal && L.isOverTrick(d.at)
-                p = Placement(id: key(c.id), card: c, faceUp: true, x: d.at.x, y: d.at.y, r: 0, s: 1.14, z: 95,
+                p = Placement(id: key(c.id), card: c, faceUp: true, x: d.at.x, y: d.at.y, r: 0, s: 1.14 * L.handScale, z: 95,
                               lift: 26, highlight: drop ? Theme.good : nil)
             }
             if received, let from = hand.receivedFrom { p.from = L.origin(from) }
@@ -152,35 +152,50 @@ struct TableView: View {
 
     // MARK: - Input
 
-    /// Stable hit zones for your hand (the sprites move; these don't).
+    /// How far a finger must travel before a touch is a drag, not a tap.
+    /// Fingers wobble; too small and taps rearrange the hand instead.
+    private static let dragThreshold = 22.0
+
+    /// Stable hit zones for your hand (the sprites move; these don't). Each
+    /// zone is the strip of its card left showing, tilted and dropped along
+    /// the fan like the card, and reaching up over a lifted card.
     private func handHitZones(_ v: GameView) -> some View {
         let mine = model.orderedHand()
         let slots = L.handSlots(mine.count)
+        let cw = L.handCardW, ch = L.handCardH, reach = 34 * L.handScale
         return ForEach(Array(mine.enumerated()), id: \.element.id) { i, c in
             let s = slots[i]
-            Color.white.opacity(0.001)
-                .frame(width: s.w, height: TableLayout.cardH + 30)
-                .position(x: s.x + s.w / 2, y: L.handY + TableLayout.cardH / 2 - 15)
-                .zIndex(80)
-                .onHover { inside in model.hovered = inside ? c.id : (model.hovered == c.id ? nil : model.hovered) }
-                .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .named("stage"))
-                        .onChanged { g in
-                            let moved = (drag?.moved ?? false) || hypot(g.translation.width, g.translation.height) > 8
-                            if moved && !(drag?.moved ?? false) { model.audio.play("card_hover", volume: 0.6, jitter: 0.1) }
-                            drag = (c.id, g.location, moved)
-                        }
-                        .onEnded { g in
-                            let d = drag
-                            drag = nil
-                            guard let d, d.moved else { return tap(c) }
-                            if model.isLegal(c.id) && L.isOverTrick(g.location) { return model.play(c.id) }
-                            var index = 0
-                            for (j, s) in slots.enumerated() where mine[j].id != c.id && s.cx < g.location.x { index += 1 }
-                            model.move(c.id, toIndex: index)
-                        }
-                )
+            ZStack(alignment: .topLeading) {
+                Color.clear.frame(width: cw, height: ch + reach)
+                Color.white.opacity(0.001)
+                    .frame(width: s.w, height: ch + reach)
+                    .contentShape(Rectangle())
+                    .gesture(cardGesture(c, mine: mine, slots: slots))
+            }
+            .frame(width: cw, height: ch + reach, alignment: .topLeading)
+            .rotationEffect(.radians(s.r), anchor: UnitPoint(x: 0.5, y: (reach + ch / 2) / (ch + reach)))
+            .position(x: s.cx, y: s.cy - reach / 2)
+            .zIndex(80 + Double(i) * 0.01)
+            .onHover { inside in model.hovered = inside ? c.id : (model.hovered == c.id ? nil : model.hovered) }
         }
+    }
+
+    private func cardGesture(_ c: CardV, mine: [CardV], slots: [TableLayout.Slot]) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("stage"))
+            .onChanged { g in
+                let moved = (drag?.moved ?? false) || hypot(g.translation.width, g.translation.height) > Self.dragThreshold
+                if moved && !(drag?.moved ?? false) { model.audio.play("card_hover", volume: 0.6, jitter: 0.1) }
+                drag = (c.id, g.location, moved)
+            }
+            .onEnded { g in
+                let d = drag
+                drag = nil
+                guard let d, d.moved else { return tap(c) }
+                if model.isLegal(c.id) && L.isOverTrick(g.location) { return model.play(c.id) }
+                var index = 0
+                for (j, s) in slots.enumerated() where mine[j].id != c.id && s.cx < g.location.x { index += 1 }
+                model.move(c.id, toIndex: index)
+            }
     }
 
     private func tap(_ c: CardV) {
@@ -209,7 +224,7 @@ struct TableView: View {
             }
             seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
                       note: model.isLegal(v.hand.legal.first ?? -1) ? "Your play" : nil)
-                .position(x: L.tableCX, y: L.handY - 44)
+                .position(x: L.tableCX, y: L.handY - 16 - 30 * L.handScale) // above a picked card
             if !v.hand.kitty.isEmpty {
                 Text("Kitty · \(v.hand.kitty.count)").font(Theme.font(12)).foregroundStyle(Theme.inkDim)
                     .position(x: L.tableCX + L.ovalRX - 64, y: L.trickCY - L.ovalRY + 112)

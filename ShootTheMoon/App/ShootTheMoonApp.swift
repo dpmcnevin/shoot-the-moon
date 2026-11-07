@@ -12,7 +12,7 @@ struct ShootTheMoonApp: App {
                     .preferredColorScheme(.dark)
                     .persistentSystemOverlays(.hidden)
                     .statusBarHidden()
-                    .onAppear(perform: lockLandscape)
+                    .onAppear(perform: lockWindow)
             } else {
                 Text("The game engine failed to load.").foregroundStyle(.white)
             }
@@ -20,15 +20,20 @@ struct ShootTheMoonApp: App {
     }
 }
 
-/// The game is landscape only. Info.plist says so, but resizable iPad windows
-/// can ignore it, so ask the scene directly as well.
+/// The game is landscape only and full screen. Info.plist says so, but
+/// resizable iPad windows can ignore it, so ask the scene directly as well:
+/// landscape, and a window that can only be the size of the screen.
 @MainActor
-private func lockLandscape() {
+private func lockWindow() {
     for scene in UIApplication.shared.connectedScenes {
         guard let windowScene = scene as? UIWindowScene else { continue }
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
             print("landscape request: \(error.localizedDescription)")
         }
+        let b = windowScene.screen.bounds
+        let size = CGSize(width: max(b.width, b.height), height: min(b.width, b.height))
+        windowScene.sizeRestrictions?.minimumSize = size
+        windowScene.sizeRestrictions?.maximumSize = size
     }
 }
 
