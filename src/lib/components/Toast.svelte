@@ -6,7 +6,7 @@
 	import { css } from '../ui/theme.ts';
 
 	const L = $derived(game.layout);
-	const y = $derived(L.orientation === 'portrait' ? L.handY[3] - 120 : 470);
+	const y = $derived(L.orientation === 'portrait' ? L.handY - 120 : 470);
 </script>
 
 {#if game.toast}

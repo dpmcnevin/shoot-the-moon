@@ -2,7 +2,7 @@
 
 export type SettingKey = 'music' | 'sfx' | 'fourColor' | 'pixelCards' | 'rubberView';
 
-const STORAGE_KEY = 'vulnerable.settings';
+const STORAGE_KEY = 'shoot-the-moon.settings';
 const DEFAULTS: Record<SettingKey, boolean> = {
 	music: true,
 	sfx: true,
