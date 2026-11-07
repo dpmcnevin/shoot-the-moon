@@ -4,3 +4,9 @@ node_modules
 .DS_Store
 vite.config.ts.timestamp-*
 .claude/
+
+# iOS (generated: xcodegen generate in ios/, npm run build:ios-bridge, npm run render-audio)
+ios/ShootTheMoon.xcodeproj
+ios/ShootTheMoon/Resources/game-bundle.js
+ios/ShootTheMoon/Resources/Audio/
+ios/build/
