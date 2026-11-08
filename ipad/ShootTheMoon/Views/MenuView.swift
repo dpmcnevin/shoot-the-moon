@@ -91,6 +91,20 @@ struct MenuView: View {
                     .background(PixelRect(radius: 6).fill(Theme.feltEdge))
                     .overlay(PixelRect(radius: 6).stroke(Theme.panelEdge, lineWidth: 2))
                     .foregroundStyle(Theme.ink)
+                if let decks = model.catalog?.decks, !decks.isEmpty {
+                    let i = decks.firstIndex(where: { $0.key == model.deck }) ?? 0
+                    VStack(spacing: 2) {
+                        HStack(spacing: 6) {
+                            GameButton("◀", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + decks.count - 1) % decks.count].key }
+                                .frame(width: 40)
+                            Text(decks[i].name).font(Theme.font(17)).foregroundStyle(Theme.brass).frame(maxWidth: .infinity)
+                            GameButton("▶", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + 1) % decks.count].key }
+                                .frame(width: 40)
+                        }
+                        .frame(width: 260)
+                        Text(decks[i].text).font(Theme.font(13)).foregroundStyle(Theme.inkDim)
+                    }
+                }
                 HStack(spacing: 8) {
                     GameButton("How to play", style: .plain) { model.showHelp = true }
                     GameButton("Collection", style: .plain) { model.showCollection = true }

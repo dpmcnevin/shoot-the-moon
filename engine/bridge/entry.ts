@@ -19,6 +19,7 @@ import * as profileLib from '../src/app/profile.ts';
 import * as ploysLib from '../src/game/ploys.ts';
 import * as bundlesLib from '../src/game/bundles.ts';
 import * as tagsLib from '../src/game/tags.ts';
+import * as decksLib from '../src/game/decks.ts';
 import * as packs from '../src/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/app/save.ts';
 import { faceBitmap, backBitmap } from '../src/ui/pixelcards.ts';
@@ -261,8 +262,8 @@ function act(json: string): string {
 }
 
 const api = {
-	newRun(seed: string | null): string {
-		opts = { ruleset: IPAD_RULESET };
+	newRun(seed: string | null, deck?: string | null): string {
+		opts = { ruleset: IPAD_RULESET, ...(deck && deck !== 'standard' && decksLib.DECK_KEYS.includes(deck as decksLib.DeckKey) ? { deck: deck as decksLib.DeckKey } : {}) };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());
@@ -292,6 +293,7 @@ const api = {
 		JSON.stringify({
 			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: relics.textAt(d, CATALOG_BALANCE), rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: relics.costAt(d, CATALOG_BALANCE), icon: d.icon })),
 			editions: relics.EDITION_KEYS.map((k) => ({ key: k, name: relics.EDITIONS[k].name, text: relics.EDITIONS[k].text, cost: relics.EDITIONS[k].cost })),
+			decks: decksLib.DECK_KEYS.map((k) => ({ key: k, name: decksLib.DECKS[k].name, text: decksLib.DECKS[k].text })),
 			ploys: ploysLib.PLOY_KEYS.map((k) => ({ key: k, name: ploysLib.PLOYS[k].name, text: ploysLib.PLOYS[k].text, cost: ploysLib.PLOYS[k].cost, icon: ploysLib.PLOYS[k].icon })),
 			bundles: bundlesLib.BUNDLE_KEYS.map((k) => ({ key: k, name: bundlesLib.BUNDLES[k].name, text: bundlesLib.BUNDLES[k].text, cost: bundlesLib.BUNDLES[k].cost, icon: bundlesLib.BUNDLES[k].icon })),
 			cardEditions: cardEds.CARD_EDITION_KEYS.map((k) => ({ key: k, name: cardEds.CARD_EDITIONS[k].name, text: cardEds.CARD_EDITIONS[k].text, cost: cardEds.CARD_EDITIONS[k].cost })),

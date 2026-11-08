@@ -19,6 +19,7 @@ import * as ploys from './ploys.ts';
 import type { PloyDef, PloyKey } from './ploys.ts';
 import * as bundles from './bundles.ts';
 import * as tags from './tags.ts';
+import type { DeckKey } from './decks.ts';
 import type { TagKey } from './tags.ts';
 import type { BundleDef, BundleKey } from './bundles.ts';
 import type { CardEditionDef, CardEditionMap } from './cardEditions.ts';
@@ -240,6 +241,8 @@ export interface Run {
 	freeRerolls?: boolean;
 	/** Boards of this table that were skipped. */
 	skipped?: number[];
+	/** The starting deck. */
+	deck: DeckKey;
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -295,6 +298,8 @@ export interface RunOptions {
 	ploys?: boolean;
 	/** Boards can be skipped for tags (off by default). */
 	tags?: boolean;
+	/** The starting deck (decks.ts; 'standard' by default). */
+	deck?: DeckKey;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -456,6 +461,7 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		spotlight: false,
 		opening: null,
 		tagsOn: opts.tags ?? false,
+		deck: opts.deck ?? 'standard',
 		tagOffers: [],
 		pendingTags: [],
 		pack: packs.standardPack(),
@@ -485,8 +491,27 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		ruleset: opts.ruleset ?? 'classic',
 		balance: opts.balance ?? 1
 	} as Run;
+	applyDeck(run);
 	startBoard(run);
 	return run;
+}
+
+/** Set up the start a deck gives. */
+function applyDeck(run: Run) {
+	const spade = (rank: number) => run.pack.find((c) => c.suit === H.SPADES && c.rank === rank);
+	if (run.deck === 'burned') {
+		run.pack = run.pack.filter((c) => !H.isQueenOfSpades(c));
+	} else if (run.deck === 'gilded') run.money = 8;
+	else if (run.deck === 'royal') {
+		const ace = spade(14);
+		if (ace) run.cardEditions[String(ace.id)] = 'etched';
+	} else if (run.deck === 'schemer') {
+		while (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng).key);
+	} else if (run.deck === 'collector') {
+		const commons = relics.DEFS.filter((d) => d.rarity === 1 && (run.moreRelics || !d.expansion) && (run.v4Relics || !d.v4Only) && (run.ploysOn || !d.v5Only));
+		run.relics.push(relics.instantiate(commons[run.rng.int(1, commons.length) - 1], undefined, run.balance));
+		run.money = 2;
+	}
 }
 
 export function startBoard(run: Run) {

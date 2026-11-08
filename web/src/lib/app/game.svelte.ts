@@ -175,7 +175,7 @@ class Game {
 		const run = this._run;
 		if (!run) return;
 		if (run.phase === PHASE.GAME_OVER || run.phase === PHASE.VICTORY) save.clear();
-		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, id: this.runId, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset } } : {}) });
+		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, id: this.runId, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset, ...(run.deck !== 'standard' ? { deck: run.deck } : {}) } } : {}) });
 	}
 
 	restore(): boolean {
@@ -210,7 +210,7 @@ class Game {
 
 	newRun() {
 		const seed = this.seedInput !== '' ? this.seedInput.toUpperCase() : undefined;
-		this.startRun(R.newRun(seed, { ruleset: WEB_RULESET }));
+		this.startRun(R.newRun(seed, { ruleset: WEB_RULESET, ...(settings.deck !== 'standard' ? { deck: settings.deck } : {}) }));
 		this.runId = `${Date.now().toString(36)}-${this._run!.seed}`;
 		this.lastPhase = null;
 		this.screen = 'run';

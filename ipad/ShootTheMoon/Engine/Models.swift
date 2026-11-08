@@ -335,6 +335,8 @@ struct CatalogV: Decodable {
     let cardEditions: [Edition]?
     let ploys: [PackItem]?
     let bundles: [PackItem]?
+    struct Deck: Decodable, Identifiable { let key, name, text: String; var id: String { key } }
+    let decks: [Deck]?
     let packItems: [PackItem]
     let upgrades: [Upgrade]
     let bosses: [Boss]

@@ -55,8 +55,8 @@ final class GameEngine {
         try decoder.decode(T.self, from: Data(json.utf8))
     }
 
-    func newRun(seed: String?) throws -> GameView {
-        try decode(try call("newRun", [seed ?? NSNull()]))
+    func newRun(seed: String?, deck: String = "standard") throws -> GameView {
+        try decode(try call("newRun", [seed ?? NSNull(), deck]))
     }
 
     func restore(_ save: String) throws -> GameView {

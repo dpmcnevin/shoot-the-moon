@@ -1,5 +1,7 @@
 // Player settings, persisted in localStorage. Port of src/ui/settings.lua.
 
+import { DECK_KEYS, type DeckKey } from '$engine/game/decks.ts';
+
 export type SettingKey = 'music' | 'sfx' | 'fourColor' | 'pixelCards' | 'rubberView' | 'sortByRank';
 
 const STORAGE_KEY = 'shoot-the-moon.settings';
@@ -14,6 +16,7 @@ const DEFAULTS: Record<SettingKey, boolean> = {
 };
 
 const SPEED_KEY = 'shoot-the-moon.speed';
+const DECK_KEY = 'shoot-the-moon.deck';
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 3;
 export const SPEED_STEP = 0.25;
@@ -21,6 +24,17 @@ export const SPEED_STEP = 0.25;
 class Settings {
 	/** Play speed: how quickly the opponents play and the table moves on. */
 	speed = $state(1);
+	/** The starting deck for new runs (decks.ts). */
+	deck = $state<DeckKey>('standard');
+
+	setDeck(d: DeckKey) {
+		this.deck = d;
+		try {
+			localStorage.setItem(DECK_KEY, d);
+		} catch {
+			/* ignore */
+		}
+	}
 
 	setSpeed(v: number) {
 		this.speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(v / SPEED_STEP) * SPEED_STEP));
@@ -39,6 +53,12 @@ class Settings {
 	sortByRank = $state(DEFAULTS.sortByRank);
 
 	load() {
+		try {
+			const d = localStorage.getItem(DECK_KEY) as DeckKey | null;
+			if (d && DECK_KEYS.includes(d)) this.deck = d;
+		} catch {
+			/* ignore */
+		}
 		try {
 			const sp = Number(localStorage.getItem(SPEED_KEY));
 			if (sp >= SPEED_MIN && sp <= SPEED_MAX) this.speed = sp;

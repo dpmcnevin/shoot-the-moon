@@ -92,6 +92,8 @@ final class GameModel {
     var speed: Double { didSet { UserDefaults.standard.set(speed, forKey: "speed") } }
     /// Your hand sorted by rank (low to high, across suits) instead of by suit.
     var sortByRank: Bool { didSet { UserDefaults.standard.set(sortByRank, forKey: "sortByRank") } }
+    /// The starting deck for new runs (engine decks.ts).
+    var deck: String = UserDefaults.standard.string(forKey: "deck") ?? "standard" { didSet { UserDefaults.standard.set(deck, forKey: "deck") } }
 
     private var lastPhase: Phase?
     private var aiTask: Task<Void, Never>?
@@ -211,7 +213,7 @@ final class GameModel {
         aiTask = nil
         trickHold = nil
         let seed = seedInput.trimmingCharacters(in: .whitespaces).uppercased()
-        guard let v = try? engine.newRun(seed: seed.isEmpty ? nil : seed) else { return }
+        guard let v = try? engine.newRun(seed: seed.isEmpty ? nil : seed, deck: deck) else { return }
         runId = "\(Int(Date().timeIntervalSince1970 * 1000))-\(v.seed)"
         UserDefaults.standard.set(runId, forKey: Self.runIdKey)
         view = nil

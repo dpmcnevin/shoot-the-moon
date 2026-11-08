@@ -1000,6 +1000,21 @@ test('v5: skip Board 1 for its tag, straight to Board 2', () => {
 	assert.equal(R.skipTag(R.newRun('SKIP4', { ruleset: 'v4' })), null);
 });
 
+test('starting decks change the start, and replay the same', () => {
+	const burned = R.newRun('DK', { ruleset: 'v5', deck: 'burned' });
+	assert.equal(burned.pack.length, 51);
+	assert.ok(!burned.pack.some(H.isQueenOfSpades));
+	assert.equal(burned.money, R.newRun('DK', { ruleset: 'v5' }).money);
+	assert.equal(R.newRun('DK', { ruleset: 'v5', deck: 'gilded' }).money, 8);
+	assert.equal(Object.values(R.newRun('DK', { ruleset: 'v5', deck: 'royal' }).cardEditions).length, 1);
+	assert.equal(R.newRun('DK', { ruleset: 'v5', deck: 'schemer' }).ploys.length, 2);
+	const col = R.newRun('DK', { ruleset: 'v5', deck: 'collector' });
+	assert.equal(col.relics.length, 1);
+	assert.equal(col.relics[0].def.rarity, 1);
+	assert.equal(R.newRun('DK', { ruleset: 'v5', deck: 'collector' }).relics[0].key, col.relics[0].key, 'same seed, same relic');
+	assert.equal(R.newRun('DK', { ruleset: 'v5' }).deck, 'standard');
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

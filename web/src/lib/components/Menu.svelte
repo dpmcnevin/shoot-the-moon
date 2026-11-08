@@ -10,6 +10,7 @@
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
 	import SpeedSlider from './SpeedSlider.svelte';
+	import * as decksLib from '$engine/game/decks.ts';
 
 	const L = $derived(game.layout);
 	// Four different random cards, dealt each time the menu appears; each has
@@ -41,7 +42,7 @@
 		return () => cancelAnimationFrame(raf);
 	});
 
-	const fanY = $derived(L.orientation === 'portrait' ? 230 : 120);
+	const fanY = $derived(L.orientation === 'portrait' ? 230 : 104);
 
 	// The aces can be picked up and dropped anywhere; a tap flips one over.
 	let moved = $state<({ x: number; y: number; r: number } | null)[]>([null, null, null, null]);
@@ -128,6 +129,10 @@
 		!!game.run && game.run.phase !== PHASE.GAME_OVER && game.run.phase !== PHASE.VICTORY
 	);
 	let seedEl: HTMLInputElement;
+	function cycleDeck(step: number) {
+		const keys = decksLib.DECK_KEYS;
+		settings.setDeck(keys[(keys.indexOf(settings.deck) + step + keys.length) % keys.length]);
+	}
 
 	function onSeed(e: Event) {
 		const el = e.currentTarget as HTMLInputElement;
@@ -167,7 +172,7 @@
 		<button class="tidy" onclick={resetFan}>Tidy the cards</button>
 	{/if}
 
-	<div class="content" style:top="{fanY + 90}px">
+	<div class="content" style:top="{fanY + 80}px">
 		<h1>SHOOT THE MOON</h1>
 		<div class="sub">a hearts roguelike</div>
 
@@ -192,6 +197,12 @@
 				spellcheck="false"
 				maxlength="12"
 			/>
+			<div class="deck">
+				<Button variant="plain" size="sm" sound="select" title="Previous deck" onclick={() => cycleDeck(-1)} style="width: 36px">◀</Button>
+				<div class="deck-name" title={decksLib.DECKS[settings.deck].text}>{decksLib.DECKS[settings.deck].name}</div>
+				<Button variant="plain" size="sm" sound="select" title="Next deck" onclick={() => cycleDeck(1)} style="width: 36px">▶</Button>
+			</div>
+			<div class="deck-text">{decksLib.DECKS[settings.deck].text}</div>
 			<div class="pair">
 				<Button variant="plain" onclick={() => (game.showHelp = true)} style="width: 161px">How to play</Button>
 				<Button variant="plain" onclick={() => (game.showCollection = true)} style="width: 161px">Collection</Button>
@@ -290,13 +301,32 @@
 	.sub {
 		font-size: 20px;
 		color: var(--ink-dim);
-		margin-bottom: 22px;
+		margin-bottom: 14px;
 	}
 	.buttons {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 10px;
 		align-items: center;
+	}
+	.deck {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 260px;
+	}
+	.deck-name {
+		flex: 1;
+		text-align: center;
+		font-size: 17px;
+		color: var(--brass);
+	}
+	.deck-text {
+		width: 300px;
+		margin-top: -8px;
+		text-align: center;
+		font-size: 13px;
+		color: var(--ink-dim);
 	}
 	.seed {
 		width: 260px;
