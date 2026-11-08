@@ -113,9 +113,21 @@ const recipes: Record<string, () => Buffer> = {
 		return S.normalize(b, 0.5);
 	},
 	// A riffle shuffle: a quick run of tiny card snaps.
+	// A riffle shuffle: quick paper flicks that start fast and slow down,
+	// uneven in loudness like real cards, then a soft tap as the deck squares.
 	reroll: () => {
-		const b = S.buffer(0.5);
-		for (let i = 0; i <= 13; i++) S.noise(b, i * 0.026, 0.04, { vol: 0.35, decay: 0.01, highpass: 0.9 });
+		const b = S.buffer(0.55);
+		const n = 18;
+		let t = 0;
+		for (let i = 0; i < n; i++) {
+			const k = i / (n - 1);
+			const swell = Math.sin(Math.PI * Math.min(1, k * 1.15));
+			const vol = (0.22 + 0.2 * swell) * (0.75 + 0.25 * (((i * 7) % 5) / 4));
+			S.noise(b, t, 0.03, { vol, decay: 0.007, highpass: 0.75 });
+			S.noise(b, t, 0.03, { vol: vol * 0.5, decay: 0.01, lowpass: 0.8 });
+			t += 0.011 + 0.02 * k * k;
+		}
+		snap(b, t + 0.03, 0.9, 0.55);
 		return S.normalize(b, 0.5);
 	},
 	button: () => {

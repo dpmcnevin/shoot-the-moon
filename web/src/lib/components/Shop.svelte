@@ -10,6 +10,8 @@
 	import { num } from '../app/format.ts';
 	import { C, css } from '$engine/ui/theme.ts';
 	import Icon from './Icon.svelte';
+	import Shine from './Shine.svelte';
+	import { editionColor } from './editions.ts';
 	import Button from './Button.svelte';
 	import SealBadge from './SealBadge.svelte';
 	import CardPicker from './CardPicker.svelte';
@@ -59,9 +61,13 @@
 				{@const can = canBuy(i)}
 				<div class="item" style:border-color={edge(item)} in:fly={{ y: 60, duration: 350, delay: i * 80, easing: backOut }}>
 					{#if item.kind === 'relic'}
-						<div class="kind" style:color={edge(item)}>{relics.RARITY_NAME[item.def.rarity]} relic</div>
-						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{item.def.text}</p>
+						<div class="kind" style:color={edge(item)}>
+							{#if item.edition}<span class="ed" style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name.toUpperCase()}</span>{/if}
+							{relics.RARITY_NAME[item.def.rarity]} relic
+						</div>
+						<div class="title-row"><h3>{item.name}</h3><Shine edition={item.edition}><Icon name={item.def.icon} scale={3} /></Shine></div>
+						<p>{relics.textAt(item.def, run.balance)}</p>
+						{#if item.edition}<p style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name}: {relics.EDITIONS[item.edition].text.toLowerCase()}</p>{/if}
 					{:else if item.kind === 'upgrade'}
 						{@const lvl = run.levels[item.def.key]}
 						{@const next = R.upgradeBonus(item.def.key, lvl + 1)}
@@ -94,13 +100,19 @@
 	{/key}
 
 	<div class="owned">
-		<h3>Your relics {run.relics.length}/{R.RELIC_SLOTS}</h3>
+		<h3>Your relics {R.relicSlotsUsed(run)}/{R.relicSlots(run)}</h3>
 		<div class="relic-row">
-			{#each { length: R.RELIC_SLOTS }, i (i)}
+			{#each { length: run.relics.length + Math.max(0, R.relicSlots(run) - R.relicSlotsUsed(run)) }, i (i)}
 				{@const relic = run.relics[i]}
 				{#if relic}
-					<div class="relic" style:border-color={css(C.rarity[relic.def.rarity])} title={relics.textFor((void game.v, relic))}>
-						<div class="relic-head"><Icon name={relic.def.icon} scale={2} /><span>{relic.name}</span></div>
+					<div class="relic" style:border-color={css(C.rarity[relic.def.rarity])} title={relics.textFor((void game.v, relic), run.balance)}>
+						<div class="relic-head">
+							<Shine edition={relic.edition}><Icon name={relic.def.icon} scale={2} /></Shine>
+							<span class="rname">
+								{#if relic.edition}<span class="ed" style:color={editionColor(relic.edition)}>{relics.EDITIONS[relic.edition].name.toUpperCase()}</span>{/if}
+								<span>{relic.name}</span>
+							</span>
+						</div>
 						<Button variant="plain" size="sm" sound="sell" onclick={() => game.sellRelic(i)} style="width: 100%">Sell ${Math.max(1, Math.floor(relic.cost / 2))}</Button>
 					</div>
 				{:else}
@@ -230,6 +242,20 @@
 	}
 	.owned h3 {
 		margin: 0 0 8px;
+	}
+	.ed {
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		margin-right: 6px;
+	}
+	.rname {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.05;
+	}
+	.rname .ed {
+		font-size: 11px;
 	}
 	.relic-row {
 		display: grid;

@@ -15,11 +15,38 @@
 	import SealBadge from './SealBadge.svelte';
 	import * as seals from '$engine/game/seals.ts';
 	import * as cards from '$engine/rules/cards.ts';
+	import * as bosses from '$engine/game/bosses.ts';
+	import Shine from './Shine.svelte';
+	import SpeedSlider from './SpeedSlider.svelte';
+	import { editionColor } from './editions.ts';
+
+	/** Open the info card for something in the sidebar, beside where it was clicked. */
+	function inspect(e: MouseEvent, info: { kind: string; title: string; text: string; note?: string; color: string }) {
+		const stage = (e.currentTarget as HTMLElement).closest('.stage') as HTMLElement;
+		const r = stage.getBoundingClientRect();
+		const k = stage.offsetWidth / r.width;
+		game.inspect = { ...info, y: (e.clientY - r.top) * k };
+	}
+	function relicNote(relic: relics.Relic, isJinxed: boolean): string {
+		const notes: string[] = [];
+		const ed = relic.edition ? relics.EDITIONS[relic.edition] : null;
+		if (ed) notes.push(ed.name + ': ' + ed.text);
+		if (isJinxed) notes.push('Jinxed: does nothing this board');
+		notes.push('Sells for $' + Math.max(1, Math.floor(relic.cost / 2)));
+		return notes.join('\n');
+	}
 
 	const L = $derived(game.layout);
 	const portrait = $derived(L.orientation === 'portrait');
 	const run = $derived(game.run!);
 	const hand = $derived(game.hand);
+	const boardWon = $derived(run.phase === PHASE.BOARD_WON || run.phase === PHASE.SHOP || run.phase === PHASE.VICTORY);
+	const table = $derived(Math.min(run.table, R.TABLES));
+	const boss = $derived(run.boss ? bosses.bossAt(run.boss, run.balance) : null);
+	const bossNow = $derived(R.bossActive(run));
+	const jinxed = $derived(bossNow && run.boss === 'jinx' ? run.jinxed : null);
+	const slots = $derived(R.relicSlots(run));
+	const used = $derived(R.relicSlotsUsed(run));
 
 	const pending = $derived(
 		run.phase === PHASE.HAND_SCORED && hand.result && (game.trickHold || !game.reveal?.done) ? hand.result.total : 0
@@ -57,20 +84,43 @@
 >
 	<section class="head">
 		<h1>SHOOT THE MOON</h1>
-		<div class="row"><span>Table {Math.min(run.table, R.TABLES)} of {R.TABLES}</span><span class="dim">{R.boardName(run)}</span></div>
+		<button class="progress" onclick={() => (game.showOverview = true)} title="Show this table's boards and boss">
+			<div class="row">
+				<span>Table {table} of {R.TABLES}</span>
+				<span class="tables">
+					{#each { length: R.TABLES }, i (i)}
+						<span class="tsq" class:done={i + 1 < table || (i + 1 === table && boardWon && run.board === R.BOARDS_PER_TABLE)} class:now={i + 1 === table}></span>
+					{/each}
+				</span>
+			</div>
+			<div class="chips">
+				{#each { length: R.BOARDS_PER_TABLE }, i (i)}
+					{@const b = i + 1}
+					{@const done = b < run.board || (b === run.board && boardWon)}
+					<span class="chip" class:done class:now={b === run.board && !done}>{b === R.BOARDS_PER_TABLE ? 'High Board' : 'Board ' + b}</span>
+				{/each}
+			</div>
+			{#if boss}
+				<div class="boss" class:active={bossNow}>
+					<span class="boss-tag">{bossNow ? 'BOSS NOW' : 'HIGH BOARD BOSS'}</span> <span class="boss-name">{boss.name}</span>
+					{#if bossNow}<div class="boss-text">{boss.text}</div>{/if}
+				</div>
+			{/if}
+		</button>
 	</section>
 
 	<section class="box">
 		<div class="row">
-			<div><div class="label">Target</div><div class="big">{num(run.target)}</div></div>
+			<div><div class="label">{R.boardName(run)} goal</div><div class="big">{num(run.target)}</div></div>
 			<div class="right"><div class="label">Scored</div><div class="big" class:good={reached}>{num(score.current)}</div></div>
 		</div>
 		<div class="bar">
 			<div class="fill" style:width="{Math.min(100, (100 * score.current) / Math.max(1, run.target))}%" style:background={reached ? 'var(--good)' : 'var(--brass)'}></div>
 		</div>
 		<div class="deals">
-			<span class="tiny">Hands</span>
-			{#each { length: R.HANDS_PER_BOARD }, i (i)}<span class="dot" class:used={i + 1 > run.handsLeft}></span>{/each}
+			<span class="tiny">Hands left</span>
+			{#each { length: run.handsThisBoard }, i (i)}<span class="dot" class:used={i + 1 > run.handsLeft}></span>{/each}
+			<span class="hands-n" class:bad={run.handsLeft <= 1 && !reached}>{run.handsLeft} of {run.handsThisBoard}</span>
 		</div>
 	</section>
 
@@ -96,10 +146,20 @@
 			{#each Object.values(R.UPGRADES) as u (u.key)}
 				{@const lvl = run.levels[u.key]}
 				{@const b = R.upgradeBonus(u.key, lvl)}
-				<span class="level" title="{u.name} level {lvl}: +{b[0]} chips, +{b[1].toFixed(1)} mult. {u.text}.">
+				<button
+					class="level"
+					onclick={(e) =>
+						inspect(e, {
+							kind: 'Upgrade, level ' + lvl,
+							title: u.name,
+							text: u.text,
+							note: lvl > 1 ? 'Now +' + b[0] + ' chips, +' + b[1].toFixed(1) + ' mult' : 'Not levelled yet',
+							color: 'var(--brass)'
+						})}
+				>
 					<Icon name={u.icon} scale={1} />
 					<span class:brass={lvl > 1} class:faint={lvl <= 1}>{u.name.replace('The ', '')} {lvl}</span>
-				</span>
+				</button>
 			{/each}
 		</div>
 	</section>
@@ -108,29 +168,48 @@
 		<section class="seals">
 			<div class="label">Seals</div>
 			<div class="seal-list">
-				{#each Object.entries(run.seals) as [code, key] (code)}
-					{@const c = cards.newDeck().find((x) => cards.code(x) === code)!}
-					<span class="sealed" title="{seals.SEALS[key].name} on {cards.name(c)}: {seals.SEALS[key].text}">
-						<SealBadge seal={key} size={14} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}
-							>{cards.name(c)}</span
+				{#each Object.entries(run.seals) as [id, key] (id)}
+					{@const c = run.pack.find((x) => String(x.id) === id) ?? cards.newDeck().find((x) => cards.code(x) === id)}
+					{#if c}
+						<button
+							class="sealed"
+							onclick={(e) => inspect(e, { kind: 'Seal on ' + cards.name(c), title: seals.SEALS[key].name, text: seals.SEALS[key].text, color: 'var(--ploy)' })}
 						>
-					</span>
+							<SealBadge seal={key} size={14} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}>{cards.name(c)}</span>
+						</button>
+					{/if}
 				{/each}
 			</div>
 		</section>
 	{/if}
 
 	<section class="relics">
-		<div class="label">Relics {run.relics.length}/{R.RELIC_SLOTS}</div>
+		<div class="label">Relics {used}/{slots}</div>
 		<div class="relic-list">
-			{#each { length: R.RELIC_SLOTS }, i (i)}
+			{#each { length: run.relics.length + Math.max(0, slots - used) }, i (i)}
 				{@const relic = run.relics[i]}
 				{#if relic}
-					<div class="relic" title="{relic.name} ({relics.RARITY_NAME[relic.def.rarity]})&#10;{relics.textFor((void game.v, relic))}">
-						<Icon name={relic.def.icon} scale={2} />
+					{@const isJinxed = jinxed === relic.key}
+					{@const ed = relic.edition ? relics.EDITIONS[relic.edition] : null}
+					<button
+						class="relic"
+						onclick={(e) =>
+							inspect(e, {
+								kind: relics.RARITY_NAME[relic.def.rarity] + ' relic',
+								title: relic.name,
+								text: relics.textFor((void game.v, relic), run.balance),
+								note: relicNote(relic, isJinxed),
+								color: css(C.rarity[relic.def.rarity])
+							})}
+					>
+						<span style:filter={isJinxed ? 'grayscale(1)' : null}><Shine edition={relic.edition}><Icon name={relic.def.icon} scale={1} /></Shine></span>
 						<span class="rarity" style:background={css(C.rarity[relic.def.rarity])}></span>
-						<span class="name">{relic.name}</span>
-					</div>
+						<span class="relic-text">
+							{#if isJinxed}<span class="tag" style:color="var(--bad)">JINXED</span>
+							{:else if ed}<span class="tag" style:color={editionColor(relic.edition)}>{ed.name.toUpperCase()}</span>{/if}
+							<span class="name" class:struck={isJinxed}>{relic.name}</span>
+						</span>
+					</button>
 				{:else}
 					<div class="relic empty"></div>
 				{/if}
@@ -138,7 +217,10 @@
 		</div>
 	</section>
 
-	<div class="hint">Seed {run.seed} · M: music {settings.music ? 'on' : 'off'}</div>
+	<div class="foot">
+		{#if !portrait}<SpeedSlider width={L.sidebar.w - 36} />{/if}
+		<div class="hint">Seed {run.seed}</div>
+	</div>
 </aside>
 
 <style>
@@ -147,14 +229,21 @@
 		box-sizing: border-box;
 		background: var(--sidebar);
 		border-right: 3px solid var(--brass-dim);
-		padding: 14px 18px;
+		padding: 12px 18px;
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 8px;
 		z-index: 100;
 	}
 	.sidebar > section {
 		flex: none;
+	}
+	/* The relic list gives way first when the column runs short (a boss's
+	   rule showing): empty slots are clipped, never the footer. */
+	.sidebar:not(.portrait) > section.relics {
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow: hidden;
 	}
 	.sidebar.portrait {
 		border-right: none;
@@ -213,7 +302,7 @@
 		background: var(--panel);
 		border: 2px solid var(--brass-dim);
 		border-radius: 10px;
-		padding: 2px 12px 8px;
+		padding: 0 12px 6px;
 		margin: 0 -6px;
 	}
 	.label {
@@ -224,7 +313,7 @@
 		font-size: 12px;
 	}
 	.big {
-		font-size: 28px;
+		font-size: 26px;
 		font-weight: 700;
 		text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
 		font-variant-numeric: tabular-nums;
@@ -238,7 +327,7 @@
 		background: var(--bg);
 		border-radius: 5px;
 		overflow: hidden;
-		margin: 6px 0;
+		margin: 4px 0;
 	}
 	.fill {
 		height: 100%;
@@ -267,7 +356,7 @@
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
 		gap: 4px;
-		margin-top: 6px;
+		margin-top: 3px;
 	}
 	.pt {
 		display: flex;
@@ -275,7 +364,7 @@
 		align-items: center;
 		background: var(--panel);
 		border-radius: 6px;
-		padding: 4px 0;
+		padding: 1px 0;
 	}
 	.pt.me {
 		box-shadow: inset 0 0 0 1px var(--brass-dim);
@@ -285,7 +374,7 @@
 		color: var(--ink-dim);
 	}
 	.n {
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 700;
 		color: var(--ink-faint);
 	}
@@ -294,10 +383,10 @@
 	}
 	.levels {
 		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		margin-top: 8px;
-		font-size: 14px;
+		flex-wrap: wrap;
+		gap: 2px 10px;
+		margin-top: 4px;
+		font-size: 13px;
 	}
 	.level {
 		display: inline-flex;
@@ -320,14 +409,14 @@
 	.relic-list {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 1px;
 		margin-top: 4px;
 	}
 	.relic {
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		height: 36px;
+		height: 22px;
 		background: var(--panel);
 		border-radius: 5px;
 		margin: 0 -4px;
@@ -347,9 +436,121 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.hint {
+	.foot {
 		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.hint {
 		font-size: 12px;
 		color: var(--ink-faint);
 	}
+	button.progress,
+	button.level,
+	button.sealed,
+	button.relic {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: none;
+		padding: 0;
+		text-align: left;
+		cursor: pointer;
+	}
+	button.relic {
+		background: var(--panel);
+	}
+	button.progress {
+		display: block;
+		width: 100%;
+	}
+	.tables {
+		display: inline-flex;
+		gap: 3px;
+		align-items: center;
+	}
+	.tsq {
+		width: 9px;
+		height: 9px;
+		background: var(--panel-edge);
+	}
+	.tsq.now {
+		background: var(--ink);
+	}
+	.tsq.done {
+		background: var(--brass);
+	}
+	.chips {
+		display: flex;
+		gap: 4px;
+		margin-top: 6px;
+	}
+	.chip {
+		flex: 1;
+		text-align: center;
+		font-size: 12px;
+		line-height: 20px;
+		background: var(--panel);
+		color: var(--ink-faint);
+		border: 2px solid transparent;
+	}
+	.chip.now {
+		background: var(--brass);
+		color: var(--bg);
+	}
+	.chip.done {
+		color: var(--good);
+		border-color: var(--good);
+	}
+	.boss {
+		margin-top: 6px;
+		padding: 4px 8px;
+		background: var(--panel);
+		border: 2px solid transparent;
+		font-size: 14px;
+		color: var(--ink-dim);
+	}
+	.boss.active {
+		border-color: var(--bad);
+		color: var(--ink);
+	}
+	.boss-tag {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+	}
+	.boss.active .boss-tag {
+		color: var(--bad);
+	}
+	.boss-text {
+		font-size: 12px;
+		color: var(--ink-dim);
+		margin-top: 2px;
+	}
+	.hands-n {
+		margin-left: auto;
+		font-size: 13px;
+		color: var(--ink);
+	}
+	.hands-n.bad {
+		color: var(--bad);
+	}
+	.relic-text {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		line-height: 1.05;
+	}
+	.tag {
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+	}
+	.struck {
+		text-decoration: line-through;
+		text-decoration-color: var(--bad);
+		color: var(--ink-faint);
+	}
+
 </style>

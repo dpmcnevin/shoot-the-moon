@@ -15,23 +15,26 @@ import * as save from '$engine/app/save.ts';
 import * as packs from '$engine/game/pack.ts';
 import type { Action, Outcome } from '$engine/app/save.ts';
 import { fx } from './fx.svelte.ts';
+import { settings } from '../ui/settings.svelte.ts';
 import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from './layout.ts';
 
-/** The ruleset new web runs use. The iPad app uses 'v2' (bridge/entry.ts);
- *  switching this to 'v2' gives the web game the same rules, once its UI
- *  shows bosses, editions and the rest. */
-const WEB_RULESET: R.RulesetName = 'classic';
+/** The ruleset new web runs use; the iPad's is IPAD_RULESET in
+ *  engine/bridge/entry.ts. Keep them the same so both games play alike. */
+const WEB_RULESET: R.RulesetName = 'v3';
 import { C, hex, type Color } from '$engine/ui/theme.ts';
 
 const hexHeart = hex('#f08a8a');
 
 export const PHASE = R.PHASE;
+/** Timings at 1x play speed (see settings.speed). */
 export const AI_DELAY = 0.45;
 export const TRICK_HOLD = 1.0;
 export const REVEAL_STEP = 0.3;
+const sp = () => settings.speed || 1;
 
 export interface RevealItem {
 	label: string;
+	edition?: string;
 	money?: number;
 	chips?: number;
 	mult?: number;
@@ -83,6 +86,14 @@ class Game {
 	shopRolls = $state(0);
 	/** Shop slot of a seal waiting for you to pick its card. */
 	sealPick = $state<number | null>(null);
+	/** The table overview (boards, goals, the boss); play waits behind it. */
+	showOverview = $state(false);
+	/** The last finished trick is on show. */
+	showLastTrick = $state(false);
+	/** The collection page is open (from the menu). */
+	showCollection = $state(false);
+	/** A relic, seal or upgrade being read from the sidebar. */
+	inspect = $state.raw<{ kind: string; title: string; text: string; note?: string; color: string; y: number } | null>(null);
 
 	private _run: Run | null = null;
 	private actions: Action[] = [];
@@ -165,6 +176,7 @@ class Game {
 		this.lastPhase = null;
 		this.screen = 'run';
 		this.persist();
+		this.showOverview = true;
 	}
 
 	showToast(text: string, color: Color = C.brass) {
@@ -219,7 +231,7 @@ class Game {
 
 	private holdTrick(trick: Trick | null | undefined) {
 		if (!trick) return;
-		this.trickHold = { trick, timer: TRICK_HOLD };
+		this.trickHold = { trick, timer: TRICK_HOLD / sp() };
 		const [x, y] = trickXY(this.layout, trick.winner);
 		if (trick.plays.some((p) => H.isQueenOfSpades(p.card))) {
 			// The queen is taken: doom for you, a sly chime for anyone else.
@@ -267,14 +279,17 @@ class Game {
 
 	playCard(card: Card) {
 		const run = this._run!;
-		if (this.trickHold || !R.isPlayerTurn(run)) return;
+		// A tap while the last trick is still up clears it and plays: one tap, not two.
+		if (this.trickHold) this.endTrickHold();
+		this.showLastTrick = false;
+		if (!R.isPlayerTurn(run)) return;
 		const wasBroken = run.hand.state!.heartsBroken;
 		const tricks = this.act({ t: 'play', card: card.id! }).tricks!;
 		sound.play('card_play', { jitter: 0.08 });
 		this.cueCard(card, H.PLAYER, wasBroken);
 		this.queenBroke = !wasBroken && card.suit !== H.HEARTS && run.hand.state!.heartsBroken;
 		this.holdTrick(tricks[0]);
-		this.aiTimer = AI_DELAY;
+		this.aiTimer = AI_DELAY / sp();
 		this.bump();
 	}
 
@@ -293,7 +308,7 @@ class Game {
 		const rv = this.reveal;
 		if (!rv || rv.done) return;
 		rv.shown = rv.items.length;
-		rv.t = Math.max(rv.t, (rv.items.length + 1) * REVEAL_STEP);
+		rv.t = Math.max(rv.t, (rv.items.length + 1) * (REVEAL_STEP / sp()));
 	}
 
 	continueAfterHand() {
@@ -367,6 +382,9 @@ class Game {
 	leaveShop() {
 		this.act({ t: 'leave' });
 		this.bump();
+		// A new board: show where it sits in the table, and the boss.
+		const run = this._run!;
+		if (run.phase === PHASE.PASS || run.phase === PHASE.PLAY) this.showOverview = true;
 	}
 
 	toMenu() {
@@ -374,7 +392,11 @@ class Game {
 	}
 
 	escape() {
-		if (this.screen === 'menu') this.showHelp = false;
+		if (this.inspect) this.inspect = null;
+		else if (this.showLastTrick) this.showLastTrick = false;
+		else if (this.showOverview) this.showOverview = false;
+		else if (this.showCollection) this.showCollection = false;
+		else if (this.screen === 'menu') this.showHelp = false;
 		else if (this.sealPick !== null) this.sealPick = null;
 		else this.screen = 'menu';
 	}
@@ -382,7 +404,8 @@ class Game {
 	advance() {
 		if (this.screen === 'menu') return this.newRun();
 		const run = this._run!;
-		if (this.trickHold) this.endTrickHold();
+		if (this.showOverview) this.showOverview = false;
+		else if (this.trickHold) this.endTrickHold();
 		else if (run.phase === PHASE.PASS) this.commitPass();
 		else if (run.phase === PHASE.HAND_SCORED) this.continueAfterHand();
 		else if (run.phase === PHASE.BOARD_WON) this.enterShop();
@@ -424,21 +447,26 @@ class Game {
 		} else if (phase === PHASE.PASS) {
 			this.passPick = [];
 		}
+		this.showLastTrick = false;
 	}
 
 	private updateReveal(dt: number) {
 		const rv = this.reveal;
 		if (!rv || rv.done) return;
 		rv.t += dt;
-		while (rv.shown < rv.items.length && rv.t >= (rv.shown + 1) * REVEAL_STEP) {
+		const step = REVEAL_STEP / sp();
+		while (rv.shown < rv.items.length && rv.t >= (rv.shown + 1) * step) {
 			rv.shown++;
 			const item = rv.items[rv.shown - 1];
-			if (item.mult || (item.xmult && item.xmult !== 1)) {
+			if (item.edition) {
+				sound.play('doubled', { pitch: 1.1 + 0.03 * rv.shown });
+				fx.shake(2);
+			} else if (item.mult || (item.xmult && item.xmult !== 1)) {
 				sound.play('mult', { pitch: 1 + 0.04 * rv.shown });
 				fx.shake(2.5);
 			} else sound.play('tick', { pitch: 1 + 0.06 * rv.shown });
 		}
-		if (rv.shown >= rv.items.length && rv.t >= (rv.items.length + 1) * REVEAL_STEP) {
+		if (rv.shown >= rv.items.length && rv.t >= (rv.items.length + 1) * step) {
 			rv.done = true;
 			const r = this._run!.hand.result!;
 			if (r.total > 0) {
@@ -472,7 +500,7 @@ class Game {
 			return;
 		}
 		this.updateReveal(dt);
-		if (run.phase === PHASE.PLAY && !R.isPlayerTurn(run)) {
+		if (run.phase === PHASE.PLAY && !R.isPlayerTurn(run) && !this.showOverview) {
 			this.aiTimer -= dt;
 			if (this.aiTimer <= 0) {
 				const wasBroken = run.hand.state!.heartsBroken;
@@ -483,7 +511,7 @@ class Game {
 					this.queenBroke = !wasBroken && step.card.suit !== H.HEARTS && !!run.hand.state?.heartsBroken;
 				}
 				this.holdTrick(step?.trick);
-				this.aiTimer = AI_DELAY;
+				this.aiTimer = AI_DELAY / sp();
 				this.bump();
 			}
 		}

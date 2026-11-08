@@ -19,6 +19,9 @@
 	import Help from './Help.svelte';
 	import Toast from './Toast.svelte';
 	import Particles from './Particles.svelte';
+	import TableOverview from './TableOverview.svelte';
+	import InfoCard from './InfoCard.svelte';
+	import Collection from './Collection.svelte';
 
 	let vw = $state(1280);
 	let vh = $state(720);
@@ -76,6 +79,8 @@
 
 	// A press anywhere during a held trick or the score count-up skips it.
 	function onClickCapture(e: MouseEvent) {
+		// A hand card handles its own press (it ends the hold and plays).
+		if ((e.target as HTMLElement)?.closest?.('.slot')) return;
 		if (game.skipPress()) {
 			e.stopPropagation();
 			e.preventDefault();
@@ -98,6 +103,7 @@
 			{#if game.screen === 'menu' || !run}
 				<Menu />
 				{#if game.showHelp}<Help />{/if}
+				{#if game.showCollection}<Collection />{/if}
 			{:else}
 				<Felt x={L.table.x} y={L.table.y} w={L.table.w} h={L.table.h} />
 				{#if run.phase === PHASE.SHOP}
@@ -115,10 +121,11 @@
 					{/if}
 				{/if}
 				<Sidebar />
+				{#if game.inspect}<InfoCard />{/if}
+				{#if game.showOverview && run.phase !== PHASE.GAME_OVER && run.phase !== PHASE.VICTORY}<TableOverview />{/if}
 			{/if}
 			<Toast />
 			<Particles w={L.W} h={L.H} {scale} />
-			<div class="vignette"></div>
 		</div>
 	{/if}
 </div>
@@ -141,12 +148,5 @@
 		transform-origin: 50% 50%;
 		overflow: hidden;
 		background: var(--bg);
-	}
-	.vignette {
-		position: absolute;
-		inset: 0;
-		pointer-events: none;
-		z-index: 600;
-		background: radial-gradient(ellipse 70% 78% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
 	}
 </style>

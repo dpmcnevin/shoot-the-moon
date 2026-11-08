@@ -10,6 +10,8 @@
 	import { CARD_H, CARD_W } from '$engine/ui/theme.ts';
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
+	import Shine from './Shine.svelte';
+	import { editionColor } from './editions.ts';
 
 	let { p }: { p: Placement } = $props();
 
@@ -89,10 +91,11 @@
 						class:pixel={settings.pixelCards}
 						style:box-shadow="{shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA})"
 					>
-						<img src={front} alt="" draggable="false" />
+						<Shine edition={p.edition}><img src={front} alt="" draggable="false" /></Shine>
 						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={28} /></span>{/if}
 						{#if p.dim}<div class="dim"></div>{/if}
 						{#if p.highlight}<div class="ring" style:border-color={p.highlight}></div>{/if}
+						{#if p.edition}<span class="ed-label" style:color={editionColor(p.edition)}>{p.edition.toUpperCase()}</span>{/if}
 					</div>
 					<div
 						class="face back"
@@ -201,6 +204,22 @@
 		inset: 0;
 		border-radius: inherit;
 		background: rgba(15, 25, 23, 0.5);
+	}
+	.face :global(.shine) {
+		width: 100%;
+		height: 100%;
+	}
+	.ed-label {
+		position: absolute;
+		left: 50%;
+		bottom: -12px;
+		transform: translateX(-50%);
+		padding: 1px 5px;
+		background: rgba(15, 26, 22, 0.9);
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		white-space: nowrap;
 	}
 	.ring {
 		position: absolute;

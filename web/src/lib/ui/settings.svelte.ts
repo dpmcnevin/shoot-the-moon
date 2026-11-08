@@ -11,7 +11,24 @@ const DEFAULTS: Record<SettingKey, boolean> = {
 	rubberView: false
 };
 
+const SPEED_KEY = 'shoot-the-moon.speed';
+export const SPEED_MIN = 0.5;
+export const SPEED_MAX = 3;
+export const SPEED_STEP = 0.25;
+
 class Settings {
+	/** Play speed: how quickly the opponents play and the table moves on. */
+	speed = $state(1);
+
+	setSpeed(v: number) {
+		this.speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(v / SPEED_STEP) * SPEED_STEP));
+		try {
+			localStorage.setItem(SPEED_KEY, String(this.speed));
+		} catch {
+			/* ignore */
+		}
+	}
+
 	music = $state(DEFAULTS.music);
 	sfx = $state(DEFAULTS.sfx);
 	fourColor = $state(DEFAULTS.fourColor);
@@ -19,6 +36,12 @@ class Settings {
 	rubberView = $state(DEFAULTS.rubberView);
 
 	load() {
+		try {
+			const sp = Number(localStorage.getItem(SPEED_KEY));
+			if (sp >= SPEED_MIN && sp <= SPEED_MAX) this.speed = sp;
+		} catch {
+			/* ignore */
+		}
 		try {
 			const raw = localStorage.getItem(STORAGE_KEY);
 			if (!raw) return;

@@ -35,6 +35,8 @@ export interface Placement {
 	/** Seconds to wait before flipping to `faceUp`. */
 	flipDelay?: number;
 	hovered?: boolean;
+	/** A relic edition's look over the face (the menu's cards). */
+	edition?: string | null;
 	/** A seal shown on the face, if the card carries one. */
 	seal?: SealKey;
 	/** Used only when the sprite is first created. */

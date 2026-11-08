@@ -14,6 +14,59 @@
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
 	import { sealOf, pointsTaken as sealPoints, trickPoints } from '$engine/game/seals.ts';
+	import * as bosses from '$engine/game/bosses.ts';
+	import LastTrick from './LastTrick.svelte';
+
+	/** A boss's rule in force right now. */
+	function bossNow(key: string): boolean {
+		void game.v;
+		return R.bossActive(run) && run.boss === key;
+	}
+	const SUIT_MARK: Record<number, string> = { 1: '♣', 2: '♦', 3: '♥', 4: '♠' };
+	const SUIT_NAME: Record<number, string> = { 1: 'clubs', 2: 'diamonds', 3: 'hearts', 4: 'spades' };
+	/** Card Counter: the suits a seat has shown it's out of. */
+	function voidsOf(seat: number): number[] {
+		void game.v;
+		const st = hand.state;
+		if (!st || !R.activeRelics(run).some((r) => r.def.cardCounter)) return [];
+		return Object.entries(st.voids[seat])
+			.filter(([, v]) => v)
+			.map(([k]) => Number(k))
+			.sort();
+	}
+	/** The seat holding every point taken so far, once there are 4 or more. */
+	const moonSeat = $derived.by(() => {
+		void game.v;
+		const st = hand.state;
+		if (!st || st.complete) return null;
+		const seat = H.moonOnCourse(st);
+		return seat !== null && H.pointsTaken(st)[seat] >= 4 ? seat : null;
+	});
+	/** An ellipse as a staircase of pixel rows (as in the iPad app). */
+	function pixelOval(w: number, h: number, inset = 0, px = 4): string {
+		const W = w - inset * 2,
+			Hh = h - inset * 2;
+		const rows = Math.max(2, Math.floor(Hh / px));
+		const a = W / 2,
+			b = Hh / 2;
+		const right: string[] = [],
+			left: string[] = [];
+		for (let i = 0; i < rows; i++) {
+			const y0 = inset + (i * Hh) / rows,
+				y1 = inset + ((i + 1) * Hh) / rows;
+			const yy = ((i + 0.5) * Hh) / rows - b;
+			const half = Math.round((a * Math.sqrt(Math.max(0, 1 - (yy * yy) / (b * b)))) / px) * px;
+			right.push(`${w / 2 + half},${y0}`, `${w / 2 + half},${y1}`);
+			left.push(`${w / 2 - half},${y0}`, `${w / 2 - half},${y1}`);
+		}
+		return [...right, ...left.reverse()].join(' ');
+	}
+
+	const lastTrick = $derived.by(() => {
+		void game.v;
+		const st = hand.state;
+		return st && st.tricks.length ? st.tricks[st.tricks.length - 1] : null;
+	});
 
 	let { scale = 1 }: { scale?: number } = $props();
 
@@ -51,6 +104,8 @@
 
 	function ordered(input: Card[]): Card[] {
 		void orderV;
+		// The Blindfold: face down and shuffled while passing, so order gives nothing away.
+		if (run.phase === PHASE.PASS && bossNow('blindfold')) return input.slice().sort((a, b) => ((a.id! * 2654435761) % 1009) - ((b.id! * 2654435761) % 1009));
 		const list = bySuitLowToHigh(input);
 		const saved = order.get(game.rawHand);
 		if (!saved) return list;
@@ -98,6 +153,8 @@
 		}
 		const fresh = now - intro < 400;
 		const pick = new Set(game.passPick);
+		const blind = passing && bossNow('blindfold');
+		const fog = bossNow('fog');
 
 		// Your hand.
 		slots.forEach((s, idx) => {
@@ -129,7 +186,7 @@
 				y: s.cy - lift,
 				r: hovered || picked ? 0 : s.r,
 				s: hovered ? 1.1 : 1,
-				faceUp: true,
+				faceUp: !blind,
 				z: hovered ? 45 : 10 + idx,
 				lift,
 				dim: isTurn && !legal.has(s.card),
@@ -194,7 +251,7 @@
 				y,
 				r: tossAngle(p.card),
 				s: won ? 1.08 : 1,
-				faceUp: true,
+				faceUp: !fog || !!game.trickHold || i === 0 || p.seat === H.PLAYER,
 				z: 60 + i,
 				lift: won ? 10 : 2,
 				highlight: won ? css(game.trickHold!.trick.points > 0 ? C.bad : C.brass) : null,
@@ -311,20 +368,33 @@
 
 <svelte:window onpointermove={move} onpointerup={up} onpointercancel={() => (drag = null)} />
 
-<div
+<svg
 	class="oval"
 	style:left="{L.tableCX - L.ovalRX}px"
 	style:top="{L.trickCY - L.ovalRY}px"
-	style:width="{L.ovalRX * 2}px"
-	style:height="{L.ovalRY * 2}px"
-></div>
+	width={L.ovalRX * 2}
+	height={L.ovalRY * 2}
+	shape-rendering="crispEdges"
+	aria-hidden="true"
+>
+	<polygon points={pixelOval(L.ovalRX * 2, L.ovalRY * 2, 1)} fill="rgba(14, 45, 32, 0.55)" stroke="rgba(138, 106, 44, 0.6)" stroke-width="2" />
+	<polygon points={pixelOval(L.ovalRX * 2, L.ovalRY * 2, 9)} fill="none" stroke="rgba(138, 106, 44, 0.6)" stroke-width="2" />
+</svg>
 
 {#each [cards.WEST, cards.NORTH, cards.EAST] as seat (seat)}
 	{@const S = L.seats[seat]}
-	<div class="seat-label" class:active={turn === seat} style:left="{S.labelX}px" style:top="{S.labelY}px" style:text-align={S.align}>
-		{H.SEAT_NAMES[seat].toUpperCase()}
+	{@const shark = bossNow('shark') && seat === bosses.SHARK_SEAT}
+	{@const out = voidsOf(seat)}
+	<div class="seat-label" class:active={turn === seat} class:alert={shark} style:left="{S.labelX}px" style:top="{S.labelY}px" style:text-align={S.align}>
+		{H.SEAT_NAMES[seat].toUpperCase()}{shark ? ' · SHARK' : ''}
 		{#if livePoints[seat] > 0}<span class="pts">{livePoints[seat]}</span>{/if}
 		{#if turn === seat}<span class="thinking"></span>{/if}
+		{#if moonSeat === seat}<span class="moon bad" title="Holds every point so far: could shoot the moon">MOON?</span>{/if}
+		{#if out.length}
+			<div class="voids" aria-label="{H.SEAT_NAMES[seat]} is out of {out.map((x) => SUIT_NAME[x]).join(', ')}">
+				OUT {#each out as su (su)}<span class="vs" class:red={su === 2 || su === 3}>{SUIT_MARK[su]}</span>{/each}
+			</div>
+		{/if}
 	</div>
 {/each}
 
@@ -353,12 +423,13 @@
 	SOUTH · You
 	{#if livePoints[H.PLAYER] > 0}<span class="pts">{livePoints[H.PLAYER]}</span>{/if}
 	{#if isTurn}<span class="your-play">Your play</span>{/if}
+	{#if moonSeat === H.PLAYER}<span class="moon" title="You hold every point so far: the moon is still on">MOON ON</span>{/if}
 </div>
 
 {#if passing}
 	<div class="pass-bar" style:left="{L.tableCX - 210}px" style:top="{L.trickCY - 40}px">
 		<div class="pass-title">Pass three cards {hand.passDir} {passTo ? `to ${passTo}` : ''}</div>
-		<div class="pass-sub">{game.passPick.length} of 3 chosen · tap cards to pick them</div>
+		<div class="pass-sub">{bossNow('blindfold') ? `Blindfolded: ${game.passPick.length} of 3 chosen, unseen` : `${game.passPick.length} of 3 chosen · tap cards to pick them`}</div>
 		<Button enabled={game.passPick.length === 3} pulse sound={false} onclick={() => game.commitPass()} style="width: 200px"
 			>Pass {hand.passDir === 'left' ? '←' : hand.passDir === 'right' ? '→' : '↑'}</Button
 		>
@@ -382,6 +453,16 @@
 {/if}
 
 {#if run.phase === PHASE.PLAY}
+	<div class="playout" style:left="{L.playOut.x}px" style:top="{L.playOut.y - L.playOut.h - 8}px">
+		<Button
+			variant="plain"
+			size="sm"
+			enabled={!!lastTrick && !game.trickHold}
+			style="width: {L.playOut.w}px; height: {L.playOut.h}px; font-size: 17px"
+			title="See the last finished trick."
+			onclick={() => (game.showLastTrick = true)}>Last trick</Button
+		>
+	</div>
 	<div class="playout" style:left="{L.playOut.x}px" style:top="{L.playOut.y}px">
 		<Button
 			variant="plain"
@@ -394,15 +475,14 @@
 	</div>
 {/if}
 
+{#if game.showLastTrick && lastTrick}
+	<LastTrick trick={lastTrick} />
+{/if}
+
 <style>
 	.oval {
 		position: absolute;
-		border-radius: 50%;
-		background: rgba(14, 45, 32, 0.55);
-		border: 2px solid rgba(138, 106, 44, 0.6);
-		box-shadow:
-			inset 0 0 0 6px rgba(14, 45, 32, 0.55),
-			inset 0 0 0 8px rgba(138, 106, 44, 0.6);
+		overflow: visible;
 		pointer-events: none;
 	}
 	.seat-label,
@@ -522,5 +602,42 @@
 	.playout {
 		position: absolute;
 		z-index: 85;
+	}
+	.alert {
+		color: var(--bad);
+	}
+	.moon {
+		display: inline-block;
+		margin-left: 8px;
+		padding: 1px 7px;
+		background: var(--brass);
+		color: var(--bg);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-shadow: none;
+		animation: blink 1.2s ease-in-out infinite;
+	}
+	.moon.bad {
+		background: var(--bad);
+	}
+	.voids {
+		margin-top: 4px;
+		display: inline-flex;
+		gap: 4px;
+		align-items: center;
+		padding: 2px 6px;
+		background: rgba(15, 26, 22, 0.85);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		color: var(--ink-dim);
+	}
+	.vs {
+		font-size: 14px;
+		color: var(--ink);
+	}
+	.vs.red {
+		color: var(--bad);
 	}
 </style>

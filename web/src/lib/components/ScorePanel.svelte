@@ -1,6 +1,7 @@
 <!-- The hand's score, counted up line by line: dodged points (or the moon),
      upgrades and relics, then chips x mult. -->
 <script lang="ts">
+	import { editionColor } from './editions.ts';
 	import { scale, fly } from 'svelte/transition';
 	import { backOut, cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
@@ -77,7 +78,7 @@
 		<div class="lines">
 			{#each shown as item, i (i)}
 				<div class="line" in:fly={{ x: -20, duration: 180, easing: cubicOut }}>
-					<span>{item.label}</span>
+					<span style:color={item.edition ? editionColor(item.edition) : null}>{item.label}</span>
 					<span class="parts">{#each parts(item) as p (p.text)}<span class={p.cls}>{p.text}</span>{/each}</span>
 				</div>
 			{/each}

@@ -1,4 +1,5 @@
-<!-- The main menu: a fan of four aces, the title, a seed box and settings. -->
+<!-- The main menu: a fan of four random cards, some with a relic edition,
+     the title, a seed box, the collection and settings. -->
 <script lang="ts">
 	import * as cards from '$engine/rules/cards.ts';
 	import { game, PHASE } from '../app/game.svelte.ts';
@@ -8,10 +9,24 @@
 	import CardSprite from './CardSprite.svelte';
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
+	import SpeedSlider from './SpeedSlider.svelte';
 
 	const L = $derived(game.layout);
-	// The cards that matter in Hearts: the queen of spades and the top hearts.
-	const ACES = [cards.card(3, 14), cards.card(4, 12), cards.card(3, 13), cards.card(2, 11)];
+	// Four different random cards, dealt each time the menu appears; each has
+	// about a one-in-three chance of an edition, weighted like the club's.
+	function dealFan() {
+		const deck = cards.newDeck().sort(() => Math.random() - 0.5);
+		return deck.slice(0, 4).map((card) => {
+			let edition: string | null = null;
+			if (Math.random() < 0.33) {
+				const r = Math.random();
+				edition = r < 0.4 ? 'etched' : r < 0.7 ? 'lacquered' : r < 0.9 ? 'prismatic' : 'phantom';
+			}
+			return { card, edition };
+		});
+	}
+	const FAN = dealFan();
+	const ACES = FAN.map((f) => f.card);
 
 	let mouseX = $state(-1);
 	let t = $state(0);
@@ -60,6 +75,7 @@
 				r: p.r,
 				s: held ? 1.2 : 1.1,
 				faceUp: faceUp[i],
+				edition: faceUp[i] ? FAN[i].edition : null,
 				z: held ? 50 : 10 + order.indexOf(i),
 				lift: held ? 26 : 6,
 				flipDelay: 0.05,
@@ -176,7 +192,10 @@
 				spellcheck="false"
 				maxlength="12"
 			/>
-			<Button variant="plain" onclick={() => (game.showHelp = true)} style="width: 260px">How to play</Button>
+			<div class="pair">
+				<Button variant="plain" onclick={() => (game.showHelp = true)} style="width: 161px">How to play</Button>
+				<Button variant="plain" onclick={() => (game.showCollection = true)} style="width: 161px">Collection</Button>
+			</div>
 		</div>
 
 		<div class="settings">
@@ -201,6 +220,7 @@
 				style="width: 96px">{settings.pixelCards ? 'Pixel' : 'Smooth'}</Button
 			>
 		</div>
+		<div class="speed-wrap"><SpeedSlider width={404} /></div>
 	</div>
 </div>
 
@@ -208,6 +228,13 @@
 	.menu {
 		position: absolute;
 		inset: 0;
+	}
+	.pair {
+		display: flex;
+		gap: 8px;
+	}
+	.speed-wrap {
+		margin-top: 10px;
 	}
 	.grab {
 		position: absolute;

@@ -1,5 +1,14 @@
 /* The table at night: deep green baize, cream cards, brass accents.
    Mirrors lib/ui/theme.ts for the DOM panels. */
+
+/* Jersey 10, the game's pixel font (SIL Open Font License, lib/fonts/OFL.txt).
+   It runs small for its point size, so it's scaled up to match the layout. */
+@font-face {
+	font-family: 'Jersey 10';
+	src: url('./lib/fonts/Jersey10-Regular.ttf') format('truetype');
+	font-display: block;
+	size-adjust: 130%;
+}
 :root {
 	--bg: #0b1f17;
 	--felt: #14402c;
@@ -30,7 +39,9 @@ body {
 	height: 100%;
 	background: var(--bg);
 	color: var(--ink);
-	font-family: 'Avenir Next', 'Segoe UI', system-ui, -apple-system, sans-serif;
+	font-family: 'Jersey 10', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+	font-synthesis: none;
+	-webkit-font-smoothing: none;
 	overscroll-behavior: none;
 }
 
@@ -45,6 +56,20 @@ body {
 	color: var(--ink);
 }
 
-button {
+button,
+input {
 	color: inherit;
+	font-family: inherit;
+}
+
+/* Pixel art all the way down: square corners everywhere (circles become
+   squares), crisp scaled images. */
+*,
+*::before,
+*::after {
+	border-radius: 0 !important;
+}
+img,
+canvas {
+	image-rendering: pixelated;
 }
