@@ -40,15 +40,27 @@ struct TableView: View {
                 handHitZones(v)
                 if v.phase == .pass { PassBar() }
                 if v.phase == .play {
+                    GameButton("Last trick", style: .plain, size: .small,
+                               enabled: v.hand.lastTrick != nil && model.trickHold == nil) { model.showLastTrick = true }
+                        .frame(width: 160)
+                        .position(x: L.W - 100, y: L.handY - 96)
+                        .zIndex(90)
                     GameButton("Play it out", style: .plain, size: .small) { model.playOut() }
                         .frame(width: 160)
                         .position(x: L.W - 100, y: L.handY - 50)
                         .zIndex(90)
                 }
+                if model.showLastTrick, let t = v.hand.lastTrick {
+                    LastTrickPanel(trick: t)
+                        .frame(width: L.W, height: L.H)
+                        .zIndex(130)
+                        .transition(.opacity)
+                }
                 trickText(v)
             }
             .frame(width: L.W, height: L.H)
             .animation(.spring(duration: 0.5, bounce: 0.22), value: animationKey(v))
+            .animation(.easeOut(duration: 0.15), value: model.showLastTrick)
         }
     }
 
@@ -289,5 +301,57 @@ struct PassBar: View {
         .overlay(PixelRect(radius: 10).stroke(Theme.ploy, lineWidth: 2))
         .position(x: model.layout.tableCX, y: model.layout.trickCY)
         .zIndex(85)
+    }
+}
+
+/// The last finished trick: the four cards in the order they were played,
+/// who played each, and who took it. Tap anywhere to close.
+struct LastTrickPanel: View {
+    @Environment(GameModel.self) private var model
+    let trick: TrickV
+
+    var body: some View {
+        let v = model.view!
+        let L = model.layout
+        let name = { (s: Int) in s == Seat.player ? "You" : v.seatName(s) }
+        let took = trick.winner == Seat.player ? "You took it" : "\(name(trick.winner)) took it"
+        ZStack {
+            Color.black.opacity(0.4)
+            Panel(edge: trick.points > 0 ? Theme.bad : Theme.brass) {
+                VStack(spacing: 14) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Trick \(trick.index)").font(Theme.font(26, .bold)).foregroundStyle(Theme.brass).inkShadow()
+                        Spacer()
+                        Text(trick.points > 0 ? "\(took) · \(trick.points) point\(trick.points == 1 ? "" : "s")" : took)
+                            .font(Theme.font(18)).foregroundStyle(trick.points > 0 ? Theme.bad : Theme.ink)
+                    }
+                    HStack(spacing: 18) {
+                        ForEach(Array(trick.plays.enumerated()), id: \.offset) { i, p in
+                            VStack(spacing: 8) {
+                                CardView(card: p.card, faceUp: true,
+                                         highlight: p.seat == trick.winner ? (trick.points > 0 ? Theme.bad : Theme.brass) : nil,
+                                         lift: p.seat == trick.winner ? 8 : 2)
+                                    .scaleEffect(1.25)
+                                    .frame(width: TableLayout.cardW * 1.25, height: TableLayout.cardH * 1.25)
+                                Text(name(p.seat)).font(Theme.font(16))
+                                    .foregroundStyle(p.seat == trick.winner ? Theme.brass : Theme.inkDim)
+                                Text(i == 0 ? "led" : " ").font(Theme.font(12)).foregroundStyle(Theme.inkFaint)
+                            }
+                        }
+                    }
+                    if !trick.kitty.isEmpty {
+                        Text("Plus the kitty: \(trick.kitty.map(\.name).joined(separator: " "))")
+                            .font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                    }
+                    Text("tap to close").font(Theme.font(13)).foregroundStyle(Theme.inkFaint)
+                }
+                .padding(.horizontal, 26).padding(.vertical, 18)
+                .foregroundStyle(Theme.ink)
+            }
+            .frame(width: 560)
+            .position(x: L.tableCX, y: L.trickCY)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { model.showLastTrick = false }
     }
 }

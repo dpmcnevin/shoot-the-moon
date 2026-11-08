@@ -45,6 +45,8 @@ final class GameModel {
     private(set) var view: GameView?
     var screen: Screen = .menu
     var showHelp = false
+    /// The Last trick panel is open.
+    var showLastTrick = false
     var seedInput = ""
 
     /// Cards picked to pass.
@@ -210,6 +212,7 @@ final class GameModel {
     }
 
     func play(_ id: Int) {
+        showLastTrick = false
         guard isLegal(id), let v = view, let card = v.hand.mine.first(where: { $0.id == id }) else { return }
         let wasBroken = v.hand.heartsBroken
         guard let r = act(.play(id)) else { return }
@@ -331,6 +334,7 @@ final class GameModel {
     // MARK: - Phases
 
     private func onPhaseEnter(_ phase: Phase) {
+        showLastTrick = false
         guard let v = view else { return }
         let L = layout
         switch phase {

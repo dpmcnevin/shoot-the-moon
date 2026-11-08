@@ -44,6 +44,8 @@ struct HandV: Decodable {
     let kitty: [Int]
     let trick: [PlayV]
     let tricksPlayed: Int
+    /// The last finished trick of this hand.
+    let lastTrick: TrickV?
     let handSize: Int
     let turn: Int?
     let isPlayerTurn: Bool
