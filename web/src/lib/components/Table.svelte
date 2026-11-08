@@ -16,6 +16,7 @@
 	import type { Placement } from './placement.ts';
 	import { sealOf, pointsTaken as sealPoints, trickPoints } from '$engine/game/seals.ts';
 	import { editionOf } from '$engine/game/cardEditions.ts';
+	import * as tagsLib from '$engine/game/tags.ts';
 	import * as bosses from '$engine/game/bosses.ts';
 	import LastTrick from './LastTrick.svelte';
 
@@ -148,6 +149,7 @@
 		return new Set<Card>(isTurn ? H.legalPlays(hand.state!, H.PLAYER) : []);
 	});
 	const passing = $derived(run.phase === PHASE.PASS);
+	const skipTagNow = $derived((void game.v, R.skipTag(run)));
 	const slots = $derived.by((): Slot[] => {
 		void game.v;
 		void drag;
@@ -455,6 +457,9 @@
 		<Button enabled={game.passPick.length === 3} pulse sound={false} onclick={() => game.commitPass()} style="width: 200px"
 			>Pass {hand.passDir === 'left' ? '←' : hand.passDir === 'right' ? '→' : '↑'}</Button
 		>
+		{#if skipTagNow}
+			<button class="skip-link" onclick={() => game.skipBoard()} title={tagsLib.TAGS[skipTagNow].text}>or skip this board for <b>{tagsLib.TAGS[skipTagNow].name}</b></button>
+		{/if}
 	</div>
 {/if}
 
@@ -615,6 +620,20 @@
 	.pass-title {
 		font-size: 22px;
 		font-weight: 700;
+	}
+	.skip-link {
+		background: none;
+		border: none;
+		padding: 0;
+		margin-top: 2px;
+		font: inherit;
+		font-size: 14px;
+		color: var(--ink-dim);
+		cursor: pointer;
+		text-decoration: underline;
+	}
+	.skip-link:hover {
+		color: var(--ink);
 	}
 	.pass-sub {
 		font-size: 14px;

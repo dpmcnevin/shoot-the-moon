@@ -11,6 +11,7 @@ import type { Card } from '$engine/rules/cards.ts';
 import type { Trick } from '$engine/rules/hearts.ts';
 import type { Hand, Run } from '$engine/game/run.ts';
 import * as sound from '../audio/sound.ts';
+import * as tagsLib from '$engine/game/tags.ts';
 import * as ploysLib from '$engine/game/ploys.ts';
 import * as profileLib from '$engine/app/profile.ts';
 import * as save from '$engine/app/save.ts';
@@ -355,6 +356,18 @@ class Game {
 		if (run.phase !== PHASE.HAND_SCORED || this.trickHold) return;
 		if (this.reveal && !this.reveal.done) return this.finishReveal();
 		this.act({ t: 'continue' });
+		this.bump();
+	}
+
+	/** Skip this board for its tag. */
+	skipBoard() {
+		const run = this._run!;
+		const tag = R.skipTag(run);
+		if (!tag) return;
+		this.act({ t: 'skip' });
+		sound.play('coin');
+		this.showToast(`Skipped: ${tagsLib.TAGS[tag].name}`, C.ploy);
+		this.lastPhase = null;
 		this.bump();
 	}
 

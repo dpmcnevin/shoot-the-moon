@@ -7,6 +7,8 @@
 	import { game, PHASE } from '../app/game.svelte.ts';
 	import { num } from '../app/format.ts';
 	import Button from './Button.svelte';
+	import Icon from './Icon.svelte';
+	import * as tagsLib from '$engine/game/tags.ts';
 
 	const L = $derived(game.layout);
 	const run = $derived(game.run!);
@@ -28,7 +30,9 @@
 				reward: R.MONEY_PER_BOARD + (isBoss ? bosses.BOSS_BONUS : 0),
 				isBoss,
 				won: b < run.board || (b === run.board && boardWon),
-				now: b === run.board && !(b === run.board && boardWon)
+				now: b === run.board && !(b === run.board && boardWon),
+				skipped: (run.skipped ?? []).includes(b),
+				tag: run.tagsOn && b < R.BOARDS_PER_TABLE ? run.tagOffers[b - 1] : undefined
 			};
 		})
 	);
@@ -38,6 +42,7 @@
 		if (cur.isBoss && boss) return `Face ${boss.name}`;
 		return run.handsLeft < run.handsThisBoard ? `Back to ${cur.name}` : `Play ${cur.name}`;
 	});
+	const skippable = $derived((void game.v, R.skipTag(run) !== null));
 	const W = 820;
 	const left = $derived(L.orientation === 'portrait' ? (L.W - Math.min(W, L.W - 40)) / 2 : L.sidebar.w + (L.W - L.sidebar.w - W) / 2);
 </script>
@@ -62,7 +67,7 @@
 	<div class="boards">
 		{#each boards as x (x.b)}
 			<div class="board" class:won={x.won} class:now={x.now} class:boss={x.isBoss}>
-				<div class="bhead"><span class="bname">{x.name}</span><span class="state">{x.won ? 'WON' : x.now ? 'NOW' : 'UP NEXT'}</span></div>
+				<div class="bhead"><span class="bname">{x.name}</span><span class="state">{x.skipped ? 'SKIPPED' : x.won ? 'WON' : x.now ? 'NOW' : 'UP NEXT'}</span></div>
 				<div class="glabel">Goal</div>
 				<div class="goal">{num(x.target)}</div>
 				<div class="meta"><span class:short={x.hands < 3}>{x.hands} hands</span><span class="brass">Pays ${x.reward}+</span></div>
@@ -72,7 +77,17 @@
 					<div class="bossname">{boss.name}</div>
 					<div class="bosstext">{boss.text}</div>
 				{:else}
-					<div class="note">{x.won ? 'Done.' : x.now ? "You're here." : 'Standard rules.'}</div>
+					<div class="note">{x.skipped ? 'Skipped for its tag.' : x.won ? 'Done.' : x.now ? "You're here." : 'Standard rules.'}</div>
+				{/if}
+				{#if x.tag && !x.won && !x.skipped}
+					{@const t = tagsLib.TAGS[x.tag]}
+					<div class="tagbox">
+						<div class="tagline"><Icon name={t.icon} scale={1} /><span>Skip for <b>{t.name}</b></span></div>
+						<div class="tagtext">{t.text}.</div>
+						{#if x.now && skippable}
+							<Button variant="ploy" size="sm" onclick={() => game.skipBoard()} style="width: 100%; margin-top: 4px">Skip {x.name}</Button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		{/each}
@@ -84,6 +99,22 @@
 </div>
 
 <style>
+	.tagbox {
+		margin-top: auto;
+		padding-top: 8px;
+		border-top: 2px solid var(--panel-edge);
+	}
+	.tagline {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 14px;
+		color: var(--ploy-light, #c2adf0);
+	}
+	.tagtext {
+		font-size: 13px;
+		color: var(--ink-dim);
+	}
 	.scrim {
 		position: absolute;
 		inset: 0;

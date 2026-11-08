@@ -120,7 +120,16 @@ struct BossV: Decodable, Hashable {
 }
 
 /// One board of the current table, for the table overview.
+/// A tag: the reward for skipping a board (ruleset v5).
+struct TagV: Decodable {
+    let key: String
+    let name: String
+    let text: String
+    let icon: String
+}
+
 struct TableBoardV: Decodable, Identifiable {
+    let tag: TagV?
     let board: Int
     let name: String
     let target: Int
@@ -264,6 +273,9 @@ struct GameView: Decodable {
     let ploysOn: Bool?
     let ploys: [PloyV]?
     let ploySlots: Int?
+    /// The tag for skipping this board, if it can be skipped now; boards skipped this table.
+    let skipTag: TagV?
+    let skipped: [Int]?
     let spotlight: Bool?
     let spying: Bool?
     let spyHands: [String: [CardV]]?

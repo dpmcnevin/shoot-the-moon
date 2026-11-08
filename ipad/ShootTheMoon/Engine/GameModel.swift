@@ -541,6 +541,16 @@ final class GameModel {
         audio.play("card_play", volume: 0.5, jitter: 0.1)
     }
 
+    /// Skip this board for its tag.
+    func skipBoard() {
+        guard let tag = view?.skipTag else { return }
+        if act(.skip)?.ok == true {
+            audio.play("coin")
+            showToast("Skipped: \(tag.name)", Theme.ploy)
+            showOverview = false
+        }
+    }
+
     /// Use the ploy in this slot.
     func usePloy(_ slot: Int) {
         guard let p = view?.ploys?.first(where: { $0.slot == slot }) else { return }

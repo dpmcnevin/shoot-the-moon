@@ -372,6 +372,13 @@ struct PassBar: View {
             GameButton("Pass \(arrow)", enabled: model.passPick.count == 3, pulse: true) { model.commitPass() }
                 .frame(width: 200)
                 .padding(.top, 6)
+            if let tag = v.skipTag {
+                Button { model.skipBoard() } label: {
+                    Text("or skip this board for \(Text(tag.name).bold())").underline()
+                        .font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(14)
         .frame(width: 420)

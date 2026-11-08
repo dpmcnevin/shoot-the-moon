@@ -40,7 +40,7 @@ struct TableOverview: View {
                             BoardColumn(v: v, board: b)
                         }
                     }
-                    .frame(height: 300)
+                    .frame(height: 360)
 
                     HStack {
                         Text("Money $\(num(Double(v.money)))").font(Theme.font(18)).foregroundStyle(Theme.brass)
@@ -59,12 +59,14 @@ struct TableOverview: View {
 }
 
 private struct BoardColumn: View {
+    @Environment(GameModel.self) private var model
     let v: GameView
     let board: TableBoardV
 
     var body: some View {
         let isBoss = board.board == v.boardsPerTable && v.boss != nil
         let won = board.board < v.board || (board.board == v.board && (v.phase == .boardWon || v.phase == .shop))
+        let skipped = v.skipped?.contains(board.board) == true
         let now = board.board == v.board && !won
         let edge = isBoss ? Theme.bad : now ? Theme.brass : Theme.panelEdge
 
@@ -72,7 +74,7 @@ private struct BoardColumn: View {
             HStack {
                 Text(board.name).font(Theme.font(22, .bold))
                 Spacer()
-                Text(won ? "WON" : now ? "NOW" : "UP NEXT").font(Theme.font(12, .bold)).kerning(1)
+                Text(skipped ? "SKIPPED" : won ? "WON" : now ? "NOW" : "UP NEXT").font(Theme.font(12, .bold)).kerning(1)
                     .foregroundStyle(won ? Theme.good : now ? Theme.brass : Theme.inkFaint)
             }
             VStack(alignment: .leading, spacing: 0) {
@@ -92,8 +94,19 @@ private struct BoardColumn: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Spacer(minLength: 0)
-                Text(won ? "Done." : now ? "You're here." : "Standard rules.")
+                Text(skipped ? "Skipped for its tag." : won ? "Done." : now ? "You're here." : "Standard rules.")
                     .font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
+            }
+            if let tag = board.tag, !won, !skipped {
+                Rectangle().fill(Theme.panelEdge).frame(height: 2)
+                HStack(spacing: 6) {
+                    Icon(key: tag.icon)
+                    Text("Skip for \(Text(tag.name).bold())").font(Theme.font(14)).foregroundStyle(Theme.ploy)
+                }
+                Text(tag.text + ".").font(Theme.font(13)).foregroundStyle(Theme.inkDim).fixedSize(horizontal: false, vertical: true)
+                if now, v.skipTag != nil {
+                    GameButton("Skip \(board.name)", style: .ploy, size: .small) { model.skipBoard() }
+                }
             }
             Spacer(minLength: 0)
         }

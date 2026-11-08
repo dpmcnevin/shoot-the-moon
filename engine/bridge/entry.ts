@@ -18,6 +18,7 @@ import * as cardEds from '../src/game/cardEditions.ts';
 import * as profileLib from '../src/app/profile.ts';
 import * as ploysLib from '../src/game/ploys.ts';
 import * as bundlesLib from '../src/game/bundles.ts';
+import * as tagsLib from '../src/game/tags.ts';
 import * as packs from '../src/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/app/save.ts';
 import { faceBitmap, backBitmap } from '../src/ui/pixelcards.ts';
@@ -138,7 +139,8 @@ function view() {
 		tableBoards: Array.from({ length: R.BOARDS_PER_TABLE }, (_, i) => {
 			const b = i + 1;
 			const boss = r.bosses && b === R.BOARDS_PER_TABLE;
-			return { board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: Math.round(R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase) * (boss && r.boss === 'shortchanger' && r.balance >= 3 ? 0.8 : 1)), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
+			const tag = r.tagsOn && b < R.BOARDS_PER_TABLE ? r.tagOffers[b - 1] : undefined;
+			return { tag: tag ? { key: tag, name: tagsLib.TAGS[tag].name, text: tagsLib.TAGS[tag].text, icon: tagsLib.TAGS[tag].icon } : null, board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: Math.round(R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase) * (boss && r.boss === 'shortchanger' && r.balance >= 3 ? 0.8 : 1)), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
 		}),
 		money: r.money,
 		/** Ploys (ruleset v5): held, usable now or not; the hand's ploy effects. */
@@ -149,6 +151,13 @@ function view() {
 			return { slot: i, key: k, name: d.name, text: d.text, icon: d.icon, canUse: can, why: why ?? null };
 		}),
 		ploySlots: ploysLib.PLOY_SLOTS,
+		/** The tag for skipping this board, if it can be skipped now; tags still to pay out. */
+		skipTag: (() => {
+			const t = R.skipTag(r);
+			return t ? { key: t, name: tagsLib.TAGS[t].name, text: tagsLib.TAGS[t].text, icon: tagsLib.TAGS[t].icon } : null;
+		})(),
+		pendingTags: r.pendingTags.map((t) => tagsLib.TAGS[t].name),
+		skipped: r.skipped ?? [],
 		spotlight: r.spotlight,
 		spying: r.hand?.spyTrick !== undefined && !!r.hand.state && r.hand.spyTrick === r.hand.state.tricks.length,
 		/** While a Spyglass shows them: each opponent's cards. */

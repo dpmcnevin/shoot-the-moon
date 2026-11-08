@@ -18,6 +18,8 @@ import * as cardEds from './cardEditions.ts';
 import * as ploys from './ploys.ts';
 import type { PloyDef, PloyKey } from './ploys.ts';
 import * as bundles from './bundles.ts';
+import * as tags from './tags.ts';
+import type { TagKey } from './tags.ts';
 import type { BundleDef, BundleKey } from './bundles.ts';
 import type { CardEditionDef, CardEditionMap } from './cardEditions.ts';
 import * as packs from './pack.ts';
@@ -115,6 +117,8 @@ export interface Hand {
 
 export interface Stats {
 	handsPlayed: number;
+	/** Boards skipped for tags. */
+	boardsSkipped?: number;
 	moons: number;
 	cleanHands: number;
 	bestHand: number;
@@ -226,6 +230,16 @@ export interface Run {
 	spotlight: boolean;
 	/** A bundle being opened in the club: its choices. */
 	opening: { bundle: BundleKey; options: BundleChoice[] } | null;
+	/** Skipping boards for tags (ruleset v5). */
+	tagsOn: boolean;
+	/** This table's tags, for boards 1 and 2 (index 0 and 1). */
+	tagOffers: TagKey[];
+	/** Tags taken whose reward is still to come (a club, a payout). */
+	pendingTags: TagKey[];
+	/** Free Rerolls tag: rerolls cost nothing in this club. */
+	freeRerolls?: boolean;
+	/** Boards of this table that were skipped. */
+	skipped?: number[];
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -279,6 +293,8 @@ export interface RunOptions {
 	v4Relics?: boolean;
 	/** Ploys and bundles in the club (off by default). */
 	ploys?: boolean;
+	/** Boards can be skipped for tags (off by default). */
+	tags?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -359,6 +375,7 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		packEditions: true,
 		v4Relics: true,
 		ploys: true,
+		tags: true,
 		noRepeats: true,
 		tableBase: V3_TABLE_BASE,
 		bosses: true,
@@ -438,6 +455,9 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		ploys: [],
 		spotlight: false,
 		opening: null,
+		tagsOn: opts.tags ?? false,
+		tagOffers: [],
+		pendingTags: [],
 		pack: packs.standardPack(),
 		nextCardId: 53,
 		score: 0,
@@ -474,6 +494,11 @@ export function startBoard(run: Run) {
 	if (run.bosses && run.board === 1) {
 		run.boss = bosses.pickBoss(run.rng, run.table, run.bossesSeen, run.balance);
 		run.bossesSeen.push(run.boss);
+	}
+	// And its tags, for skipping Board 1 or 2.
+	if (run.tagsOn && run.board === 1) {
+		run.tagOffers = [tags.rollTag(run.rng), tags.rollTag(run.rng)];
+		run.skipped = [];
 	}
 	run.jinxed = null;
 	if (bossIs(run, 'jinx') && run.relics.length > 0) run.jinxed = run.relics[run.rng.int(1, run.relics.length) - 1].key;
@@ -913,7 +938,7 @@ export function winBoard(run: Run): Payout {
 	const p: Payout = {
 		board: MONEY_PER_BOARD,
 		unused: Math.max(0, run.handsLeft) * MONEY_PER_UNUSED_HAND,
-		interest: interest(run),
+		interest: interest(run) * (run.pendingTags.includes('interest') ? 2 : 1),
 		relics: bonus,
 		total: 0
 	};
@@ -922,6 +947,7 @@ export function winBoard(run: Run): Payout {
 		const o = overshootBonus(run.score, run.target);
 		if (o > 0) p.overshoot = o;
 	}
+	run.pendingTags = run.pendingTags.filter((t) => t !== 'interest');
 	p.total = p.board + p.unused + p.interest + p.relics + (p.boss ?? 0) + (p.overshoot ?? 0);
 	run.money += p.total;
 	run.lastPayout = p;
@@ -936,6 +962,11 @@ export function enterShop(run: Run) {
 	run.rerollCost = run.relics.some((r) => r.def.bargain) ? 0 : BASE_REROLL_COST;
 	run.shop = { items: [] };
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items[i] = rollShopItem(run);
+	// Tags taken by skipping: a free bundle, free rerolls.
+	if (run.pendingTags.includes('bundle')) run.shop.items.push({ kind: 'bundle', def: bundles.BUNDLES.relic, name: 'Free Relic Bundle', cost: 0 });
+	if (run.pendingTags.includes('reroll')) run.rerollCost = 0;
+	run.freeRerolls = run.pendingTags.includes('reroll');
+	run.pendingTags = run.pendingTags.filter((t) => t !== 'bundle' && t !== 'reroll');
 }
 
 /** What makes two club items the same offer. */
@@ -1116,6 +1147,37 @@ export function usePloy(run: Run, slot: number): [boolean, string?] {
 	return [true];
 }
 
+/** The tag for skipping the current board, if it can be skipped now:
+ *  Board 1 or 2, before its first pass. */
+export function skipTag(run: Run): TagKey | null {
+	if (!run.tagsOn || run.board >= BOARDS_PER_TABLE) return null;
+	// Before anything happens: while passing, or on a no-pass hand before the first card.
+	const fresh = run.phase === PHASE.PASS || (run.phase === PHASE.PLAY && (run.hand.state?.played.length ?? 1) === 0);
+	if (!fresh) return null;
+	if (run.handsLeft !== run.handsThisBoard || run.score > 0) return null;
+	return run.tagOffers[run.board - 1] ?? null;
+}
+
+/** Skip the current board: take its tag, and go straight to the next board
+ *  (no pay, no club). */
+export function skipBoard(run: Run): [boolean, string?] {
+	const tag = skipTag(run);
+	if (!tag) return [false, "this board can't be skipped"];
+	if (tag === 'ploy') {
+		if (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng).key);
+		else run.money += 3;
+	} else if (tag === 'edition') {
+		const free = run.pack.filter((c) => !run.cardEditions[String(c.id)]);
+		if (free.length) run.cardEditions[String(free[run.rng.int(1, free.length) - 1].id)] = cardEds.rollCardEdition(run.rng).key;
+	} else if (tag === 'cash') run.money += 8;
+	else run.pendingTags.push(tag);
+	run.stats.boardsSkipped = (run.stats.boardsSkipped ?? 0) + 1;
+	run.skipped = [...(run.skipped ?? []), run.board];
+	run.board++;
+	startBoard(run);
+	return [true];
+}
+
 export function sellRelic(run: Run, i: number): boolean {
 	const r = run.relics[i];
 	if (!r) return false;
@@ -1127,7 +1189,7 @@ export function sellRelic(run: Run, i: number): boolean {
 export function reroll(run: Run): boolean {
 	if (run.money < run.rerollCost || run.opening) return false;
 	run.money -= run.rerollCost;
-	run.rerollCost = run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL_COST - 1, run.rerollCost + 1) : run.rerollCost + 1;
+	run.rerollCost = run.freeRerolls ? 0 : run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL_COST - 1, run.rerollCost + 1) : run.rerollCost + 1;
 	run.shop!.items = [];
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop!.items[i] = rollShopItem(run);
 	return true;

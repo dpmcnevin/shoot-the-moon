@@ -975,6 +975,31 @@ test('a bundle opens three choices; picking one takes it', () => {
 	assert.equal(run.opening, null);
 });
 
+test('v5: skip Board 1 for its tag, straight to Board 2', () => {
+	const run = R.newRun('SKIP', { ruleset: 'v5' });
+	assert.equal(run.tagOffers.length, 2);
+	run.tagOffers[0] = 'cash';
+	const money = run.money;
+	assert.equal(R.skipTag(run), 'cash');
+	assert.ok(R.skipBoard(run)[0]);
+	assert.equal(run.board, 2);
+	assert.equal(run.money, money + 8);
+	assert.equal(run.phase, R.PHASE.PASS);
+	// Double interest waits for the next payout.
+	run.tagOffers[1] = 'interest';
+	assert.ok(R.skipBoard(run)[0]);
+	assert.equal(run.board, 3);
+	assert.equal(R.skipTag(run), null, 'the High Board cannot be skipped');
+	assert.deepEqual(run.pendingTags, ['interest']);
+	finish(run);
+	run.score = run.target + 1;
+	R.continueAfterHand(run);
+	assert.equal(run.lastPayout.interest, 2 * R.interest({ ...run, money: run.money - run.lastPayout.total }));
+	assert.deepEqual(run.pendingTags, []);
+	// Not in v4.
+	assert.equal(R.skipTag(R.newRun('SKIP4', { ruleset: 'v4' })), null);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

@@ -22,7 +22,8 @@ export type Action =
 	| { t: 'reroll' }
 	| { t: 'leave' }
 	| { t: 'ploy'; slot: number }
-	| { t: 'pick'; index: number };
+	| { t: 'pick'; index: number }
+	| { t: 'skip' };
 
 export interface Save {
 	version: number;
@@ -82,6 +83,8 @@ export function applyAction(run: Run, a: Action): Outcome {
 			return { ok: R.usePloy(run, a.slot)[0] };
 		case 'pick':
 			return { ok: R.pickFromBundle(run, a.index)[0] };
+		case 'skip':
+			return { ok: R.skipBoard(run)[0] };
 	}
 }
 
