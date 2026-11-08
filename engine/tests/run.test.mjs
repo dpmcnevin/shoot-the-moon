@@ -805,6 +805,50 @@ test('buying a card edition puts it on the chosen card; Burn removes it', () => 
 	assert.equal(cardEds.editionOf(run.cardEditions, c), undefined);
 });
 
+test('v4 relics: clean tricks won with top cards', () => {
+	const t = (suit, rank, points = 0) => ({ points, winner: H.PLAYER, winningCard: cards.card(suit, rank), plays: [], kitty: [] });
+	const score = (key, myTricks) => relics.get(key).score({ myTricks, balance: 3 }, null);
+	assert.deepEqual(score('ace_of_spades', [t(H.SPADES, 14)]), { chips: 40 });
+	assert.equal(score('ace_of_spades', [t(H.SPADES, 14, 1)]), null, 'a heart in it spoils it');
+	assert.deepEqual(score('kings_ransom', [t(H.SPADES, 13)]), { chips: 30 });
+	assert.deepEqual(score('clean_court', [t(H.CLUBS, 11), t(H.DIAMONDS, 12), t(H.CLUBS, 14)]), { chips: 20 });
+	assert.deepEqual(score('ace_high', [t(H.CLUBS, 14), t(H.DIAMONDS, 14), t(H.SPADES, 14, 13)]), { mult: 1.5 });
+	assert.equal(score('bodyguard', [t(H.HEARTS, 14, 1)]), null);
+	assert.deepEqual(score('bodyguard', [t(H.SPADES, 14)]), { xmult: 1.75 });
+	assert.deepEqual(score('bodyguard', [t(H.SPADES, 14), t(H.SPADES, 13)]), { xmult: 3.0625 });
+	// Only v4 runs are offered them.
+	const offered = (ruleset) => {
+		const seen = new Set();
+		for (let i = 0; i < 60; i++) {
+			const run = R.newRun('V4R' + i, { ruleset, money: 0 });
+			run.phase = R.PHASE.BOARD_WON;
+			R.enterShop(run);
+			for (const it of run.shop.items) if (it.kind === 'relic' && it.def.v4Only) seen.add(it.def.key);
+		}
+		return seen.size;
+	};
+	assert.ok(offered('v4') > 0);
+	assert.equal(offered('v3'), 0);
+});
+
+test('v4: the moon scores your Dodge and Clean Sheet levels and doubles the mult', () => {
+	const moon = (ruleset) => {
+		const run = R.newRun('BIGMOON', { ruleset });
+		run.levels.dodge = 3;
+		run.levels.clean = 3;
+		finish(run);
+		const st = run.hand.state;
+		st.taken = [[], [], [], st.pack.slice(), []];
+		return R.scoreHand(run);
+	};
+	const v3 = moon('v3'), v4 = moon('v4');
+	assert.equal(v3.shooter, H.PLAYER);
+	assert.ok(!v3.lines.some((l) => l.label.startsWith('The Dodge')));
+	assert.ok(v4.lines.some((l) => l.label.startsWith('The Dodge')) && v4.lines.some((l) => l.label.startsWith('Clean Sheet')));
+	assert.ok(v4.lines.some((l) => l.label === 'The moon' && l.xmult === R.MOON_X));
+	assert.ok(v4.total > 3 * v3.total);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

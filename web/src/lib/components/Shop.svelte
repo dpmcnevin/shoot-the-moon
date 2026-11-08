@@ -76,7 +76,7 @@
 						{@const next = R.upgradeBonus(item.def.key, lvl + 1)}
 						<div class="kind brass">Upgrade</div>
 						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{item.def.text}.</p>
+						<p>{R.upgradeText(item.def.key, run.balance)}.</p>
 						<p class="ink">Lv.{lvl} → Lv.{lvl + 1}: +{next[0]} chips, +{next[1].toFixed(1)} mult</p>
 					{:else if item.kind === 'seal'}
 						<div class="kind" style:color={item.def.color}>Seal</div>

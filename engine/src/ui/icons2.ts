@@ -2,6 +2,24 @@
 // 16x16, drawn in the same palette and style as icons.ts.
 
 export const EXPANSION_ICONS: Record<string, string[]> = {
+	ace_of_spades: [
+		'..kkkkkkkkkkkk..', '..kWWWWWWWWWWkt.', '..kWkWWWWWWWWkt.', '..kWWWWkkWWWWkt.',
+		'..kWWWkkkkWWWkt.', '..kWWkkkkkkWWkt.', '..kWkkkkkkkkWkt.', '..kWkkkkkkkkWkt.',
+		'..kWWkkWWkkWWkt.', '..kWWWWkkWWWWkt.', '..kWWWkkkkWWWkt.', '..kWWWWWWWWkWkt.',
+		'..kWWWWWWWWWWkt.', '..kkkkkkkkkkkkt.', '...tttttttttttt.', '................',
+	],
+	kings_ransom: [
+		'..kkkkkkkkkkkk..', '..kWWWWWWWWWWkt.', '..kWWGWGGWGWWkt.', '..kWWGGGGGGWWkt.',
+		'..kWWGyGGyGWWkt.', '..kWWggggggWWkt.', '..kWWWWWWWWWWkt.', '..kWWWWkkWWWWkt.',
+		'..kWWWkkkkWWWkt.', '..kWWkkkkkkWWkt.', '..kWWkkWWkkWWkt.', '..kWWWWkkWWWWkt.',
+		'..kWWWkkkkWWWkt.', '..kkkkkkkkkkkkt.', '...tttttttttttt.', '................',
+	],
+	bodyguard: [
+		'................', '...kkkkkkkkkk...', '..kSSSSSSSSssk..', '..kSWSSkkSSssk..',
+		'..kSSSkkkkSssk..', '..kSSkkkkkkssk..', '..kSSkkkkkkssk..', '..kSSSkkkkSssk..',
+		'..kSSSSkkSSssk..', '...kSSSkkkSsk...', '...kSSSSSSssk...', '....kSSSSssk....',
+		'.....kSSssk.....', '......kssk......', '.......kk.......', '................',
+	],
 	low_ball: [
 		'................', '......kkkk......', '....kkWWWWkk....', '...kWWwwwwWWk...',
 		'...kWwwrrwwWk...', '..kWwwrRRrwwWk..', '..kWwwrRRrwwWk..', '..kwwwwrrwwwwk..',

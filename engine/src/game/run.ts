@@ -142,6 +142,17 @@ export const UPGRADES: Record<UpgradeKey, UpgradeDef> = {
 	moon: { key: 'moon', name: 'Moonshot', text: 'Level up shooting the moon', icon: 'phantom_trick', chips: 40, mult: 1 }
 };
 
+/** An upgrade's text under a balance version: from balance 4 (ruleset v4)
+ *  a moon scores the Dodge and Clean Sheet levels too. */
+export function upgradeText(key: UpgradeKey, balance = 1): string {
+	if (balance >= 4 && key === 'dodge') return 'Level up every hand, the moon included';
+	if (balance >= 4 && key === 'clean') return 'Level up hands where you take no points, and the moon';
+	return UPGRADES[key].text;
+}
+
+/** Balance 4: the moon's extra mult. */
+export const MOON_X = 2;
+
 export function upgradeBonus(key: UpgradeKey, level: number): [number, number] {
 	const extra = Math.max(0, level - 1);
 	return [extra * UPGRADES[key].chips, extra * UPGRADES[key].mult];
@@ -189,6 +200,8 @@ export interface Run {
 	cardEditions: CardEditionMap;
 	/** The club offers card editions (off by default). */
 	packEditions: boolean;
+	/** The club offers the v4 relics too (off by default). */
+	v4Relics: boolean;
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -238,6 +251,8 @@ export interface RunOptions {
 	editions?: boolean;
 	/** The club offers editions for cards in your pack (off by default). */
 	packEditions?: boolean;
+	/** The club offers the relics added with ruleset v4 (off by default). */
+	v4Relics?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -298,18 +313,19 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		aiCurve: true,
 		balance: 3
 	},
-	/** v3 plus editions for the cards in your pack, offered in place of some
-	 *  upgrades. */
+	/** v3 plus editions for the cards in your pack (offered in place of some
+	 *  upgrades) and the clean-top-card relics. */
 	v4: {
 		editions: true,
 		packEditions: true,
+		v4Relics: true,
 		noRepeats: true,
 		tableBase: V3_TABLE_BASE,
 		bosses: true,
 		moreRelics: true,
 		moonAI: true,
 		aiCurve: true,
-		balance: 3
+		balance: 4
 	}
 };
 
@@ -377,6 +393,7 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		seals: {},
 		cardEditions: {},
 		packEditions: opts.packEditions ?? false,
+		v4Relics: opts.v4Relics ?? false,
 		pack: packs.standardPack(),
 		nextCardId: 53,
 		score: 0,
@@ -666,9 +683,13 @@ export function scoreHand(run: Run): Breakdown {
 			lines.push({ label: `${UPGRADES[key].name} level ${run.levels[key]}`, chips: c, mult: m });
 		}
 	};
+	// Balance 4: the moon is the best hand there is, so it scores the Dodge
+	// and Clean Sheet levels too, and doubles the mult.
+	const bigMoon = run.balance >= 4 && ctx.shooter === H.PLAYER;
 	level('moon', ctx.shooter === H.PLAYER);
-	level('dodge', ctx.shooter === null);
-	level('clean', ctx.shooter === null && ctx.myPoints === 0 && !bossIs(run, 'auditor'));
+	level('dodge', ctx.shooter === null || bigMoon);
+	level('clean', (ctx.shooter === null && ctx.myPoints === 0 && !bossIs(run, 'auditor')) || bigMoon);
+	const moonX = bigMoon ? MOON_X : 1;
 	for (const relic of live) {
 		const e = relic.def.score?.(ctx, relic);
 		if (e && (e.chips || e.mult || e.money || (e.xmult && e.xmult !== 1))) {
@@ -714,6 +735,10 @@ export function scoreHand(run: Run): Breakdown {
 				lines.push({ label: name, mult: 0.5 });
 			}
 		}
+	}
+	if (moonX !== 1) {
+		mult *= moonX;
+		lines.push({ label: 'The moon', xmult: moonX });
 	}
 	// The Shark (v3): a hand where you take more points than North loses a quarter.
 	if (bossIs(run, 'shark') && run.balance >= 3 && ctx.shooter === null && ctx.myPoints > H.pointsTaken(st)[bosses.SHARK_SEAT]) {
@@ -866,7 +891,7 @@ function rollOffer(run: Run): ShopItem {
 		...run.relics,
 		...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))
 	];
-	const def = relics.randomUnowned(run.rng, owned, run.moreRelics) ?? relics.DEFS[0];
+	const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics) ?? relics.DEFS[0];
 	// Only roll when editions are on, so runs without them keep their
 	// exact sequence of shop offers.
 	const edition = run.editions ? relics.rollEdition(run.rng) : undefined;

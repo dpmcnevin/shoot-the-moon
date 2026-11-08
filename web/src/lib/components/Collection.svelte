@@ -144,7 +144,7 @@
 						<Icon name={u.icon} scale={2} />
 						<div class="tbody">
 							<div class="tname">{u.name}</div>
-							<div class="ttext">{u.text}</div>
+							<div class="ttext">{R.upgradeText(u.key, balance)}</div>
 							<div class="brass small">+{num(u.chips)} chips, +{u.mult.toFixed(1)} mult per level</div>
 						</div>
 					</div>

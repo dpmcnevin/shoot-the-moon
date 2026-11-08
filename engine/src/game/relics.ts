@@ -162,6 +162,8 @@ export interface RelicDef {
 	baseX?: number;
 	/** In the expanded pool only (the iPad app's runs). */
 	expansion?: boolean;
+	/** Offered only in runs with `v4Relics` (ruleset v4), so older runs keep their offers. */
+	v4Only?: boolean;
 	/** Interest can reach this much. */
 	interestCap?: number;
 	/** Rerolls cost $1 less, and the first in each club is free. */
@@ -341,6 +343,42 @@ export const DEFS: RelicDef[] = [
 	// The iPad app's runs add these to the pool (RunOptions.moreRelics).
 
 	// ---------------------------------------------------------------- common
+	// Clean top cards (ruleset v4): winning a trick with a high card that
+	// holds no points, usually by leading it or covering a clean lead.
+	{
+		key: 'ace_of_spades', name: 'Ace of Spades', rarity: 1, cost: 4, icon: 'ace_of_spades', v4Only: true,
+		text: '+40 chips if you win a trick with the ace of spades and it holds no points',
+		score: (ctx) => (ctx.myTricks.some((t) => cleanWith(t, (c) => c.suit === H.SPADES && c.rank === 14)) ? { chips: 40 } : null)
+	},
+	{
+		key: 'kings_ransom', name: "King's Ransom", rarity: 1, cost: 4, icon: 'kings_ransom', v4Only: true,
+		text: '+30 chips if you win a trick with the king of spades and it holds no points',
+		score: (ctx) => (ctx.myTricks.some((t) => cleanWith(t, (c) => c.suit === H.SPADES && c.rank === 13)) ? { chips: 30 } : null)
+	},
+	{
+		key: 'clean_court', name: 'Clean Court', rarity: 1, cost: 5, icon: 'minor_nobility', v4Only: true,
+		text: '+10 chips for each trick you win with a jack, queen or king that holds no points',
+		score: (ctx) => {
+			const n = ctx.myTricks.filter((t) => cleanWith(t, (c) => c.rank >= 11 && c.rank <= 13)).length;
+			return n ? { chips: 10 * n } : null;
+		}
+	},
+	{
+		key: 'ace_high', name: 'Ace High', rarity: 2, cost: 6, icon: 'honour_roll', v4Only: true,
+		text: '+0.75 mult for each trick you win with an ace that holds no points',
+		score: (ctx) => {
+			const n = ctx.myTricks.filter((t) => cleanWith(t, (c) => c.rank === 14)).length;
+			return n ? { mult: 0.75 * n } : null;
+		}
+	},
+	{
+		key: 'bodyguard', name: 'Bodyguard', rarity: 3, cost: 8, icon: 'bodyguard', v4Only: true,
+		text: 'x1.75 mult for each trick you win with the ace or king of spades that holds no points',
+		score: (ctx) => {
+			const n = ctx.myTricks.filter((t) => cleanWith(t, (c) => c.suit === H.SPADES && c.rank >= 13)).length;
+			return n ? { xmult: 1.75 ** n } : null;
+		}
+	},
 	{
 		key: 'low_ball', name: 'Low Ball', rarity: 1, cost: 4, icon: 'low_ball', expansion: true,
 		text: '+2 chips for each card under 6 still in your hand when you first take points',
@@ -583,7 +621,12 @@ export function textFor(relic: Relic, balance = 1): string {
 }
 
 /** Weighted rarity roll, never offering a relic you already own. */
-export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = false): RelicDef | undefined {
+/** Did you win this trick with a card like this, and does it hold no points? */
+function cleanWith(t: Trick, card: (c: Card) => boolean): boolean {
+	return t.points === 0 && card(t.winningCard);
+}
+
+export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = false, v4 = false): RelicDef | undefined {
 	const weights = [0.6, 0.3, 0.085, 0.015];
 	const have = new Set(owned.map((o) => o.key));
 	for (let attempt = 0; attempt < 40; attempt++) {
@@ -597,7 +640,7 @@ export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = fal
 				break;
 			}
 		}
-		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key) && (expanded || !d.expansion));
+		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key) && (expanded || !d.expansion) && (v4 || !d.v4Only));
 		const pick = rng.pick(pool);
 		if (pick) return pick;
 	}

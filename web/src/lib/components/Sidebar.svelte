@@ -153,7 +153,7 @@
 						inspect(e, {
 							kind: 'Upgrade, level ' + lvl,
 							title: u.name,
-							text: u.text,
+							text: R.upgradeText(u.key, run.balance),
 							note: lvl > 1 ? 'Now +' + b[0] + ' chips, +' + b[1].toFixed(1) + ' mult' : 'Not levelled yet',
 							color: 'var(--brass)'
 						})}

@@ -89,7 +89,7 @@ function shopView() {
 		if (it.kind === 'upgrade') {
 			const lvl = r.levels[it.def.key];
 			const [c, m] = R.upgradeBonus(it.def.key, lvl + 1);
-			return { ...base, text: it.def.text, icon: it.def.icon, level: lvl, nextChips: c, nextMult: m };
+			return { ...base, text: R.upgradeText(it.def.key, r.balance), icon: it.def.icon, level: lvl, nextChips: c, nextMult: m };
 		}
 		if (it.kind === 'seal') return { ...base, text: it.def.text, seal: it.def.key, color: it.def.color };
 		if (it.kind === 'edition') return { ...base, text: it.def.text, cardEdition: it.def.key };
@@ -144,7 +144,7 @@ function view() {
 		relicSlotsUsed: R.relicSlotsUsed(r),
 		levels: Object.values(R.UPGRADES).map((u) => {
 			const [c, m] = R.upgradeBonus(u.key, r.levels[u.key]);
-			return { key: u.key, name: u.name, text: u.text, icon: u.icon, level: r.levels[u.key], chips: c, mult: m };
+			return { key: u.key, name: u.name, text: R.upgradeText(u.key, r.balance), icon: u.icon, level: r.levels[u.key], chips: c, mult: m };
 		}),
 		relics: r.relics.map((x) => ({ key: x.key, name: x.name, rarity: x.def.rarity, rarityName: relics.RARITY_NAME[x.def.rarity], icon: x.def.icon, text: relics.textFor(x, r.balance), sell: Math.max(1, Math.floor(x.cost / 2)), edition: editionView(x.edition) })),
 		seals: Object.entries(r.seals).map(([id, key]) => {
@@ -243,7 +243,7 @@ const api = {
 				...Object.values(packs.OPS).map((o) => ({ key: o.key, name: o.name, text: o.text, cost: o.cost, icon: o.icon })),
 				{ key: 'recolor', name: 'Recolor', text: 'Turn a card into another suit (the suit is on the item), same rank', cost: packs.recolorDef(1).cost, icon: packs.recolorDef(1).icon }
 			],
-			upgrades: Object.values(R.UPGRADES).map((u) => ({ key: u.key, name: u.name, text: u.text, icon: u.icon, chips: u.chips, mult: u.mult })),
+			upgrades: Object.values(R.UPGRADES).map((u) => ({ key: u.key, name: u.name, text: R.upgradeText(u.key, CATALOG_BALANCE), icon: u.icon, chips: u.chips, mult: u.mult })),
 			bosses: bosses.BOSS_KEYS.map((k) => bosses.bossAt(k, CATALOG_BALANCE)).map((b) => ({ key: b.key, name: b.name, text: b.text, tier: b.tier }))
 		}),
 	/** Can a pack item be used on this card? */
