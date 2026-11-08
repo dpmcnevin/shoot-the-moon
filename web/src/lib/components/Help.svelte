@@ -9,7 +9,7 @@
 		'Hearts, against three opponents. Every heart you take costs a point, and the queen of spades costs thirteen. Take every point, though, and you shoot the moon.',
 		"Each hand starts with a pass: pick three cards to give away (left, right, across, then a hand with no passing). The lowest club leads, and you must follow suit if you can. Hearts can only be led once they're broken: by a heart being played, or by someone taking the queen.",
 		'Each hand scores chips x mult. Your chips are 26 less the points you took, plus a bonus for a clean hand. Shooting the moon pays three times the points in the pack.',
-		"Reach each board's goal within three hands. Win boards to earn money, then spend it at the club on relics, upgrades, seals that mark a card for the rest of the run, and pack items that change the cards everyone is dealt.",
+		"Reach each board's goal within three hands. Win boards to earn money, then spend it at the club on relics, upgrades, seals and editions that mark a card for the rest of the run, and pack items that change the cards everyone is dealt.",
 		'Some relics pay you to take hearts or the queen, so a run can go hunting instead of hiding. Beat all three boards at each of eight tables to win.',
 		"Each table's High Board has a boss: a house rule that bends Hearts for that board, from a doubled queen to opponents who gang up on you. You see the boss when the table starts; click the table progress in the sidebar to look again."
 	];

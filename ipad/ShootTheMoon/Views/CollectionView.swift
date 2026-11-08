@@ -131,6 +131,22 @@ struct CollectionView: View {
                             }
                         }
                     }
+                    if let ce = c.cardEditions, !ce.isEmpty {
+                        Text("Card editions").font(Theme.font(20, .bold)).foregroundStyle(Theme.brass).padding(.top, 8)
+                        Text("The same three looks on a card in your pack, for the rest of the run. They pay in the hands where you play that card.").font(Theme.font(15)).foregroundStyle(Theme.inkDim)
+                        grid(ce) { e in
+                            Tile(edge: Edition.color(e.key)) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    PixelImage(image: model.art.card(.sample, fourColor: model.fourColor)).frame(width: 40, height: 56)
+                                        .modifier(EditionShine(edition: e.key))
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack { Text("\(e.name) card").font(Theme.font(17, .bold)).foregroundStyle(Edition.color(e.key)); Spacer(); Text("$\(e.cost)").font(Theme.font(14)).foregroundStyle(Theme.brass) }
+                                        Text(e.text).font(Theme.font(14)).foregroundStyle(Theme.inkDim).fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Text("Upgrades").font(Theme.font(20, .bold)).foregroundStyle(Theme.brass).padding(.top, 8)
                     grid(c.upgrades) { u in
                         Tile(edge: Theme.brass) {

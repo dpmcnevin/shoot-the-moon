@@ -63,6 +63,8 @@ export interface PackHolder {
 	pack: Card[];
 	nextCardId: number;
 	seals: SealMap;
+	/** Editions on cards (ruleset v4), cleared with the card on Burn. */
+	cardEditions?: Record<string, string>;
 }
 
 /** Can this pack item be used on that card? */
@@ -85,6 +87,7 @@ export function apply(run: PackHolder, def: PackOpDef, id: number) {
 	if (def.key === 'burn') {
 		run.pack.splice(i, 1);
 		delete run.seals[String(id)];
+		if (run.cardEditions) delete run.cardEditions[String(id)];
 	} else if (def.key === 'promote') {
 		card.rank++;
 	} else if (def.key === 'recolor') {

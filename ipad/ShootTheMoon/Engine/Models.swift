@@ -19,8 +19,12 @@ struct CardV: Decodable, Hashable, Identifiable {
     let code: String
     let name: String
     let seal: String?
+    /// A card edition on it (ruleset v4): etched, lacquered or prismatic.
+    var edition: String? = nil
 
     var isHeart: Bool { suit == 3 }
+    /// The king of hearts, for showing what a card edition looks like.
+    static let sample = CardV(id: 0, suit: 3, rank: 13, code: "KH", name: "K♥", seal: nil)
     var isQueenOfSpades: Bool { suit == 4 && rank == 12 }
 }
 
@@ -142,8 +146,10 @@ struct ShopItemV: Decodable, Identifiable {
     let seal: String?
     let color: String?
     let op: String?
+    /// For a card edition offer (ruleset v4).
+    let cardEdition: String?
     var id: Int { slot }
-    var needsCard: Bool { kind == "seal" || kind == "pack" }
+    var needsCard: Bool { kind == "seal" || kind == "pack" || kind == "edition" }
 }
 
 struct LevelV: Decodable, Identifiable {
@@ -170,6 +176,16 @@ struct RelicV: Decodable, Identifiable {
 }
 
 struct SealV: Decodable, Identifiable {
+    let cardId: Int
+    let key: String
+    let name: String
+    let text: String
+    let card: CardV?
+    var id: Int { cardId }
+}
+
+/// An edition on a card in your pack (ruleset v4).
+struct CardEditionV: Decodable, Identifiable {
     let cardId: Int
     let key: String
     let name: String
@@ -211,6 +227,7 @@ struct GameView: Decodable {
     let levels: [LevelV]
     let relics: [RelicV]
     let seals: [SealV]
+    let cardEditions: [CardEditionV]?
     let pack: [CardV]
     let packPoints: Int
     let hand: HandV
@@ -258,6 +275,7 @@ struct CatalogV: Decodable {
     let relics: [Relic]
     let editions: [Edition]
     let seals: [Seal]
+    let cardEditions: [Edition]?
     let packItems: [PackItem]
     let upgrades: [Upgrade]
     let bosses: [Boss]

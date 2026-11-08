@@ -757,6 +757,54 @@ test('aiCurve: plausible mistakes, and opponents sharpen table by table', () => 
 	assert.ok(checked > 1000);
 });
 
+// ------------------------------------------------------------------ card editions
+
+import * as cardEds from '../src/game/cardEditions.ts';
+
+test('v4: the club offers card editions; v3 never does', () => {
+	const kinds = (ruleset) => {
+		const seen = new Set();
+		for (let i = 0; i < 40; i++) {
+			const run = R.newRun('CE' + i, { ruleset, money: 0 });
+			run.phase = R.PHASE.BOARD_WON;
+			R.enterShop(run);
+			for (const it of run.shop.items) seen.add(it.kind);
+		}
+		return seen;
+	};
+	assert.ok(kinds('v4').has('edition'));
+	assert.ok(!kinds('v3').has('edition'));
+});
+
+test('a card edition pays when you play that card, and only you', () => {
+	const run = R.newRun('CEPAY', { ruleset: 'v4' });
+	if (run.phase === R.PHASE.PASS) R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	const st = run.hand.state;
+	const mine = st.hands[H.PLAYER][0];
+	const theirs = st.hands[1][0];
+	run.cardEditions[String(mine.id)] = 'prismatic';
+	run.cardEditions[String(theirs.id)] = 'etched';
+	R.playOut(run);
+	const b = run.hand.result;
+	const lines = b.lines.filter((l) => l.edition);
+	assert.equal(lines.length, 1, 'only the card you played');
+	assert.equal(lines[0].xmult, 1.5);
+	assert.equal(lines[0].edition, 'prismatic');
+});
+
+test('buying a card edition puts it on the chosen card; Burn removes it', () => {
+	const run = R.newRun('CEBUY', { ruleset: 'v4', money: 50 });
+	run.phase = R.PHASE.BOARD_WON;
+	R.enterShop(run);
+	run.shop.items[0] = { kind: 'edition', def: cardEds.CARD_EDITIONS.lacquered, name: 'Lacquered card', cost: 4 };
+	assert.equal(R.buy(run, 0)[0], false, 'needs a card');
+	const c = run.pack[5];
+	assert.ok(R.buy(run, 0, c.id)[0]);
+	assert.equal(cardEds.editionOf(run.cardEditions, c), 'lacquered');
+	packs.apply(run, packs.OPS.burn, c.id);
+	assert.equal(cardEds.editionOf(run.cardEditions, c), undefined);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

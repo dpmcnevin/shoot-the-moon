@@ -66,15 +66,15 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const S = engine();
 	S.newRun('EDSAVE');
 	const save = JSON.parse(S.save());
-	assert.deepEqual(save.opts, { ruleset: 'v3' });
+	assert.deepEqual(save.opts, { ruleset: 'v4' });
 	const cat = JSON.parse(S.catalog());
 	assert.equal(cat.relics.length, 55); // 23 original + 32 expansion
 	assert.equal(cat.bosses.length, 13);
-	assert.ok(cat.seals.length === 5 && cat.editions.length === 4 && cat.packItems.length === 4 && cat.upgrades.length === 3);
+	assert.ok(cat.seals.length === 5 && cat.editions.length === 4 && cat.packItems.length === 4 && cat.upgrades.length === 3 && cat.cardEditions.length === 3);
 	const view = JSON.parse(S.view());
 	assert.ok(view.boss && view.boss.name && view.boss.active === false);
 	assert.equal(view.tableBoards.length, 3);
-	assert.equal(view.tableBoards[0].target, 25); // v3's first goal
+	assert.equal(view.tableBoards[0].target, 25); // v3's (and v4's) first goal
 	assert.equal(JSON.parse(S.view()).target, 25, 'v3 first target');
 	const S2 = engine();
 	S2.restore(JSON.stringify(save));

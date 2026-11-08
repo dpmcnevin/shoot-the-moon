@@ -7,6 +7,8 @@
 	import * as cards from '$engine/rules/cards.ts';
 	import type { Card } from '$engine/rules/cards.ts';
 	import { SEALS, sealOf } from '$engine/game/seals.ts';
+	import { CARD_EDITIONS, editionOf } from '$engine/game/cardEditions.ts';
+	import Shine from './Shine.svelte';
 	import * as packs from '$engine/game/pack.ts';
 	import { game } from '../app/game.svelte.ts';
 	import { cardFace } from '../ui/images.ts';
@@ -37,9 +39,13 @@
 		if (!ok) return `${cards.name(c)}: ${why}`;
 		const existing = sealOf(run.seals, c);
 		if (item.kind === 'seal') return existing ? `${cards.name(c)} (replaces its ${SEALS[existing].name})` : cards.name(c);
+		if (item.kind === 'edition') {
+			const had = editionOf(run.cardEditions, c);
+			return had ? `${cards.name(c)} (replaces its ${CARD_EDITIONS[had].name} edition)` : `${item.def.name} ${cards.name(c)}`;
+		}
 		if (item.kind === 'pack') {
 			const d = item.def;
-			if (d.key === 'burn') return `Burn ${cards.name(c)}${existing ? ' (and its seal)' : ''}`;
+			if (d.key === 'burn') return `Burn ${cards.name(c)}${existing || editionOf(run.cardEditions, c) ? ' (and what is on it)' : ''}`;
 			if (d.key === 'promote') return `${cards.name(c)} becomes ${cards.RANK_NAMES[c.rank + 1]}${cards.SUITS[c.suit].glyph}`;
 			if (d.key === 'recolor') return `${cards.name(c)} becomes ${cards.RANK_NAMES[c.rank]}${cards.SUITS[d.suit!].glyph}`;
 			return `Add another ${cards.name(c)}`;
@@ -54,7 +60,7 @@
 		{#if item.kind === 'seal'}<SealBadge seal={item.def.key} size={42} />{:else if item.kind === 'pack'}<Icon name={item.def.icon} scale={2} />{/if}
 		<div>
 			<h2>Choose a card: {item.name}</h2>
-			<div class="dim">{item.kind === 'seal' || item.kind === 'pack' ? item.def.text : ''}.</div>
+			<div class="dim">{item.kind === 'seal' || item.kind === 'pack' || item.kind === 'edition' ? item.def.text : ''}.</div>
 		</div>
 	</div>
 	<div class="grid">
@@ -72,7 +78,7 @@
 						onpointerleave={() => hovered === c && (hovered = null)}
 						onclick={() => game.placeSeal(c.id!)}
 					>
-						<img src={cardFace(c, false, settings.pixelCards, settings.fourColor)} alt="" draggable="false" />
+						<Shine edition={editionOf(run.cardEditions, c)}><img src={cardFace(c, false, settings.pixelCards, settings.fourColor)} alt="" draggable="false" /></Shine>
 						{#if existing}<span class="badge"><SealBadge seal={existing} size={21} /></span>{/if}
 					</button>
 				{/each}
@@ -141,6 +147,10 @@
 		border-radius: 5px;
 		transition: transform 0.1s;
 		touch-action: manipulation;
+	}
+	.card :global(.shine) {
+		width: 100%;
+		height: 100%;
 	}
 	.card img {
 		width: 100%;

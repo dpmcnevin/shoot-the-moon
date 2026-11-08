@@ -20,7 +20,7 @@ import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from '.
 
 /** The ruleset new web runs use; the iPad's is IPAD_RULESET in
  *  engine/bridge/entry.ts. Keep them the same so both games play alike. */
-const WEB_RULESET: R.RulesetName = 'v3';
+export const WEB_RULESET: R.RulesetName = 'v4';
 import { C, hex, type Color } from '$engine/ui/theme.ts';
 
 const hexHeart = hex('#f08a8a');
@@ -331,7 +331,7 @@ class Game {
 		const run = this._run!;
 		if (!R.canBuy(run, i)[0]) return;
 		const kind = run.shop!.items[i].kind;
-		if ((kind === 'seal' || kind === 'pack') && card === undefined) {
+		if ((kind === 'seal' || kind === 'pack' || kind === 'edition') && card === undefined) {
 			this.sealPick = i;
 			this.pickAt = [x, y];
 			sound.play('select');

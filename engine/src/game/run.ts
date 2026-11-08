@@ -14,6 +14,8 @@ import * as ai from '../rules/ai.ts';
 import * as rngLib from '../rules/rng.ts';
 import * as relics from './relics.ts';
 import * as seals from './seals.ts';
+import * as cardEds from './cardEditions.ts';
+import type { CardEditionDef, CardEditionMap } from './cardEditions.ts';
 import * as packs from './pack.ts';
 import * as bosses from './bosses.ts';
 import type { BossKey } from './bosses.ts';
@@ -149,7 +151,8 @@ export type ShopItem =
 	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean; edition?: EditionKey }
 	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'pack'; def: PackOpDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'pack'; def: PackOpDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'edition'; def: CardEditionDef; name: string; cost: number; sold?: boolean };
 
 export interface Payout {
 	board: number;
@@ -182,6 +185,10 @@ export interface Run {
 	levels: Record<UpgradeKey, number>;
 	/** Seals on cards, by pack card id. */
 	seals: SealMap;
+	/** Editions on cards, by pack card id (ruleset v4). */
+	cardEditions: CardEditionMap;
+	/** The club offers card editions (off by default). */
+	packEditions: boolean;
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -229,6 +236,8 @@ export interface RunOptions {
 	money?: number;
 	aiSkill?: number;
 	editions?: boolean;
+	/** The club offers editions for cards in your pack (off by default). */
+	packEditions?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -267,7 +276,7 @@ export function relicSlots(run: Run): number {
  * offers (the iPad app). A save records its ruleset, so changing what a
  * future ruleset means never changes a run in progress: add `v3` instead.
  */
-export type RulesetName = 'classic' | 'v2' | 'v3';
+export type RulesetName = 'classic' | 'v2' | 'v3' | 'v4';
 export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' | 'aiSkill'>> = {
 	classic: {},
 	v2: {
@@ -281,6 +290,19 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 	},
 	v3: {
 		editions: true,
+		noRepeats: true,
+		tableBase: V3_TABLE_BASE,
+		bosses: true,
+		moreRelics: true,
+		moonAI: true,
+		aiCurve: true,
+		balance: 3
+	},
+	/** v3 plus editions for the cards in your pack, offered in place of some
+	 *  upgrades. */
+	v4: {
+		editions: true,
+		packEditions: true,
 		noRepeats: true,
 		tableBase: V3_TABLE_BASE,
 		bosses: true,
@@ -353,6 +375,8 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		relics: [],
 		levels: { dodge: 1, clean: 1, moon: 1 },
 		seals: {},
+		cardEditions: {},
+		packEditions: opts.packEditions ?? false,
 		pack: packs.standardPack(),
 		nextCardId: 53,
 		score: 0,
@@ -667,6 +691,15 @@ export function scoreHand(run: Run): Breakdown {
 	let money = relicMoney;
 	for (const t of st.tricks) {
 		for (const p of t.plays) {
+			// A card edition pays when you play the card.
+			const ed = p.seat === H.PLAYER ? cardEds.editionOf(run.cardEditions, p.card) : undefined;
+			if (ed) {
+				const e = cardEds.CARD_EDITIONS[ed];
+				if (e.effect.chips) chips += e.effect.chips;
+				if (e.effect.mult) mult += e.effect.mult;
+				if (e.effect.xmult) mult *= e.effect.xmult;
+				lines.push({ label: `${e.name} ${cards.name(p.card)}`, chips: e.effect.chips, mult: e.effect.mult, xmult: e.effect.xmult, edition: ed });
+			}
 			const seal = seals.sealOf(run.seals, p.card);
 			if (!seal) continue;
 			const name = `${seals.SEALS[seal].name.replace(' Seal', '')} ${cards.name(p.card)}`;
@@ -816,7 +849,14 @@ function rollOffer(run: Run): ShopItem {
 		const def = seals.SEALS[seals.SEAL_KEYS[run.rng.int(1, seals.SEAL_KEYS.length) - 1]];
 		return { kind: 'seal', def, name: def.name, cost: def.cost };
 	}
-	if (roll < 0.5) {
+	// v4: card editions take 12% of offers, from the upgrades' share and the
+	// relics' (measured: all from upgrades costs the bot a quarter of its
+	// wins; all from relics adds a third).
+	if (run.packEditions && roll >= 0.42 && roll < 0.54) {
+		const def = cardEds.rollCardEdition(run.rng);
+		return { kind: 'edition', def, name: `${def.name} card`, cost: def.cost };
+	}
+	if (roll < (run.packEditions ? 0.42 : 0.5)) {
 		const r = run.rng.next();
 		const key: UpgradeKey = r < 0.6 ? 'dodge' : r < 0.85 ? 'clean' : 'moon';
 		const def = UPGRADES[key];
@@ -850,6 +890,7 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	const item = run.shop!.items[i];
 	const card = run.pack.find((c) => c.id === cardId);
 	if (item.kind === 'seal' && !card) return [false, 'choose a card for the seal'];
+	if (item.kind === 'edition' && !card) return [false, 'choose a card for the edition'];
 	if (item.kind === 'pack') {
 		const ok = packs.canApply(run, item.def, card);
 		if (!ok[0]) return ok;
@@ -858,6 +899,7 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def, item.edition, run.balance));
 	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
 	else if (item.kind === 'seal') run.seals[String(cardId)] = item.def.key;
+	else if (item.kind === 'edition') run.cardEditions[String(cardId)] = item.def.key;
 	else packs.apply(run, item.def, cardId!);
 	item.sold = true;
 	return [true];

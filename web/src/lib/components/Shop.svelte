@@ -15,6 +15,9 @@
 	import Button from './Button.svelte';
 	import SealBadge from './SealBadge.svelte';
 	import CardPicker from './CardPicker.svelte';
+	import * as cards from '$engine/rules/cards.ts';
+	import { cardFace } from '../ui/images.ts';
+	import { settings } from '../ui/settings.svelte.ts';
 
 	const L = $derived(game.layout);
 	const portrait = $derived(L.orientation === 'portrait');
@@ -31,7 +34,7 @@
 		run.board === R.BOARDS_PER_TABLE && run.table === R.TABLES ? 'Claim victory' : run.board === R.BOARDS_PER_TABLE ? 'Next table' : 'Next board'
 	);
 	const edge = (it: R.ShopItem) =>
-		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : it.kind === 'pack' ? 'var(--chips)' : 'var(--brass)';
+		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : it.kind === 'pack' ? 'var(--chips)' : it.kind === 'edition' ? editionColor(it.def.key) : 'var(--brass)';
 	function canBuy(i: number) {
 		void game.v;
 		return R.canBuy(run, i);
@@ -80,6 +83,11 @@
 						<div class="title-row"><h3>{item.name}</h3><SealBadge seal={item.def.key} size={42} /></div>
 						<p>{item.def.text}.</p>
 						<p class="ink">You choose the card.</p>
+					{:else if item.kind === 'edition'}
+						<div class="kind" style:color={editionColor(item.def.key)}>Card edition</div>
+						<div class="title-row"><h3>{item.name}</h3><Shine edition={item.def.key}><img class="ed-card" src={cardFace(cards.card(3, 13), false, settings.pixelCards, settings.fourColor)} alt="" /></Shine></div>
+						<p>{item.def.text}.</p>
+						<p class="ink">Lasts the run. You choose the card.</p>
 					{:else}
 						<div class="kind pack">Pack</div>
 						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
@@ -193,6 +201,11 @@
 		50% {
 			transform: translateY(-3px);
 		}
+	}
+	.ed-card {
+		width: 40px;
+		height: 56px;
+		display: block;
 	}
 	.kind {
 		font-size: 14px;

@@ -85,10 +85,22 @@ struct Sidebar: View {
                 }
             }
 
-            if !v.seals.isEmpty {
+            if !v.seals.isEmpty || !(v.cardEditions ?? []).isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Seals").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                    Text((v.cardEditions ?? []).isEmpty ? "Seals" : "Seals & editions").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
                     FlowRow(spacing: 8) {
+                        ForEach(v.cardEditions ?? []) { e in
+                            HStack(spacing: 3) {
+                                PixelRect(radius: 2).fill(Edition.color(e.key)).frame(width: 10, height: 10)
+                                Text(e.card?.name ?? "?").font(Theme.font(14, .bold))
+                                    .foregroundStyle((e.card?.suit == 2 || e.card?.suit == 3) ? Theme.bad : Theme.ink)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture(coordinateSpace: .named("stage")) { p in
+                                model.inspect = InfoCard(kind: "\(e.name) edition on \(e.card?.name ?? "a card")", title: "\(e.name) \(e.card?.name ?? "")",
+                                                         text: e.text, color: Edition.color(e.key), y: p.y)
+                            }
+                        }
                         ForEach(v.seals) { s in
                             HStack(spacing: 3) {
                                 SealBadge(key: s.key, size: 14)

@@ -95,7 +95,7 @@
 						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={28} /></span>{/if}
 						{#if p.dim}<div class="dim"></div>{/if}
 						{#if p.highlight}<div class="ring" style:border-color={p.highlight}></div>{/if}
-						{#if p.edition}<span class="ed-label" style:color={editionColor(p.edition)}>{p.edition.toUpperCase()}</span>{/if}
+						{#if p.edition && p.edLabel !== false}<span class="ed-label" style:color={editionColor(p.edition)}>{p.edition.toUpperCase()}</span>{/if}
 					</div>
 					<div
 						class="face back"

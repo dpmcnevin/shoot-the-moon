@@ -14,6 +14,7 @@ import * as R from '../src/game/run.ts';
 import * as relics from '../src/game/relics.ts';
 import * as bosses from '../src/game/bosses.ts';
 import * as seals from '../src/game/seals.ts';
+import * as cardEds from '../src/game/cardEditions.ts';
 import * as packs from '../src/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/app/save.ts';
 import { faceBitmap, backBitmap } from '../src/ui/pixelcards.ts';
@@ -31,7 +32,7 @@ let opts: R.RunOptions | undefined;
 
 /** The ruleset new iPad runs use. The web game names its own; to share
  *  rules, both name the same one. */
-const IPAD_RULESET: R.RulesetName = 'v3';
+const IPAD_RULESET: R.RulesetName = 'v4';
 /** The collection page shows the rules new runs use. */
 const CATALOG_BALANCE = R.RULESETS[IPAD_RULESET].balance ?? 1;
 
@@ -63,7 +64,7 @@ function image(b: Bitmap): string {
 // ------------------------------------------------------------------ snapshot
 
 function cardView(c: Card) {
-	return { id: c.id ?? 0, suit: c.suit, rank: c.rank, code: cards.code(c), name: cards.name(c), seal: seals.sealOf(run!.seals, c) ?? null };
+	return { id: c.id ?? 0, suit: c.suit, rank: c.rank, code: cards.code(c), name: cards.name(c), seal: seals.sealOf(run!.seals, c) ?? null, edition: cardEds.editionOf(run!.cardEditions, c) ?? null };
 }
 
 function trickView(t: Trick | null | undefined) {
@@ -91,6 +92,7 @@ function shopView() {
 			return { ...base, text: it.def.text, icon: it.def.icon, level: lvl, nextChips: c, nextMult: m };
 		}
 		if (it.kind === 'seal') return { ...base, text: it.def.text, seal: it.def.key, color: it.def.color };
+		if (it.kind === 'edition') return { ...base, text: it.def.text, cardEdition: it.def.key };
 		return { ...base, text: it.def.text, icon: it.def.icon, op: it.def.key };
 	});
 }
@@ -148,6 +150,11 @@ function view() {
 		seals: Object.entries(r.seals).map(([id, key]) => {
 			const c = r.pack.find((p) => String(p.id) === id);
 			return { cardId: Number(id), key, name: seals.SEALS[key].name, text: seals.SEALS[key].text, card: c ? cardView(c) : null };
+		}),
+		cardEditions: Object.entries(r.cardEditions).map(([id, key]) => {
+			const c = r.pack.find((p) => String(p.id) === id);
+			const e = cardEds.CARD_EDITIONS[key];
+			return { cardId: Number(id), key, name: e.name, text: e.text, card: c ? cardView(c) : null };
 		}),
 		pack: packs.sortedPack(r.pack).map(cardView),
 		packPoints: r.pack.reduce((n, c) => n + seals.cardPoints(r.seals, c), 0),
@@ -230,6 +237,7 @@ const api = {
 		JSON.stringify({
 			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: relics.textAt(d, CATALOG_BALANCE), rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: relics.costAt(d, CATALOG_BALANCE), icon: d.icon })),
 			editions: relics.EDITION_KEYS.map((k) => ({ key: k, name: relics.EDITIONS[k].name, text: relics.EDITIONS[k].text, cost: relics.EDITIONS[k].cost })),
+			cardEditions: cardEds.CARD_EDITION_KEYS.map((k) => ({ key: k, name: cardEds.CARD_EDITIONS[k].name, text: cardEds.CARD_EDITIONS[k].text, cost: cardEds.CARD_EDITIONS[k].cost })),
 			seals: seals.SEAL_KEYS.map((k) => ({ key: k, name: seals.SEALS[k].name, text: seals.SEALS[k].text, cost: seals.SEALS[k].cost, color: seals.SEALS[k].color })),
 			packItems: [
 				...Object.values(packs.OPS).map((o) => ({ key: o.key, name: o.name, text: o.text, cost: o.cost, icon: o.icon })),

@@ -6,6 +6,11 @@
 	import * as relics from '$engine/game/relics.ts';
 	import * as bosses from '$engine/game/bosses.ts';
 	import * as seals from '$engine/game/seals.ts';
+	import * as cardEds from '$engine/game/cardEditions.ts';
+	import * as cards from '$engine/rules/cards.ts';
+	import { cardFace } from '../ui/images.ts';
+	import { settings } from '../ui/settings.svelte.ts';
+	import { WEB_RULESET } from '../app/game.svelte.ts';
 	import * as packs from '$engine/game/pack.ts';
 	import { C, css } from '$engine/ui/theme.ts';
 	import { game } from '../app/game.svelte.ts';
@@ -26,7 +31,7 @@
 	let tab = $state<Tab>('relics');
 
 	/** The balance new runs use (the web's ruleset). */
-	const balance = R.resolveOptions({ ruleset: 'v3' }).balance ?? 1;
+	const balance = R.resolveOptions({ ruleset: WEB_RULESET }).balance ?? 1;
 	const L = $derived(game.layout);
 	const pool = relics.DEFS;
 	const bossList = bosses.BOSS_KEYS.map((k) => bosses.bossAt(k, balance));
@@ -118,6 +123,20 @@
 					</div>
 				{/each}
 			</div>
+			<h3 style:color="var(--brass)">Card editions</h3>
+			<p class="lead">The same three looks on a card in your pack, for the rest of the run. They pay in the hands where you play that card.</p>
+			<div class="grid">
+				{#each cardEds.CARD_EDITION_KEYS as k (k)}
+					{@const e = cardEds.CARD_EDITIONS[k]}
+					<div class="tile" style:border-color={editionColor(k)}>
+						<Shine edition={k}><img class="ed-card" src={cardFace(cards.card(3, 13), false, settings.pixelCards, settings.fourColor)} alt="" /></Shine>
+						<div class="tbody">
+							<div class="trow"><span class="tname" style:color={editionColor(k)}>{e.name} card</span><span class="brass">${e.cost}</span></div>
+							<div class="ttext">{e.text}</div>
+						</div>
+					</div>
+				{/each}
+			</div>
 			<h3 style:color="var(--brass)">Upgrades</h3>
 			<div class="grid">
 				{#each Object.values(R.UPGRADES) as u (u.key)}
@@ -184,6 +203,11 @@
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 12px;
+	}
+	.ed-card {
+		width: 40px;
+		height: 56px;
+		display: block;
 	}
 	.tile {
 		display: flex;

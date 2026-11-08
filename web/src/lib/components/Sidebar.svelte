@@ -14,6 +14,7 @@
 	import Icon from './Icon.svelte';
 	import SealBadge from './SealBadge.svelte';
 	import * as seals from '$engine/game/seals.ts';
+	import * as cardEds from '$engine/game/cardEditions.ts';
 	import * as cards from '$engine/rules/cards.ts';
 	import * as bosses from '$engine/game/bosses.ts';
 	import Shine from './Shine.svelte';
@@ -164,10 +165,19 @@
 		</div>
 	</section>
 
-	{#if Object.keys(run.seals).length > 0}
+	{#if Object.keys(run.seals).length > 0 || Object.keys(run.cardEditions).length > 0}
 		<section class="seals">
-			<div class="label">Seals</div>
+			<div class="label">{Object.keys(run.cardEditions).length ? 'Seals & editions' : 'Seals'}</div>
 			<div class="seal-list">
+				{#each Object.entries(run.cardEditions) as [id, key] (id)}
+					{@const c = run.pack.find((x) => String(x.id) === id)}
+					{@const e = cardEds.CARD_EDITIONS[key]}
+					{#if c}
+						<button class="sealed" onclick={(e2) => inspect(e2, { kind: `${e.name} edition on ${cards.name(c)}`, title: `${e.name} ${cards.name(c)}`, text: e.text, color: editionColor(key) })}>
+							<span class="ed-dot" style:background={editionColor(key)}></span><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}>{cards.name(c)}</span>
+						</button>
+					{/if}
+				{/each}
 				{#each Object.entries(run.seals) as [id, key] (id)}
 					{@const c = run.pack.find((x) => String(x.id) === id) ?? cards.newDeck().find((x) => cards.code(x) === id)}
 					{#if c}
@@ -400,6 +410,11 @@
 		margin-top: 4px;
 		font-size: 14px;
 		font-weight: 700;
+	}
+	.ed-dot {
+		width: 10px;
+		height: 10px;
+		clip-path: var(--px-clip);
 	}
 	.sealed {
 		display: inline-flex;

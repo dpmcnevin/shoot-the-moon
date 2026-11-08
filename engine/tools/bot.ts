@@ -27,6 +27,15 @@ function packTarget(run: Run, def: PackOpDef): number | undefined {
 	return undefined;
 }
 
+/** The card a simple player would give an edition: a Homing card (always
+ *  dealt to you), else a low club, which nobody passes. */
+function editionTarget(run: Run): number | undefined {
+	const free = run.pack.filter((c) => !run.cardEditions[String(c.id)]);
+	const homing = free.find((c) => run.seals[String(c.id)] === 'homing');
+	if (homing) return homing.id;
+	return free.filter((c) => c.suit === 1).sort((a, b) => a.rank - b.rank)[0]?.id;
+}
+
 export function shop(run: Run) {
 	run_.enterShop(run);
 	for (let k = 0; k < 6; k++) {
@@ -64,6 +73,15 @@ export function shop(run: Run) {
 				}
 				return;
 			}
+			if (item.kind === 'edition') {
+				// A card edition, on a card that stays in hand (see editionTarget).
+				const score = item.def.key === 'prismatic' ? 16 : item.def.key === 'lacquered' ? 11 : 8;
+				if (editionTarget(run) !== undefined && score > bestScore) {
+					best = i;
+					bestScore = score;
+				}
+				return;
+			}
 			let score = value(item.def) + (item.edition ? EDITION_VALUE[item.edition] : 0);
 			const slotted = run.relics.filter((r) => r.edition !== 'phantom');
 			if (item.edition !== 'phantom' && run_.relicSlotsUsed(run) >= run_.RELIC_SLOTS) {
@@ -92,7 +110,9 @@ export function shop(run: Run) {
 				? run.pack.find((c) => c.suit === 4 && c.rank === 12)?.id
 				: it.kind === 'pack'
 					? packTarget(run, it.def)
-					: undefined;
+					: it.kind === 'edition'
+						? editionTarget(run)
+						: undefined;
 		if (!run_.buy(run, best, card)[0]) break;
 	}
 	if (run.money >= 20 && run_.reroll(run)) {

@@ -31,6 +31,7 @@ struct TableView: View {
                 labels(v)
                 ForEach(placements(v)) { p in
                     CardView(card: p.card, faceUp: p.faceUp, highlight: p.highlight, dim: p.dim, lift: p.lift)
+                        .modifier(EditionShine(edition: p.faceUp ? p.card?.edition : nil))
                         .scaleEffect(p.s)
                         .rotationEffect(.radians(p.r))
                         .position(x: p.x, y: p.y)

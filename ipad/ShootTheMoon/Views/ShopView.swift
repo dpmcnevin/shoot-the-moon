@@ -79,6 +79,7 @@ struct ShopItemCard: View {
         case "relic": Theme.rarity[item.rarity ?? 1]
         case "seal": Color(css: item.color ?? "#d9a441")
         case "pack": Theme.chips
+        case "edition": Edition.color(item.cardEdition ?? "etched")
         default: Theme.brass
         }
     }
@@ -88,6 +89,7 @@ struct ShopItemCard: View {
         case "relic": "\(item.rarityName ?? "") relic"
         case "seal": "Seal"
         case "pack": "Pack"
+        case "edition": "Card edition"
         default: "Upgrade"
         }
     }
@@ -102,6 +104,10 @@ struct ShopItemCard: View {
                 Text(item.name).font(Theme.font(20, .bold)).inkShadow()
                 Spacer()
                 if let s = item.seal { SealBadge(key: s, size: 42) }
+                else if let e = item.cardEdition {
+                    PixelImage(image: model.art.card(.sample, fourColor: model.fourColor)).frame(width: 40, height: 56)
+                        .modifier(EditionShine(edition: e))
+                }
                 else if let i = item.icon { Icon(key: i, scale: 3).modifier(EditionShine(edition: item.edition?.key)) }
             }
             Text(item.text + (item.kind == "relic" ? "" : ".")).font(Theme.font(16)).foregroundStyle(Theme.inkDim)
@@ -115,6 +121,7 @@ struct ShopItemCard: View {
             }
             if item.kind == "pack" { Text("Changes the pack everyone is dealt from. You choose the card.").font(Theme.font(15)) }
             if item.kind == "seal" { Text("You choose the card.").font(Theme.font(16)) }
+            if item.kind == "edition" { Text("Lasts the run. You choose the card.").font(Theme.font(16)) }
             Spacer(minLength: 0)
             if item.sold {
                 Text("SOLD").font(Theme.font(28, .bold)).foregroundStyle(Theme.inkDim).frame(maxWidth: .infinity)
@@ -158,6 +165,7 @@ struct CardPickerView: View {
                                     Button { model.pick(c.id) } label: {
                                         PixelImage(image: model.art.card(c, fourColor: model.fourColor))
                                             .aspectRatio(80 / 112, contentMode: .fit)
+                                            .modifier(EditionShine(edition: c.edition))
                                             .overlay(alignment: .topTrailing) {
                                                 if let s = c.seal { SealBadge(key: s, size: 21).offset(x: 3, y: -3) }
                                             }

@@ -37,6 +37,8 @@ export interface Placement {
 	hovered?: boolean;
 	/** A relic edition's look over the face (the menu's cards). */
 	edition?: string | null;
+	/** Show the edition's name under the card (the menu does; the table doesn't). */
+	edLabel?: boolean;
 	/** A seal shown on the face, if the card carries one. */
 	seal?: SealKey;
 	/** Used only when the sprite is first created. */

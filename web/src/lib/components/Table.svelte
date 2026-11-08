@@ -15,6 +15,7 @@
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
 	import { sealOf, pointsTaken as sealPoints, trickPoints } from '$engine/game/seals.ts';
+	import { editionOf } from '$engine/game/cardEditions.ts';
 	import * as bosses from '$engine/game/bosses.ts';
 	import LastTrick from './LastTrick.svelte';
 
@@ -187,7 +188,7 @@
 				spawn = { x: o[0], y: o[1], r: 0.5, faceUp: false };
 			}
 			if (drag?.moved && drag.id === id) {
-				out.push({ id, card: s.card, seal: sealOf(run.seals, s.card), x: drag.x, y: drag.y, r: 0, s: 1.14 * L.handScale, faceUp: true, z: 95, lift: 26,
+				out.push({ id, card: s.card, seal: sealOf(run.seals, s.card), edition: editionOf(run.cardEditions, s.card), edLabel: false, x: drag.x, y: drag.y, r: 0, s: 1.14 * L.handScale, faceUp: true, z: 95, lift: 26,
 					highlight: legal.has(s.card) && overTrick(drag.x, drag.y) ? css(C.good) : null });
 				return;
 			}
@@ -195,6 +196,8 @@
 				id,
 				card: s.card,
 				seal: sealOf(run.seals, s.card),
+				edition: blind ? null : editionOf(run.cardEditions, s.card),
+				edLabel: false,
 				x: s.cx,
 				y: s.cy - lift,
 				r: hovered || picked ? 0 : s.r,
@@ -260,6 +263,8 @@
 				id: cardId(p.card),
 				card: p.card,
 				seal: sealOf(run.seals, p.card),
+				edition: editionOf(run.cardEditions, p.card),
+				edLabel: false,
 				x,
 				y,
 				r: tossAngle(p.card),
