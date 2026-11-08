@@ -105,7 +105,14 @@ final class GameModel {
         do {
             let v = try engine.restore(save)
             apply(v, entering: false)
-            lastPhase = v.phase == .handScored ? nil : v.phase
+            lastPhase = v.phase
+            // Reopened on the score panel: the hand was counted up before the
+            // app closed, so show it finished rather than waiting on a
+            // count-up that never starts.
+            if v.phase == .handScored, let r = v.result {
+                revealShown = r.lines.count
+                revealDone = true
+            }
         } catch {
             print("saved run could not be restored: \(error)")
             UserDefaults.standard.removeObject(forKey: Self.saveKey)

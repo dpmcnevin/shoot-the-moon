@@ -181,44 +181,17 @@ enum FeltArt {
                 ctx.closePath()
                 ctx.fillPath()
             }
-        }
-        cache[key] = img
-        return img
-    }
-}
-
-/// The dark edge around the stage, in stepped bands of chunky pixels.
-struct PixelVignette: View {
-    var body: some View {
-        GeometryReader { geo in
-            if let img = VignetteArt.image(for: geo.size) {
-                Image(decorative: img, scale: 1).resizable().interpolation(.none)
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
-@MainActor
-enum VignetteArt {
-    static let cell = 8.0
-    private static var cache: [String: CGImage] = [:]
-
-    static func image(for size: CGSize) -> CGImage? {
-        let w = Int((size.width / cell).rounded(.up)), h = Int((size.height / cell).rounded(.up))
-        let key = "\(w)x\(h)"
-        if let c = cache[key] { return c }
-        let img = Pixel.image(width: w, height: h) { ctx in
+            // The darker edge, in the felt itself so it never falls across
+            // cards: four stepped bands toward the corners.
             let cx = Double(w) / 2, cy = Double(h) / 2
             let start = 380 / cell, end = 820 / cell
             for y in 0..<h {
                 for x in 0..<w {
-                    let d = ((Double(x) + 0.5 - cx) * (Double(x) + 0.5 - cx) + (Double(y) + 0.5 - cy) * (Double(y) + 0.5 - cy)).squareRoot()
-                    let t = max(0, min(1, (d - start) / (end - start)))
-                    // Four bands, not a smooth fade.
+                    let dx = Double(x) + 0.5 - cx, dy = Double(y) + 0.5 - cy
+                    let t = max(0, min(1, ((dx * dx + dy * dy).squareRoot() - start) / (end - start)))
                     let band = (t * 4).rounded(.down) / 4
                     guard band > 0 else { continue }
-                    ctx.setFillColor(UIColor.black.withAlphaComponent(band * 0.6).cgColor)
+                    ctx.setFillColor(UIColor.black.withAlphaComponent(band * 0.5).cgColor)
                     ctx.fill(CGRect(x: x, y: y, width: 1, height: 1))
                 }
             }
