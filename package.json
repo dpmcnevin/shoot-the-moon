@@ -3,26 +3,15 @@
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",
+	"workspaces": [
+		"engine",
+		"web"
+	],
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
-		"prepare": "svelte-kit sync || echo ''",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"test": "npm run build:bridge --silent && node --test 'tests/*.test.mjs'",
-		"simulate": "node tools/simulate.ts",
-		"build:bridge": "esbuild bridge/entry.ts --bundle --format=iife --target=es2022 --outfile=${BRIDGE_OUT:-.bridge/game-bundle.js}",
-		"render-audio": "node tools/render-audio.ts"
-	},
-	"devDependencies": {
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.63.0",
-		"@sveltejs/vite-plugin-svelte": "^7.1.2",
-		"@types/node": "^26.1.0",
-		"esbuild": "^0.28.1",
-		"svelte": "^5.56.1",
-		"svelte-check": "^4.6.0",
-		"typescript": "^6.0.3",
-		"vite": "^8.0.16"
+		"test": "npm -w engine test",
+		"check": "npm -w engine run check && npm -w web run check",
+		"dev": "npm -w web run dev --",
+		"build": "npm -w web run build --",
+		"simulate": "npm -w engine run simulate --"
 	}
 }

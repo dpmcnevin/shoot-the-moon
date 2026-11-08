@@ -1,0 +1,19 @@
+{
+	"name": "@shoot-the-moon/engine",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "The rules, run logic, saves, pixel art and sound synthesis, shared by the web game and the iPad app.",
+	"scripts": {
+		"test": "npm run build:bridge --silent && node --test 'tests/*.test.mjs'",
+		"check": "tsc --noEmit -p tsconfig.json",
+		"simulate": "node tools/simulate.ts",
+		"build:bridge": "esbuild bridge/entry.ts --bundle --format=iife --target=es2022 --outfile=${BRIDGE_OUT:-.bridge/game-bundle.js}",
+		"render-audio": "node tools/render-audio.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^26.1.0",
+		"esbuild": "^0.28.1",
+		"typescript": "^6.0.3"
+	}
+}
