@@ -68,6 +68,10 @@ export interface ScoreCtx {
 	balance: number;
 	/** Relics you hold. */
 	relicCount: number;
+	/** Your common relics (Ensemble). */
+	commonRelics?: number;
+	/** Cards with an edition you played this hand (Gallery). */
+	editionsPlayed?: number;
 }
 
 export interface Effect {
@@ -83,6 +87,8 @@ export interface RelicState {
 	x?: number;
 	streak?: number;
 	chips?: number;
+	/** Boards won while held (Snowball). */
+	wins?: number;
 	/** The board a once-per-board relic was last used on. */
 	used?: string;
 }
@@ -166,6 +172,8 @@ export interface RelicDef {
 	v4Only?: boolean;
 	/** Glass Deck: the deck view stays open all hand. */
 	seeDeck?: boolean;
+	/** Offered only in runs with `v5Relics` (ruleset v5). */
+	v5Only?: boolean;
 	/** Interest can reach this much. */
 	interestCap?: number;
 	/** Rerolls cost $1 less, and the first in each club is free. */
@@ -345,6 +353,49 @@ export const DEFS: RelicDef[] = [
 	// The iPad app's runs add these to the pool (RunOptions.moreRelics).
 
 	// ---------------------------------------------------------------- common
+	// Build-arounds (ruleset v5): relics that grow from one theme, and two
+	// that scale over the run.
+	{
+		key: 'heartbreaker', name: 'Heartbreaker', rarity: 1, cost: 4, icon: 'heartbreaker', v5Only: true,
+		text: '+4 chips for each heart you take',
+		score: (ctx) => (ctx.heartsTaken > 0 ? { chips: 4 * ctx.heartsTaken } : null)
+	},
+	{
+		key: 'black_suit', name: 'Black Suit', rarity: 1, cost: 5, icon: 'black_suit', v5Only: true,
+		text: '+12 chips for each trick you win with a spade',
+		score: (ctx) => {
+			const n = ctx.myTricks.filter((t) => t.winningCard.suit === H.SPADES).length;
+			return n ? { chips: 12 * n } : null;
+		}
+	},
+	{
+		key: 'snowball', name: 'Snowball', rarity: 2, cost: 7, icon: 'snowball', v5Only: true,
+		text: 'Gains x0.05 mult every board you win',
+		describe: (r) => `Gains x0.05 mult every board you win (now x${(1 + (r.state.wins ?? 0) * 0.05).toFixed(2)})`,
+		onBoardWin: (r) => {
+			r.state.wins = (r.state.wins ?? 0) + 1;
+		},
+		score: (_ctx, r) => ((r.state.wins ?? 0) > 0 ? { xmult: 1 + (r.state.wins ?? 0) * 0.05 } : null)
+	},
+	{
+		key: 'ensemble', name: 'Ensemble', rarity: 2, cost: 6, icon: 'ensemble', v5Only: true,
+		text: '+0.6 mult for each of your other common relics',
+		score: (ctx) => ((ctx.commonRelics ?? 0) > 0 ? { mult: 0.6 * (ctx.commonRelics ?? 0) } : null)
+	},
+	{
+		key: 'gallery', name: 'Gallery', rarity: 2, cost: 6, icon: 'gallery', v5Only: true,
+		text: 'x1.2 mult for each card with an edition you play',
+		score: (ctx) => ((ctx.editionsPlayed ?? 0) > 0 ? { xmult: 1.2 ** (ctx.editionsPlayed ?? 0) } : null)
+	},
+	{
+		key: 'clean_streak', name: 'Clean Record', rarity: 3, cost: 8, icon: 'clean_streak', v5Only: true,
+		text: 'Gains x0.25 mult for every clean hand, for the rest of the run',
+		describe: (r) => `Gains x0.25 mult for every clean hand, for the rest of the run (now x${(1 + (r.state.streak ?? 0) * 0.25).toFixed(2)})`,
+		onHandEnd: (ctx, r) => {
+			if (ctx.myPoints === 0 && ctx.shooter === null) r.state.streak = (r.state.streak ?? 0) + 1;
+		},
+		score: (_ctx, r) => ((r.state.streak ?? 0) > 0 ? { xmult: 1 + (r.state.streak ?? 0) * 0.25 } : null)
+	},
 	{
 		key: 'glass_deck', name: 'Glass Deck', rarity: 4, cost: 10, icon: 'kibitzer', v4Only: true,
 		text: 'See the deck all hand, not just before the first trick, with the cards already played crossed off',
@@ -633,7 +684,7 @@ function cleanWith(t: Trick, card: (c: Card) => boolean): boolean {
 	return t.points === 0 && card(t.winningCard);
 }
 
-export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = false, v4 = false): RelicDef | undefined {
+export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = false, v4 = false, v5 = false): RelicDef | undefined {
 	const weights = [0.6, 0.3, 0.085, 0.015];
 	const have = new Set(owned.map((o) => o.key));
 	for (let attempt = 0; attempt < 40; attempt++) {
@@ -647,7 +698,7 @@ export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = fal
 				break;
 			}
 		}
-		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key) && (expanded || !d.expansion) && (v4 || !d.v4Only));
+		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key) && (expanded || !d.expansion) && (v4 || !d.v4Only) && (v5 || !d.v5Only));
 		const pick = rng.pick(pool);
 		if (pick) return pick;
 	}

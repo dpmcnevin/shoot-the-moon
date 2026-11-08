@@ -5,6 +5,13 @@
 // tools/measure-relics.ts after changing relics or rules.
 
 export const RELIC_VALUE: Record<string, number> = {
+	// The v5 build-arounds, measured on ruleset v5 (none: 30.0%), 400 runs each.
+	ensemble: 18.8,
+	black_suit: 14.3,
+	heartbreaker: 13.5,
+	clean_streak: 13.5,
+	snowball: 10.3,
+	gallery: 9.5,
 	glass_deck: 0, // information only; the bot can't use it (set by hand)
 	full_moon: 55.3,
 	rainmaker: 43.5,

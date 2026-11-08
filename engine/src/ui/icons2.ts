@@ -2,6 +2,42 @@
 // 16x16, drawn in the same palette and style as icons.ts.
 
 export const EXPANSION_ICONS: Record<string, string[]> = {
+	heartbreaker: [
+		'................', '..kkkk...kkkk...', '.kllrrk.krrrRk..', 'klWlrrrkkrrrRRk.',
+		'klllrrrkWkrrRRk.', 'krlrrrrkkWkrRRk.', 'krrrrrrrkkrRRRk.', '.krrrrrkWkRRRk..',
+		'..krrrrkkRRRk...', '...krrrkRRRk....', '....krrkRRk.....', '.....krkRk......',
+		'......kkk.......', '................', '................', '................',
+	],
+	black_suit: [
+		'................', '.......kk.......', '......kttk......', '.....kttttk.....',
+		'....kttSttk.....', '...kttSttttk....', '..kttSttttttk...', '..ktttttttttk...',
+		'..ktttttttttk...', '...kttkttkttk...', '....kk.kk.kk....', '.......kk.......',
+		'......kttk......', '.....kkkkkk.....', '................', '................',
+	],
+	snowball: [
+		'................', '.....kkkkk......', '....kWWWWWk.....', '...kWWWWBWWk....',
+		'..kWWWWWWBBWk...', '..kWWBWWWWWBk...', '..kWBBWWWWWBk...', '..kWWWWWBWWBk...',
+		'..kBWWWWWWBBk...', '...kBWWWWBBk....', '....kBBBBBk.....', '.....kkkkk......',
+		'................', '................', '................', '................',
+	],
+	ensemble: [
+		'................', '.kkkk.kkkk.kkkk.', '.kSSk.kNNk.kBBk.', '.kSSk.kNNk.kBBk.',
+		'.kkkk.kkkk.kkkk.', '................', '..kkkkkkkkkkkk..', '..kGGGGGGGGGGk..',
+		'..kGgggggggggk..', '..kkkkkkkkkkkk..', '................', '................',
+		'................', '................', '................', '................',
+	],
+	gallery: [
+		'................', '.kkkkkkkkkkkkkk.', '.kDDDDDDDDDDDDk.', '.kDkkkkkkkkkkDk.',
+		'.kDkBBBBBBBBkDk.', '.kDkBBBYYBBBkDk.', '.kDkBBBYYBBBkDk.', '.kDkNNBBBBNNkDk.',
+		'.kDkNNNNNNNNkDk.', '.kDkkkkkkkkkkDk.', '.kDDDDDDDDDDDDk.', '.kkkkkkkkkkkkkk.',
+		'................', '................', '................', '................',
+	],
+	clean_streak: [
+		'................', '..........kk....', '.........kYk....', '........kYyk....',
+		'.......kYyk.....', '......kYyyk.....', '.....kYyyyykk...', '....kkkkYyyk....',
+		'.......kYyk.....', '......kYyk......', '.....kYyk.......', '.....kYk........',
+		'.....kk.........', '................', '................', '................',
+	],
 	bundle_relic: [
 		'................', '.....kk..kk.....', '....kGGkkGGk....', '.....kGGGGk.....',
 		'..kkkkkkkkkkkk..', '..knnnnGGnnnnk..', '..knnnnGGnnnnk..', '..kkkkkkkkkkkk..',

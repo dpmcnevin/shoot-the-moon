@@ -668,7 +668,9 @@ function scoreContext(run: Run): ScoreCtx {
 		passedPointsAway: hand.passed.filter((c) => st.pts(c) > 0 && [1, 2, 4].some((s) => st.taken[s].includes(c))).length,
 		opponentVoids: [1, 2, 4].reduce((n, s) => n + Object.values(st.voids[s]).filter(Boolean).length, 0),
 		balance: run.balance,
-		relicCount: run.relics.length
+		relicCount: run.relics.length,
+		commonRelics: run.relics.filter((r) => r.def.rarity === 1).length,
+		editionsPlayed: st.played.filter((p) => p.seat === H.PLAYER && cardEds.editionOf(run.cardEditions, p.card)).length
 	};
 }
 
@@ -988,7 +990,7 @@ function rollOffer(run: Run): ShopItem {
 		...run.relics,
 		...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))
 	];
-	const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics) ?? relics.DEFS[0];
+	const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics, run.ploysOn) ?? relics.DEFS[0];
 	// Only roll when editions are on, so runs without them keep their
 	// exact sequence of shop offers.
 	const edition = run.editions ? relics.rollEdition(run.rng) : undefined;
@@ -1039,7 +1041,7 @@ function bundleOptions(run: Run, key: BundleKey): BundleChoice[] {
 	if (key === 'relic') {
 		const owned: { key: string }[] = [...run.relics, ...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))];
 		for (let i = 0; i < bundles.BUNDLE_SIZE; i++) {
-			const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics);
+			const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics, run.ploysOn);
 			if (!def) break;
 			owned.push({ key: def.key });
 			out.push({ kind: 'relic', def, edition: run.editions ? relics.rollEdition(run.rng) : undefined });
