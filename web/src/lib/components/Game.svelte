@@ -21,6 +21,7 @@
 	import Particles from './Particles.svelte';
 	import TableOverview from './TableOverview.svelte';
 	import InfoCard from './InfoCard.svelte';
+	import DeckView from './DeckView.svelte';
 	import Collection from './Collection.svelte';
 
 	let vw = $state(1280);
@@ -122,6 +123,7 @@
 				{/if}
 				<Sidebar />
 				{#if game.inspect}<InfoCard />{/if}
+				{#if game.showDeck}<DeckView />{/if}
 				{#if game.showOverview && run.phase !== PHASE.GAME_OVER && run.phase !== PHASE.VICTORY}<TableOverview />{/if}
 			{/if}
 			<Toast />

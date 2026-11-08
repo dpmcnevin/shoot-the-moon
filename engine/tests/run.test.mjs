@@ -865,6 +865,18 @@ test('winning the last High Board ends the run in victory, with no club after it
 	assert.equal(R.continueAfterHand(mid), R.PHASE.BOARD_WON);
 });
 
+test('the deck can be seen until the first trick is done, or all hand with the Glass Deck', () => {
+	const run = R.newRun('DECK', { ruleset: 'v4' });
+	assert.equal(R.canSeeDeck(run), true, 'while passing');
+	R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	assert.equal(R.canSeeDeck(run), true, 'before the first trick');
+	const st = run.hand.state;
+	while (st.tricks.length === 0) H.play(st, st.turn, H.legalPlays(st, st.turn)[0]);
+	assert.equal(R.canSeeDeck(run), false, 'after the first trick');
+	run.relics.push(relics.instantiate(relics.get('glass_deck')));
+	assert.equal(R.canSeeDeck(run), true, 'with the Glass Deck');
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

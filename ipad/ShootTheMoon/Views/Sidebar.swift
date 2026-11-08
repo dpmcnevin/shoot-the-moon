@@ -43,8 +43,10 @@ struct Sidebar: View {
             VStack(alignment: .leading, spacing: 4) {
                 let pass = v.hand.passDir == "hold" ? "No passing" : "Pass \(v.hand.passDir) to \(v.hand.passTo ?? "")"
                 Text("This hand · \(Text(pass).foregroundStyle(Theme.ink))").foregroundStyle(Theme.inkDim).font(Theme.font(14))
-                Text("Pack \(v.pack.count) · \(v.packPoints) points\(v.hand.kitty.isEmpty ? "" : " · kitty \(v.hand.kitty.count)")")
+                Text("Pack \(v.pack.count) · \(v.packPoints) points\(v.hand.kitty.isEmpty ? "" : " · kitty \(v.hand.kitty.count)")\(v.canSeeDeck == true ? " · see" : "")")
                     .font(Theme.font(12)).foregroundStyle(Theme.inkFaint)
+                    .contentShape(Rectangle())
+                    .onTapGesture { if v.canSeeDeck == true { model.showDeck = true } }
                 HStack(spacing: 4) {
                     ForEach([Seat.player, Seat.west, Seat.north, Seat.east], id: \.self) { s in
                         VStack(spacing: 0) {

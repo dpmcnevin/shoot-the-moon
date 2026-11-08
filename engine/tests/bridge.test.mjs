@@ -68,7 +68,7 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const save = JSON.parse(S.save());
 	assert.deepEqual(save.opts, { ruleset: 'v4' });
 	const cat = JSON.parse(S.catalog());
-	assert.equal(cat.relics.length, 60); // 23 original + 32 expansion + 5 v4
+	assert.equal(cat.relics.length, 61); // 23 original + 32 expansion + 6 v4
 	assert.equal(cat.bosses.length, 13);
 	assert.ok(cat.seals.length === 5 && cat.editions.length === 4 && cat.packItems.length === 4 && cat.upgrades.length === 3 && cat.cardEditions.length === 3);
 	const view = JSON.parse(S.view());

@@ -93,3 +93,7 @@ targets:
           # The audio takes a few seconds to render; only when missing.
           if [ ! -f "$RES/Audio/music.json" ]; then node engine/tools/render-audio.ts "$RES/Audio"; fi
         basedOnDependencyAnalysis: false
+        # Declared so Xcode copies the fresh files, not the previous build's.
+        outputFiles:
+          - $(SRCROOT)/ShootTheMoon/Resources/game-bundle.js
+          - $(SRCROOT)/ShootTheMoon/Resources/engine-version.txt

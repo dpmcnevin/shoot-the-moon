@@ -5,6 +5,7 @@
 // tools/measure-relics.ts after changing relics or rules.
 
 export const RELIC_VALUE: Record<string, number> = {
+	glass_deck: 0, // information only; the bot can't use it (set by hand)
 	full_moon: 55.3,
 	rainmaker: 43.5,
 	card_counter: 40.8,

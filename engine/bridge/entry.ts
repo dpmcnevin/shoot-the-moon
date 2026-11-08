@@ -157,6 +157,7 @@ function view() {
 			return { cardId: Number(id), key, name: e.name, text: e.text, card: c ? cardView(c) : null };
 		}),
 		pack: packs.sortedPack(r.pack).map(cardView),
+		canSeeDeck: R.canSeeDeck(r),
 		packPoints: r.pack.reduce((n, c) => n + seals.cardPoints(r.seals, c), 0),
 		hand: {
 			passDir: hand.passDir,
@@ -168,6 +169,8 @@ function view() {
 			tricksPlayed: st ? st.tricks.length : 0,
 			/** The last finished trick of this hand, for the Last trick button. */
 			lastTrick: st && st.tricks.length ? trickView(st.tricks[st.tricks.length - 1]) : null,
+			/** Cards played so far this hand (the Glass Deck crosses them off). */
+			played: st ? st.played.map((p) => p.card.id ?? 0) : [],
 			handSize: st ? st.handSize : mine.length,
 			turn: st && !st.complete ? st.turn : null,
 			isPlayerTurn: R.isPlayerTurn(r),

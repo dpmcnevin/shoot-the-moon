@@ -65,7 +65,7 @@
 	</div>
 	<div class="grid">
 		{#each rows as row, ri (ri)}
-			<div class="row" style:grid-template-columns="repeat({cols}, 1fr)">
+			<div class="row" style:grid-template-columns="repeat({cols}, minmax(0, 1fr))">
 				{#each row as c (c.id)}
 					{@const existing = sealOf(run.seals, c)}
 					{@const ok = usable(c)[0]}

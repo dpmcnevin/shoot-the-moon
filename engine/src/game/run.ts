@@ -802,6 +802,17 @@ export function finishHand(run: Run): Breakdown {
 	return b;
 }
 
+/** Can you look at the deck now? Any time but mid-hand: once the first
+ *  trick is done it would tell you who holds what, unless you have the Glass
+ *  Deck. */
+export function canSeeDeck(run: Run): boolean {
+	// The Blindfold: your hand is hidden while you pass, and the deck would show it.
+	if (run.phase === PHASE.PASS && bossIs(run, 'blindfold')) return false;
+	if (run.phase !== PHASE.PLAY) return true;
+	if (activeRelics(run).some((r) => r.def.seeDeck)) return true;
+	return (run.hand.state?.tricks.length ?? 0) === 0;
+}
+
 /** Is this the last board of the run (the last table's High Board)? */
 export function isFinalBoard(run: Run): boolean {
 	return run.table >= TABLES && run.board >= BOARDS_PER_TABLE;

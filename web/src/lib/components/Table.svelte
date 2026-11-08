@@ -477,6 +477,11 @@
 		<Button variant={settings.sortByRank ? 'brass' : 'plain'} size="sm" sound={false} title="Sort your hand by rank, low to high." onclick={() => resort(true)} style="width: 62px">Rank</Button>
 	</div>
 {/if}
+{#if (run.phase === PHASE.PLAY || passing) && (void game.v, R.canSeeDeck(run))}
+	<div class="sort" style:left="{L.sortAt.x}px" style:top="{L.sortAt.y - 38}px">
+		<Button variant="plain" size="sm" title="See the whole deck, your hand greyed (until the first trick is done)." onclick={() => (game.showDeck = true)} style="width: 166px">See the deck</Button>
+	</div>
+{/if}
 
 {#if run.phase === PHASE.PLAY}
 	<div class="playout" style:left="{L.playOut.x}px" style:top="{L.playOut.y - L.playOut.h - 8}px">

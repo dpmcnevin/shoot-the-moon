@@ -95,6 +95,8 @@ class Game {
 	showLastTrick = $state(false);
 	/** The collection page is open (from the menu). */
 	showCollection = $state(false);
+	/** The deck view (open while R.canSeeDeck allows). */
+	showDeck = $state(false);
 	/** A relic, seal or upgrade being read from the sidebar. */
 	inspect = $state.raw<{ kind: string; title: string; text: string; note?: string; color: string; y: number } | null>(null);
 
@@ -397,6 +399,7 @@ class Game {
 	escape() {
 		if (this.inspect) this.inspect = null;
 		else if (this.showLastTrick) this.showLastTrick = false;
+		else if (this.showDeck) this.showDeck = false;
 		else if (this.showOverview) this.showOverview = false;
 		else if (this.showCollection) this.showCollection = false;
 		else if (this.screen === 'menu') this.showHelp = false;

@@ -164,6 +164,8 @@ export interface RelicDef {
 	expansion?: boolean;
 	/** Offered only in runs with `v4Relics` (ruleset v4), so older runs keep their offers. */
 	v4Only?: boolean;
+	/** Glass Deck: the deck view stays open all hand. */
+	seeDeck?: boolean;
 	/** Interest can reach this much. */
 	interestCap?: number;
 	/** Rerolls cost $1 less, and the first in each club is free. */
@@ -343,6 +345,11 @@ export const DEFS: RelicDef[] = [
 	// The iPad app's runs add these to the pool (RunOptions.moreRelics).
 
 	// ---------------------------------------------------------------- common
+	{
+		key: 'glass_deck', name: 'Glass Deck', rarity: 4, cost: 10, icon: 'kibitzer', v4Only: true,
+		text: 'See the deck all hand, not just before the first trick, with the cards already played crossed off',
+		seeDeck: true
+	},
 	// Clean top cards (ruleset v4): winning a trick with a high card that
 	// holds no points, usually by leading it or covering a clean lead.
 	{

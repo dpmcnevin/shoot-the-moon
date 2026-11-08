@@ -51,6 +51,12 @@ struct TableView: View {
                     .position(x: L.sidebar.width + 120, y: L.handY - 96)
                     .zIndex(90)
                 }
+                if (v.phase == .play || v.phase == .pass) && v.canSeeDeck == true {
+                    GameButton("See the deck", style: .plain, size: .small) { model.showDeck = true }
+                        .frame(width: 150)
+                        .position(x: L.sidebar.width + 340, y: L.handY - 96)
+                        .zIndex(90)
+                }
                 if v.phase == .play {
                     GameButton("Last trick", style: .plain, size: .small,
                                enabled: v.hand.lastTrick != nil && model.trickHold == nil) { model.showLastTrick = true }

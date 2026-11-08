@@ -127,7 +127,11 @@
 
 	<section class="this-hand">
 		<div class="label">This hand · <span class="ink">{passLabel}</span></div>
-		<div class="pack-line">Pack {run.pack.length} · {packPoints} points{hand.kitty.length ? ` · kitty ${hand.kitty.length}` : ''}</div>
+		{#if (void game.v, R.canSeeDeck(run))}
+			<button class="pack-line deck-link" title="See the deck" onclick={() => (game.showDeck = true)}>Pack {run.pack.length} · {packPoints} points{hand.kitty.length ? ` · kitty ${hand.kitty.length}` : ''} · <u>see</u></button>
+		{:else}
+			<div class="pack-line">Pack {run.pack.length} · {packPoints} points{hand.kitty.length ? ` · kitty ${hand.kitty.length}` : ''}</div>
+		{/if}
 		<div class="points">
 			{#each ORDER as s (s)}
 				<div class="pt" class:me={s === H.PLAYER}>
@@ -381,6 +385,18 @@
 	}
 	.dot.used {
 		background: var(--panel-edge);
+	}
+	.deck-link {
+		display: block;
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.deck-link:hover {
+		color: var(--ink);
 	}
 	.pack-line {
 		font-size: 12px;

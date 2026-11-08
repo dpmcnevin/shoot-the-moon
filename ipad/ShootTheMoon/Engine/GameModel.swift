@@ -50,6 +50,8 @@ final class GameModel {
     /// While the board-won panel counts up its payout: the money the sidebar
     /// shows so far (nil when not counting).
     var moneyShown: Int?
+    /// The deck view is open.
+    var showDeck = false
     /// A relic, seal or upgrade being read from the sidebar.
     var inspect: InfoCard?
     /// The collection page is open (from the menu).

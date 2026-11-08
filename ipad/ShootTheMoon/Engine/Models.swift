@@ -63,6 +63,8 @@ struct HandV: Decodable {
     let receivedFrom: Int?
     /// Suits each opponent has shown they're out of, by seat (Card Counter).
     let voids: [String: [Int]]?
+    /// Cards played so far this hand (the Glass Deck crosses them off).
+    let played: [Int]?
 
     func opponentCards(_ seat: Int) -> [Int] { opponents[String(seat)] ?? [] }
 }
@@ -229,6 +231,8 @@ struct GameView: Decodable {
     let seals: [SealV]
     let cardEditions: [CardEditionV]?
     let pack: [CardV]
+    /// Whether the deck may be looked at now (see DeckView).
+    let canSeeDeck: Bool?
     let packPoints: Int
     let hand: HandV
     let result: ResultV?
