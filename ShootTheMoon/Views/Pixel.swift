@@ -127,6 +127,14 @@ struct PixelSprite: View {
         .frame(width: Double(w) * px, height: Double(rows.count) * px)
     }
 
+    /// 7x7 suit symbols, by suit number (1 clubs, 2 diamonds, 3 hearts, 4 spades).
+    static let suits: [Int: [String]] = [
+        1: ["..XXX..", "..XXX..", "XX.X.XX", "XXXXXXX", "XX.X.XX", "...X...", "..XXX.."],
+        2: ["...X...", "..XXX..", ".XXXXX.", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."],
+        3: [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X...", "......."],
+        4: ["...X...", "..XXX..", ".XXXXX.", "XXXXXXX", "XXXXXXX", "...X...", "..XXX.."],
+    ]
+
     static let tortoise = [
         "...XXXX....",
         "..XXXXXX.XX",

@@ -47,6 +47,10 @@ final class GameModel {
     var showHelp = false
     /// The Last trick panel is open.
     var showLastTrick = false
+    /// The collection page is open (from the menu).
+    var showCollection = false
+    /// Everything in the game, for the collection page.
+    let catalog: CatalogV?
     /// The table overview (boards, goals, the boss) is open. Play waits
     /// behind it.
     var showOverview = false {
@@ -89,6 +93,7 @@ final class GameModel {
         let engine = try GameEngine()
         self.engine = engine
         self.art = PixelArt(engine: engine)
+        self.catalog = try? engine.catalog()
         let d = UserDefaults.standard
         music = d.object(forKey: "music") as? Bool ?? true
         sfx = d.object(forKey: "sfx") as? Bool ?? true

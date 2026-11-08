@@ -241,9 +241,24 @@ struct TableView: View {
             ForEach([Seat.west, Seat.north, Seat.east], id: \.self) { seat in
                 let s = L.seats[seat]!
                 let shark = v.bossNow("shark") && seat == v.boss?.sharkSeat
-                seatLabel(v.seatName(seat).uppercased() + (shark ? " · SHARK" : ""), points: v.hand.points[seat],
-                          active: v.hand.turn == seat, alert: shark)
-                    .position(x: s.labelX, y: s.labelY)
+                VStack(spacing: 4) {
+                    seatLabel(v.seatName(seat).uppercased() + (shark ? " · SHARK" : ""), points: v.hand.points[seat],
+                              active: v.hand.turn == seat, alert: shark)
+                    // Card Counter: the suits this seat has run out of.
+                    if let out = v.hand.voids?[String(seat)], !out.isEmpty {
+                        HStack(spacing: 4) {
+                            Text("OUT").font(Theme.font(11, .bold)).kerning(1).foregroundStyle(Theme.inkDim)
+                            ForEach(out.sorted(), id: \.self) { suit in
+                                PixelSprite(rows: PixelSprite.suits[suit] ?? [], color: suitColor(suit))
+                            }
+                        }
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(PixelRect(radius: 4).fill(Theme.sidebar.opacity(0.85)))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(v.seatName(seat)) is out of \(out.map(suitName).joined(separator: ", "))")
+                    }
+                }
+                .position(x: s.labelX, y: s.labelY + (v.hand.voids?[String(seat)]?.isEmpty == false ? 12 : 0))
             }
             seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
                       note: model.isLegal(v.hand.legal.first ?? -1) ? "Your play" : nil)
@@ -253,6 +268,19 @@ struct TableView: View {
                     .position(x: L.tableCX + L.ovalRX - 64, y: L.trickCY - L.ovalRY + 112)
             }
         }
+    }
+
+    private func suitColor(_ suit: Int) -> Color {
+        switch suit {
+        case 1: model.fourColor ? Color(hex: 0x4fbf7a) : Theme.ink
+        case 2: model.fourColor ? Color(hex: 0xf5b46a) : Color(hex: 0xf08a8a)
+        case 3: Color(hex: 0xf08a8a)
+        default: Theme.ink
+        }
+    }
+
+    private func suitName(_ suit: Int) -> String {
+        [1: "clubs", 2: "diamonds", 3: "hearts", 4: "spades"][suit] ?? "?"
     }
 
     private func seatLabel(_ name: String, points: Int, active: Bool, note: String? = nil, alert: Bool = false) -> some View {

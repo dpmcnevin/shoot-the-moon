@@ -90,6 +90,7 @@ struct RootView: View {
             if model.screen == .menu || model.view == nil {
                 MenuView()
                 if model.showHelp { HelpView() }
+                if model.showCollection { CollectionView().frame(width: L.W, height: L.H) }
             } else if let v = model.view {
                 Felt().frame(width: L.table.width, height: L.table.height).offset(x: L.table.minX)
                 if v.phase == .shop {

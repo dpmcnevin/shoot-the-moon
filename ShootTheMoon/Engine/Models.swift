@@ -54,6 +54,8 @@ struct HandV: Decodable {
     let heartsBroken: Bool
     let received: [Int]
     let receivedFrom: Int?
+    /// Suits each opponent has shown they're out of, by seat (Card Counter).
+    let voids: [String: [Int]]?
 
     func opponentCards(_ seat: Int) -> [Int] { opponents[String(seat)] ?? [] }
 }
@@ -237,4 +239,21 @@ enum Seat {
 extension GameView {
     /// The boss whose rule is in force right now, if any.
     func bossNow(_ key: String) -> Bool { boss?.active == true && boss?.key == key }
+}
+
+// MARK: - Collection
+
+struct CatalogV: Decodable {
+    struct Relic: Decodable, Identifiable { let key, name, text: String; let rarity: Int; let rarityName: String; let cost: Int; let icon: String; var id: String { key } }
+    struct Edition: Decodable, Identifiable { let key, name, text: String; let cost: Int; var id: String { key } }
+    struct Seal: Decodable, Identifiable { let key, name, text: String; let cost: Int; let color: String; var id: String { key } }
+    struct PackItem: Decodable, Identifiable { let key, name, text: String; let cost: Int; let icon: String; var id: String { key } }
+    struct Upgrade: Decodable, Identifiable { let key, name, text, icon: String; let chips, mult: Double; var id: String { key } }
+    struct Boss: Decodable, Identifiable { let key, name, text: String; let tier: Int; var id: String { key } }
+    let relics: [Relic]
+    let editions: [Edition]
+    let seals: [Seal]
+    let packItems: [PackItem]
+    let upgrades: [Upgrade]
+    let bosses: [Boss]
 }

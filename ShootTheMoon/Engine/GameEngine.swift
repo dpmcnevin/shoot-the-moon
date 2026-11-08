@@ -67,6 +67,9 @@ final class GameEngine {
 
     func view() throws -> GameView { try decode(try call("view")) }
 
+    /// Everything in the game, for the collection page.
+    func catalog() throws -> CatalogV { try decode(try call("catalog")) }
+
     func act(_ action: Action) throws -> ActResult {
         try decode(try call("act", [action.json]))
     }

@@ -55,7 +55,11 @@ struct MenuView: View {
                     .background(PixelRect(radius: 6).fill(Theme.feltEdge))
                     .overlay(PixelRect(radius: 6).stroke(Theme.panelEdge, lineWidth: 2))
                     .foregroundStyle(Theme.ink)
-                GameButton("How to play", style: .plain) { model.showHelp = true }.frame(width: 260)
+                HStack(spacing: 8) {
+                    GameButton("How to play", style: .plain) { model.showHelp = true }
+                    GameButton("Collection", style: .plain) { model.showCollection = true }
+                }
+                .frame(width: 330)
                 HStack(spacing: 6) {
                     GameButton(model.music ? "Music on" : "Music off", style: .plain, size: .small) { model.music.toggle() }
                     GameButton(model.sfx ? "Sound on" : "Sound off", style: .plain, size: .small) { model.sfx.toggle() }
