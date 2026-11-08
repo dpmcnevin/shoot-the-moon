@@ -53,6 +53,8 @@ struct HandV: Decodable {
     let legal: [Int]
     let points: [Int]
     let heartsBroken: Bool
+    /// The seat holding every point taken so far (a moon still in reach).
+    let moonOnCourse: Int?
     let received: [Int]
     let receivedFrom: Int?
     /// Suits each opponent has shown they're out of, by seat (Card Counter).
@@ -268,4 +270,11 @@ struct InfoCard: Equatable {
     var color: Color
     /// Where the tap was, on the stage, so the card sits beside it.
     var y: Double
+}
+
+extension HandV {
+    /// Show the moon chip once enough points are in one pile to matter.
+    func moonChip(for seat: Int) -> Bool {
+        moonOnCourse == seat && points[seat] >= 4
+    }
 }

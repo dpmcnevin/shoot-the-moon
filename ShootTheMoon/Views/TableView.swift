@@ -244,6 +244,7 @@ struct TableView: View {
                 VStack(spacing: 4) {
                     seatLabel(v.seatName(seat).uppercased() + (shark ? " · SHARK" : ""), points: v.hand.points[seat],
                               active: v.hand.turn == seat, alert: shark)
+                    if v.hand.moonChip(for: seat) { moonChip(mine: false) }
                     // Card Counter: the suits this seat has run out of.
                     if let out = v.hand.voids?[String(seat)], !out.isEmpty {
                         HStack(spacing: 4) {
@@ -260,14 +261,27 @@ struct TableView: View {
                 }
                 .position(x: s.labelX, y: s.labelY + (v.hand.voids?[String(seat)]?.isEmpty == false ? 12 : 0))
             }
-            seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
-                      note: model.isLegal(v.hand.legal.first ?? -1) ? "Your play" : nil)
+            HStack(spacing: 10) {
+                seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
+                          note: model.isLegal(v.hand.legal.first ?? -1) ? "Your play" : nil)
+                if v.hand.moonChip(for: Seat.player) { moonChip(mine: true) }
+            }
                 .position(x: L.tableCX, y: L.handY - 16 - 30 * L.handScale) // above a picked card
             if !v.hand.kitty.isEmpty {
                 Text("Kitty · \(v.hand.kitty.count)").font(Theme.font(12)).foregroundStyle(Theme.inkDim)
                     .position(x: L.tableCX + L.ovalRX - 64, y: L.trickCY - L.ovalRY + 112)
             }
         }
+    }
+
+    /// Every point taken so far is in one pile: a moon is still possible.
+    private func moonChip(mine: Bool) -> some View {
+        Text(mine ? "MOON ON" : "MOON?").font(Theme.font(12, .bold)).kerning(1)
+            .foregroundStyle(Theme.bg)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(PixelRect(radius: 4).fill(mine ? Theme.brass : Theme.bad))
+            .phaseAnimator([1.0, 0.75]) { c, o in c.opacity(o) } animation: { _ in .easeInOut(duration: 0.6) }
+            .accessibilityLabel(mine ? "You hold every point so far: the moon is still on" : "This player holds every point so far and could shoot the moon")
     }
 
     private func suitColor(_ suit: Int) -> Color {
