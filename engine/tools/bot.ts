@@ -123,7 +123,13 @@ export function playRun(seed: string | number, opts: run_.RunOptions = {}): Run 
 
 /** Play a run already set up (for experiments that change the start). */
 export function playRunFrom(run: Run): Run {
+	return playUntil(run, () => false);
+}
+
+/** Play on until `stop` says so (checked before each step) or the run ends. */
+export function playUntil(run: Run, stop: (run: Run) => boolean): Run {
 	for (let k = 0; k < 5000; k++) {
+		if (stop(run)) return run;
 		if (run.phase === run_.PHASE.PASS) {
 			// Under the Blindfold the pass is chosen unseen: any three cards.
 			const blind = run_.bossActive(run) && run.boss === 'blindfold';

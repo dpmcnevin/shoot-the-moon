@@ -54,6 +54,9 @@ export interface AIContext {
 	 *  winning the trick, a void seat dumps its worst card; when it isn't,
 	 *  points are held back for later. */
 	target?: number;
+	/** A card saved for one seat (bosses: the Widow, the Diamond Jack): when
+	 *  void, dump it only on a trick that seat is winning; otherwise keep it. */
+	saveFor?: { seat: number; card: (c: Card) => boolean };
 }
 
 /** Is this hand strong enough to try for the moon? Lots of high cards,
@@ -148,6 +151,14 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 	const last = state.trick.length === 3;
 	const threat = moonThreat(state, seat);
 
+	if (!following && ctx.saveFor && seat !== ctx.saveFor.seat) {
+		const saved = legal.filter(ctx.saveFor.card);
+		if (saved.length > 0) {
+			if (win.seat === ctx.saveFor.seat) return saved[0];
+			const rest = legal.filter((c) => !ctx.saveFor!.card(c));
+			if (rest.length > 0) legal = rest;
+		}
+	}
 	if (!following) {
 		// Ganging up on a target seat: unload on it, and only on it.
 		if (ctx.target !== undefined && seat !== ctx.target) {

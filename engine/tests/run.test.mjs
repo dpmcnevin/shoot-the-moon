@@ -389,8 +389,8 @@ test('a run can use other targets, and keeps the standard ones by default', () =
 import * as bosses from '../src/game/bosses.ts';
 
 /** A run sitting at the start of a High Board with the given boss. */
-function bossRun(key, seed = 'BOSS', setup) {
-	const run = R.newRun(seed, { bosses: true });
+function bossRun(key, seed = 'BOSS', setup, opts = { bosses: true }) {
+	const run = R.newRun(seed, opts);
 	setup?.(run);
 	run.board = R.BOARDS_PER_TABLE;
 	run.boss = key;
@@ -518,6 +518,62 @@ test('the Cartel and the Shark push points onto you', () => {
 	const base = avg('taxman');
 	assert.ok(avg('cartel') > base + 1, `cartel ${avg('cartel')} vs ${base}`);
 	assert.ok(avg('shark') > base, `shark ${avg('shark')} vs ${base}`);
+});
+
+test('v3 bosses: Moon Thief doubles your points, the Cartel triples them', () => {
+	const v3 = (key) => bossRun(key, 'V3B', undefined, { ruleset: 'v3' });
+	const takeHearts = (run, n) => {
+		const pack = run.hand.state.pack;
+		const hearts = pack.filter((c) => c.suit === H.HEARTS).slice(0, n);
+		return [[], [], [], hearts, pack.filter((c) => !hearts.includes(c))];
+	};
+	const thief = v3('moon_thief');
+	finish(thief);
+	assert.equal(scoreWithTaken(thief, takeHearts(thief, 3)).lines[0].chips, 26 - 6);
+	const cartel = v3('cartel');
+	finish(cartel);
+	assert.equal(scoreWithTaken(cartel, takeHearts(cartel, 3)).lines[0].chips, 26 - 9);
+	// The classic Moon Thief only cancels the moon.
+	const old = bossRun('moon_thief', 'V3B');
+	finish(old);
+	assert.equal(scoreWithTaken(old, takeHearts(old, 3)).lines[0].chips, 26 - 3);
+});
+
+test('v3 bosses: Open Book hearts count 4; every diamond counts under the Diamond Jack', () => {
+	const ob = bossRun('open_book', 'V3B', undefined, { ruleset: 'v3' });
+	finish(ob);
+	const heart = ob.hand.state.pack.find((c) => c.suit === H.HEARTS);
+	assert.equal(ob.hand.state.pts(heart), 4);
+	const dj = bossRun('diamond_jack', 'V3B', undefined, { ruleset: 'v3' });
+	finish(dj);
+	const st = dj.hand.state;
+	assert.equal(st.pts(st.pack.find((c) => c.suit === H.DIAMONDS && c.rank === 11)), 10);
+	assert.equal(st.pts(st.pack.find((c) => c.suit === H.DIAMONDS && c.rank === 2)), 1);
+});
+
+test('v3 bosses: the Widow halves the queen hand; the Shark cuts a quarter', () => {
+	const w = bossRun('widow', 'V3B', undefined, { ruleset: 'v3' });
+	finish(w);
+	const pack = w.hand.state.pack;
+	const qs = pack.find(H.isQueenOfSpades);
+	const b = scoreWithTaken(w, [[], [], [], [qs], pack.filter((c) => c !== qs)]);
+	assert.equal(b.lines.at(-1).xmult, 0.5);
+	const sh = bossRun('shark', 'V3B', undefined, { ruleset: 'v3' });
+	finish(sh);
+	const p2 = sh.hand.state.pack;
+	const h = p2.filter((c) => c.suit === H.HEARTS).slice(0, 2);
+	const cut = scoreWithTaken(sh, [[], [], p2.filter((c) => !h.includes(c) && c.suit !== H.HEARTS), h, p2.filter((c) => c.suit === H.HEARTS && !h.includes(c))]);
+	assert.ok(cut.lines.some((l) => l.label.startsWith('The Shark') && l.xmult === 0.75));
+});
+
+test('v3 bosses: the Pickpocket fines each passed card you take back', () => {
+	const run = bossRun('pickpocket', 'V3B', undefined, { ruleset: 'v3' });
+	finish(run);
+	const got = run.hand.received;
+	const st = run.hand.state;
+	const back = st.pack.filter((c) => got.some((g) => g.id === c.id)).slice(0, 2);
+	const b = scoreWithTaken(run, [[], st.pack.filter((c) => !back.includes(c)), [], back, []]);
+	assert.equal(b.lines.find((l) => l.label.startsWith('The Pickpocket')).chips, -2 * R.PICKPOCKET_FINE);
 });
 
 test('beating a boss pays a bonus', () => {

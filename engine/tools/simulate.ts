@@ -1,14 +1,15 @@
 // Headless balance simulator. Run with: node tools/simulate.ts [runs] [prefix]
 // (EDITIONS=1 for relic editions, BOSSES=1 for bosses, MORE=1 for the expansion relics;
 // IPAD=1 for all the iPad's rules;
-// TABLE_BASE=34,67,... to try other targets)
+// TABLE_BASE=34,67,... to try other targets; with RULESET, BOSSES=0/1 overrides it.
+// For how hard each boss is, see tools/boss-test.ts.)
 
 import * as run_ from '../src/game/run.ts';
 import { playRun } from './bot.ts';
 
 const runs = Number(process.argv[2]) || 300;
 const tableBase = process.env.TABLE_BASE?.split(',').map(Number);
-const opts: run_.RunOptions = process.env.RULESET ? { ruleset: process.env.RULESET as run_.RulesetName, ...(tableBase ? { tableBase } : {}) } : {
+const opts: run_.RunOptions = process.env.RULESET ? { ruleset: process.env.RULESET as run_.RulesetName, ...(tableBase ? { tableBase } : {}), ...(process.env.BOSSES ? { bosses: process.env.BOSSES === '1' } : {}) } : {
 	editions: process.env.EDITIONS === '1' || process.env.IPAD === '1',
 	noRepeats: process.env.IPAD === '1',
 	bosses: process.env.BOSSES ? process.env.BOSSES === '1' : process.env.IPAD === '1',

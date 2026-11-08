@@ -40,6 +40,8 @@ export const MONEY_PER_UNUSED_HAND = 1;
 export const MOON_CHIPS = 78;
 /** Bonus chips for a hand where you take no points at all. */
 export const CLEAN_BONUS = 10;
+/** Chips the Pickpocket (v3) fines you per passed card you take back. */
+export const PICKPOCKET_FINE = 16;
 
 // Target for the first board of each table, fitted with tools/simulate.
 export const TABLE_BASE = [34, 67, 120, 208, 360, 610, 1005, 1650];
@@ -439,8 +441,12 @@ function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
 	const base = (c: Card) => seals.cardPoints(run.seals, c);
 	let pts = base;
 	if (bossIs(run, 'widow')) pts = (c) => (H.isQueenOfSpades(c) ? base(c) * 2 : base(c));
-	if (bossIs(run, 'open_book') && run.balance >= 3) pts = (c) => (c.suit === H.HEARTS ? base(c) * 2 : base(c));
-	if (bossIs(run, 'diamond_jack')) pts = (c) => (c.suit === H.DIAMONDS && c.rank === 11 ? base(c) + 10 : base(c));
+	if (bossIs(run, 'open_book') && run.balance >= 3) pts = (c) => (c.suit === H.HEARTS ? base(c) * 4 : base(c));
+	if (bossIs(run, 'diamond_jack')) {
+		const jack = (c: Card) => c.suit === H.DIAMONDS && c.rank === 11;
+		// v3: every diamond counts a point too.
+		pts = run.balance >= 3 ? (c) => (c.suit === H.DIAMONDS ? base(c) + 1 + (jack(c) ? 9 : 0) : base(c)) : (c) => (jack(c) ? base(c) + 10 : base(c));
+	}
 	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts });
 	if (bossIs(run, 'open_book')) run.hand.state.heartsBroken = true;
 	// Opponents with a strong hand sometimes go for the moon (decided after the pass).
@@ -472,10 +478,14 @@ function aiCtx(run: Run, seat?: number): ai.AIContext {
 	}
 	if (seat === undefined || seat === H.PLAYER) return ctx;
 	if (bossIs(run, 'cartel')) ctx.target = H.PLAYER;
+	// The Widow and the Diamond Jack (v3): their card is saved for you.
+	if (bossIs(run, 'widow') && run.balance >= 3) ctx.saveFor = { seat: H.PLAYER, card: H.isQueenOfSpades };
+	if (bossIs(run, 'diamond_jack') && run.balance >= 3) ctx.saveFor = { seat: H.PLAYER, card: (c) => c.suit === H.DIAMONDS && c.rank === 11 };
 	if (bossIs(run, 'shark') && seat === bosses.SHARK_SEAT) {
 		ctx.target = H.PLAYER;
 		ctx.skill = 1;
 	}
+
 	return ctx;
 }
 
@@ -595,7 +605,10 @@ export function scoreHand(run: Run): Breakdown {
 		// Always out of 26, whatever the pack holds: burning point cards makes
 		// dodging safer without shrinking the prize; copying them raises the risk.
 		const moonlit = hasRule(run, 'moonlighter') && ctx.myPoints >= 13;
-		const dodged = moonlit ? H.TOTAL_POINTS : Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
+		// v3: the Moon Thief doubles the points you take; the Cartel triples them.
+		const v3 = run.balance >= 3;
+		const counted = ctx.myPoints * (v3 && bossIs(run, 'cartel') ? 3 : v3 && bossIs(run, 'moon_thief') ? 2 : 1);
+		const dodged = moonlit ? H.TOTAL_POINTS : Math.max(0, H.TOTAL_POINTS - counted);
 		chips = dodged * baseX;
 		lines.push({
 			label: moonlit ? `Moonlighter: ${ctx.myPoints} points taken, scored as dodged` : ctx.myPoints > 0 ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point',
@@ -609,6 +622,15 @@ export function scoreHand(run: Run): Breakdown {
 			const tax = (run.balance >= 3 ? 3 : 5) * ctx.heartsTaken;
 			chips -= tax;
 			lines.push({ label: `The Taxman: ${ctx.heartsTaken} heart${ctx.heartsTaken === 1 ? '' : 's'}`, chips: -tax });
+		}
+		// The Pickpocket (v3): each card passed to you that you take back costs chips.
+		if (bossIs(run, 'pickpocket') && run.balance >= 3) {
+			const got = new Set(run.hand.received.map((c) => c.id));
+			const back = ctx.taken.filter((c) => got.has(c.id)).length;
+			if (back > 0) {
+				chips -= PICKPOCKET_FINE * back;
+				lines.push({ label: `The Pickpocket: ${back} passed card${back === 1 ? '' : 's'} taken back`, chips: -PICKPOCKET_FINE * back });
+			}
 		}
 	}
 	const level = (key: UpgradeKey, applies: boolean) => {
@@ -659,6 +681,16 @@ export function scoreHand(run: Run): Breakdown {
 				lines.push({ label: name, mult: 0.5 });
 			}
 		}
+	}
+	// The Shark (v3): a hand where you take more points than North loses a quarter.
+	if (bossIs(run, 'shark') && run.balance >= 3 && ctx.shooter === null && ctx.myPoints > H.pointsTaken(st)[bosses.SHARK_SEAT]) {
+		mult *= 0.75;
+		lines.push({ label: `The Shark: more points than ${H.SEAT_NAMES[bosses.SHARK_SEAT]}`, xmult: 0.75 });
+	}
+	// The Widow (v3): the hand you take her queen in scores half.
+	if (bossIs(run, 'widow') && run.balance >= 3 && ctx.tookQueen && ctx.shooter !== H.PLAYER) {
+		mult *= 0.5;
+		lines.push({ label: 'The Widow: you took her queen', xmult: 0.5 });
 	}
 	return {
 		lines,
