@@ -1,6 +1,6 @@
 // Player settings, persisted in localStorage. Port of src/ui/settings.lua.
 
-export type SettingKey = 'music' | 'sfx' | 'fourColor' | 'pixelCards' | 'rubberView';
+export type SettingKey = 'music' | 'sfx' | 'fourColor' | 'pixelCards' | 'rubberView' | 'sortByRank';
 
 const STORAGE_KEY = 'shoot-the-moon.settings';
 const DEFAULTS: Record<SettingKey, boolean> = {
@@ -8,7 +8,9 @@ const DEFAULTS: Record<SettingKey, boolean> = {
 	sfx: true,
 	fourColor: true,
 	pixelCards: true,
-	rubberView: false
+	rubberView: false,
+	/** Your hand sorted by rank (low to high, across suits) instead of by suit. */
+	sortByRank: false
 };
 
 const SPEED_KEY = 'shoot-the-moon.speed';
@@ -34,6 +36,7 @@ class Settings {
 	fourColor = $state(DEFAULTS.fourColor);
 	pixelCards = $state(DEFAULTS.pixelCards);
 	rubberView = $state(DEFAULTS.rubberView);
+	sortByRank = $state(DEFAULTS.sortByRank);
 
 	load() {
 		try {

@@ -50,6 +50,8 @@ export interface Layout {
 	seats: Record<number, SeatLayout>;
 	trickOffset: Record<number, [number, number]>;
 	playOut: Rect;
+	/** The hand-sort buttons (top left). */
+	sortAt: { x: number; y: number };
 }
 
 const LANDSCAPE: Layout = (() => {
@@ -85,7 +87,8 @@ const LANDSCAPE: Layout = (() => {
 			[cards.WEST]: [-112 * ts, 0],
 			[cards.EAST]: [112 * ts, 0]
 		},
-		playOut: { x: W - 300, y: 468, w: 160, h: 40 }
+		playOut: { x: W - 300, y: 468, w: 160, h: 40 },
+		sortAt: { x: sideW + 120, y: 446 }
 	};
 })();
 
@@ -123,7 +126,8 @@ const PORTRAIT: Layout = (() => {
 			[cards.WEST]: [-112 * ts, 0],
 			[cards.EAST]: [112 * ts, 0]
 		},
-		playOut: { x: W - 176, y: handY - 96, w: 160, h: 40 }
+		playOut: { x: W - 176, y: handY - 96, w: 160, h: 40 },
+		sortAt: { x: 16, y: handY - 86 }
 	};
 })();
 

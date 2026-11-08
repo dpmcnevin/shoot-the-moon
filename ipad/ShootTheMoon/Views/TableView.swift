@@ -39,6 +39,17 @@ struct TableView: View {
                 }
                 handHitZones(v)
                 if v.phase == .pass { PassBar() }
+                if (v.phase == .play || (v.phase == .pass && !v.bossNow("blindfold"))) && v.hand.mine.count > 1 {
+                    HStack(spacing: 6) {
+                        Text("Sort").font(Theme.font(15)).foregroundStyle(Theme.inkDim)
+                        GameButton("Suit", style: model.sortByRank ? .plain : .brass, size: .small, sound: nil) { model.resort(byRank: false) }
+                            .frame(width: 66)
+                        GameButton("Rank", style: model.sortByRank ? .brass : .plain, size: .small, sound: nil) { model.resort(byRank: true) }
+                            .frame(width: 66)
+                    }
+                    .position(x: L.sidebar.width + 120, y: L.handY - 96)
+                    .zIndex(90)
+                }
                 if v.phase == .play {
                     GameButton("Last trick", style: .plain, size: .small,
                                enabled: v.hand.lastTrick != nil && model.trickHold == nil) { model.showLastTrick = true }

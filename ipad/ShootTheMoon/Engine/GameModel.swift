@@ -85,6 +85,8 @@ final class GameModel {
     var fourColor: Bool { didSet { UserDefaults.standard.set(fourColor, forKey: "fourColor") } }
     /// How fast the opponents play and the table moves on: 0.5x to 3x.
     var speed: Double { didSet { UserDefaults.standard.set(speed, forKey: "speed") } }
+    /// Your hand sorted by rank (low to high, across suits) instead of by suit.
+    var sortByRank: Bool { didSet { UserDefaults.standard.set(sortByRank, forKey: "sortByRank") } }
 
     private var lastPhase: Phase?
     private var aiTask: Task<Void, Never>?
@@ -101,6 +103,7 @@ final class GameModel {
         sfx = d.object(forKey: "sfx") as? Bool ?? true
         fourColor = d.object(forKey: "fourColor") as? Bool ?? true
         speed = (d.object(forKey: "speed") as? Double ?? 1).clamped(to: Self.speedRange)
+        sortByRank = d.bool(forKey: "sortByRank")
         audio.musicEnabled = music
         audio.sfxEnabled = sfx
         restore()
@@ -483,7 +486,8 @@ final class GameModel {
     // MARK: - Hand order
 
     /// Your hand in display order: suits spades, hearts, diamonds, clubs, each
-    /// low to high, then any order you've set by dragging.
+    /// low to high (or by rank, if you chose that), then any order you've set
+    /// by dragging.
     func orderedHand() -> [CardV] {
         guard let v = view else { return [] }
         // The Blindfold: while passing, the hand is face down and shuffled,
@@ -492,13 +496,21 @@ final class GameModel {
             return v.hand.mine.sorted { ($0.id &* 2654435761) % 1009 < ($1.id &* 2654435761) % 1009 }
         }
         let base = v.hand.mine.sorted { a, b in
-            a.suit != b.suit ? a.suit > b.suit : (a.rank != b.rank ? a.rank < b.rank : a.id < b.id)
+            if sortByRank { return a.rank != b.rank ? a.rank < b.rank : (a.suit != b.suit ? a.suit > b.suit : a.id < b.id) }
+            return a.suit != b.suit ? a.suit > b.suit : (a.rank != b.rank ? a.rank < b.rank : a.id < b.id)
         }
         guard !handOrder.isEmpty else { return base }
         let rank = Dictionary(uniqueKeysWithValues: handOrder.enumerated().map { ($1, $0) })
         return base.enumerated().sorted {
             (rank[$0.element.id] ?? handOrder.count + $0.offset) < (rank[$1.element.id] ?? handOrder.count + $1.offset)
         }.map(\.element)
+    }
+
+    /// The sort buttons: set how hands are sorted, and drop any order you dragged.
+    func resort(byRank: Bool) {
+        sortByRank = byRank
+        handOrder = []
+        audio.play("card_play", volume: 0.5, jitter: 0.1)
     }
 
     func move(_ id: Int, toIndex index: Int) {

@@ -10,6 +10,7 @@
 	import { handSlots, opponentSlots, seatOrigin, trickXY, tossAngle, type Slot } from '../app/layout.ts';
 	import { C, CARD_H, css } from '$engine/ui/theme.ts';
 	import * as sound from '../audio/sound.ts';
+	import { settings } from '../ui/settings.svelte.ts';
 	import CardSprite from './CardSprite.svelte';
 	import Button from './Button.svelte';
 	import type { Placement } from './placement.ts';
@@ -97,16 +98,28 @@
 	let drag = $state.raw<Drag | null>(null);
 	let stageEl: HTMLElement | null = null;
 
-	/** Display order: suits spades, hearts, diamonds, clubs, each low to high. */
-	function bySuitLowToHigh(list: Card[]): Card[] {
+	/** Display order: suits spades, hearts, diamonds, clubs, each low to
+	 *  high; or by rank, low to high, suits in that order within a rank. */
+	function sorted(list: Card[]): Card[] {
+		if (settings.sortByRank) return list.slice().sort((a, b) => (a.rank !== b.rank ? a.rank - b.rank : b.suit - a.suit));
 		return list.slice().sort((a, b) => (a.suit !== b.suit ? b.suit - a.suit : a.rank - b.rank));
+	}
+
+	/** The sort buttons: set how hands are sorted, and drop any order you dragged. */
+	function resort(byRank: boolean) {
+		settings.sortByRank = byRank;
+		settings.save();
+		order.delete(game.rawHand);
+		orderV++;
+		sound.play('card_play', { jitter: 0.1, volume: 0.5 });
 	}
 
 	function ordered(input: Card[]): Card[] {
 		void orderV;
 		// The Blindfold: face down and shuffled while passing, so order gives nothing away.
 		if (run.phase === PHASE.PASS && bossNow('blindfold')) return input.slice().sort((a, b) => ((a.id! * 2654435761) % 1009) - ((b.id! * 2654435761) % 1009));
-		const list = bySuitLowToHigh(input);
+		void settings.sortByRank;
+		const list = sorted(input);
 		const saved = order.get(game.rawHand);
 		if (!saved) return list;
 		const rank = new Map(saved.map((id, i) => [id, i]));
@@ -452,6 +465,14 @@
 	</div>
 {/if}
 
+{#if (run.phase === PHASE.PLAY || (passing && !bossNow('blindfold'))) && seatCards(H.PLAYER).length > 1}
+	<div class="sort" style:left="{L.sortAt.x}px" style:top="{L.sortAt.y}px">
+		<span>Sort</span>
+		<Button variant={settings.sortByRank ? 'plain' : 'brass'} size="sm" sound={false} title="Sort your hand by suit." onclick={() => resort(false)} style="width: 62px">Suit</Button>
+		<Button variant={settings.sortByRank ? 'brass' : 'plain'} size="sm" sound={false} title="Sort your hand by rank, low to high." onclick={() => resort(true)} style="width: 62px">Rank</Button>
+	</div>
+{/if}
+
 {#if run.phase === PHASE.PLAY}
 	<div class="playout" style:left="{L.playOut.x}px" style:top="{L.playOut.y - L.playOut.h - 8}px">
 		<Button
@@ -547,6 +568,15 @@
 	}
 	.slot.actionable {
 		cursor: pointer;
+	}
+	.sort {
+		position: absolute;
+		z-index: 90;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 15px;
+		color: var(--ink-dim);
 	}
 	.pass-bar {
 		position: absolute;
