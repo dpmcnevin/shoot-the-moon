@@ -69,6 +69,11 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	assert.equal(save.opts.editions, true);
 	assert.equal(save.opts.noRepeats, true);
 	assert.equal(save.opts.tableBase[0], 22);
+	assert.equal(save.opts.bosses, true);
+	const view = JSON.parse(S.view());
+	assert.ok(view.boss && view.boss.name && view.boss.active === false);
+	assert.equal(view.tableBoards.length, 3);
+	assert.equal(view.tableBoards[0].target, 20);
 	assert.equal(JSON.parse(S.view()).target, 20, 'gentle first target');
 	const S2 = engine();
 	S2.restore(JSON.stringify(save));

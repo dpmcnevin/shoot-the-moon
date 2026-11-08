@@ -15,6 +15,8 @@ import * as rngLib from '../rules/rng.ts';
 import * as relics from './relics.ts';
 import * as seals from './seals.ts';
 import * as packs from './pack.ts';
+import * as bosses from './bosses.ts';
+import type { BossKey } from './bosses.ts';
 import type { PackOpDef } from './pack.ts';
 import type { SealDef, SealMap } from './seals.ts';
 import type { Card, Hands } from '../rules/cards.ts';
@@ -148,6 +150,8 @@ export interface Payout {
 	unused: number;
 	interest: number;
 	relics: number;
+	/** Bonus for beating a boss (bosses on only). */
+	boss?: number;
 	total: number;
 }
 
@@ -186,6 +190,15 @@ export interface Run {
 	noRepeats: boolean;
 	/** Each table's base target, if not the standard TABLE_BASE. */
 	tableBase?: number[];
+	/** Each table's High Board has a boss (off by default). */
+	bosses: boolean;
+	/** This table's boss, chosen when the table starts. */
+	boss: BossKey | null;
+	bossesSeen: BossKey[];
+	/** The relic the Jinx has switched off this board. */
+	jinxed: string | null;
+	/** Hands this board started with (the Shortchanger takes one). */
+	handsThisBoard: number;
 }
 
 export interface RunOptions {
@@ -194,6 +207,21 @@ export interface RunOptions {
 	editions?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
+	bosses?: boolean;
+}
+
+/** Is this board the boss's? */
+export function bossActive(run: Run): boolean {
+	return run.bosses && run.boss !== null && run.board === BOARDS_PER_TABLE;
+}
+
+function bossIs(run: Run, key: BossKey): boolean {
+	return bossActive(run) && run.boss === key;
+}
+
+/** Relics that count right now (the Jinx switches one off). */
+export function activeRelics(run: Run): Relic[] {
+	return run.jinxed && bossIs(run, 'jinx') ? run.relics.filter((r) => r.key !== run.jinxed) : run.relics;
 }
 
 /** Relic slots in use: Phantom relics take none. */
@@ -251,16 +279,29 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		boardPoints: [0, 0, 0, 0, 0],
 		editions: opts.editions ?? false,
 		noRepeats: opts.noRepeats ?? false,
-		...(opts.tableBase ? { tableBase: opts.tableBase } : {})
+		...(opts.tableBase ? { tableBase: opts.tableBase } : {}),
+		bosses: opts.bosses ?? false,
+		boss: null,
+		bossesSeen: [],
+		jinxed: null,
+		handsThisBoard: HANDS_PER_BOARD
 	} as Run;
 	startBoard(run);
 	return run;
 }
 
 export function startBoard(run: Run) {
+	// A new table: choose its boss now, so the player sees it coming.
+	if (run.bosses && run.board === 1) {
+		run.boss = bosses.pickBoss(run.rng, run.table, run.bossesSeen);
+		run.bossesSeen.push(run.boss);
+	}
+	run.jinxed = null;
+	if (bossIs(run, 'jinx') && run.relics.length > 0) run.jinxed = run.relics[run.rng.int(1, run.relics.length) - 1].key;
 	run.target = targetFor(run.table, run.board, run.tableBase);
 	run.score = 0;
-	run.handsLeft = HANDS_PER_BOARD;
+	run.handsThisBoard = HANDS_PER_BOARD - (bossIs(run, 'shortchanger') ? 1 : 0);
+	run.handsLeft = run.handsThisBoard;
 	run.boardPoints = [0, 0, 0, 0, 0];
 	startHand(run);
 }
@@ -288,6 +329,11 @@ export function commitPass(run: Run, chosen: Card[], opts?: { stepwise?: boolean
 	for (let seat = 1; seat <= 4; seat++) {
 		passes[seat] = seat === H.PLAYER ? chosen : ai.choosePass(hand.dealt[seat], run.rng, run.aiSkill);
 	}
+	// The Pickpocket: whoever passes to you sends their worst three.
+	if (bossIs(run, 'pickpocket')) {
+		const from = H.passSource(H.PLAYER, hand.passDir);
+		passes[from] = ai.mostDangerous(hand.dealt[from], 3);
+	}
 	const received = H.applyPasses(hand.dealt, passes, hand.passDir);
 	hand.passed = chosen.slice();
 	hand.received = received[H.PLAYER];
@@ -297,7 +343,12 @@ export function commitPass(run: Run, chosen: Card[], opts?: { stepwise?: boolean
 }
 
 function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
-	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts: (c) => seals.cardPoints(run.seals, c) });
+	const base = (c: Card) => seals.cardPoints(run.seals, c);
+	let pts = base;
+	if (bossIs(run, 'widow')) pts = (c) => (H.isQueenOfSpades(c) ? base(c) * 2 : base(c));
+	if (bossIs(run, 'diamond_jack')) pts = (c) => (c.suit === H.DIAMONDS && c.rank === 11 ? base(c) + 10 : base(c));
+	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts });
+	if (bossIs(run, 'open_book')) run.hand.state.heartsBroken = true;
 	run.phase = PHASE.PLAY;
 	if (!opts?.stepwise) advanceAI(run);
 }
@@ -307,8 +358,18 @@ export function isPlayerTurn(run: Run): boolean {
 	return !!st && !st.complete && st.turn === H.PLAYER;
 }
 
-function aiCtx(run: Run): ai.AIContext {
-	return { rng: run.rng, skill: run.aiSkill };
+/** How a seat plays. Bosses can change it: the Shark (one sharp seat) and
+ *  the Cartel (everyone) push points onto you. Your own seat, on autopilot,
+ *  always plays normally. */
+function aiCtx(run: Run, seat?: number): ai.AIContext {
+	const ctx: ai.AIContext = { rng: run.rng, skill: run.aiSkill };
+	if (seat === undefined || seat === H.PLAYER) return ctx;
+	if (bossIs(run, 'cartel')) ctx.target = H.PLAYER;
+	if (bossIs(run, 'shark') && seat === bosses.SHARK_SEAT) {
+		ctx.target = H.PLAYER;
+		ctx.skill = 1;
+	}
+	return ctx;
 }
 
 export function advanceAI(run: Run): Trick[] {
@@ -317,7 +378,7 @@ export function advanceAI(run: Run): Trick[] {
 	let guard = 0;
 	while (!st.complete && st.turn !== H.PLAYER) {
 		assert(++guard < 60, 'advanceAI: stuck');
-		const t = H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run)));
+		const t = H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run, st.turn)));
 		if (t) done.push(t);
 	}
 	if (st.complete) finishHand(run);
@@ -342,7 +403,7 @@ export function stepAI(run: Run): { trick: Trick | null; seat: number; card: Car
 	const st = run.hand.state;
 	if (run.phase !== PHASE.PLAY || !st || st.complete || st.turn === H.PLAYER) return null;
 	const seat = st.turn;
-	const card = ai.chooseCard(st, seat, aiCtx(run));
+	const card = ai.chooseCard(st, seat, aiCtx(run, seat));
 	const trick = H.play(st, seat, card);
 	if (st.complete) finishHand(run);
 	return { trick, seat, card };
@@ -351,7 +412,7 @@ export function stepAI(run: Run): { trick: Trick | null; seat: number; card: Car
 /** Hand your seat to the autopilot for the rest of the hand. */
 export function playOut(run: Run) {
 	assert(run.phase === PHASE.PLAY, 'playOut: not in play');
-	ai.playOut(run.hand.state!, aiCtx(run));
+	ai.playOut(run.hand.state!, (seat) => aiCtx(run, seat));
 	finishHand(run);
 }
 
@@ -366,7 +427,9 @@ function scoreContext(run: Run): ScoreCtx {
 	let shooter = H.moonShooter(st);
 	// Half Moon: every heart counts as the moon, even without the queen.
 	const packHearts = st.pack.filter((c) => c.suit === H.HEARTS).length;
-	if (shooter === null && packHearts > 0 && heartsTaken === packHearts && run.relics.some((r) => r.def.halfMoon)) shooter = H.PLAYER;
+	if (shooter === null && packHearts > 0 && heartsTaken === packHearts && activeRelics(run).some((r) => r.def.halfMoon)) shooter = H.PLAYER;
+	// The Moon Thief: your moon doesn't count.
+	if (shooter === H.PLAYER && bossIs(run, 'moon_thief')) shooter = null;
 	const myTricks = st.tricks.filter((t) => t.winner === H.PLAYER);
 	const afterPass = [...st.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card)];
 	const voids = [1, 2, 3, 4].filter((s) => !afterPass.some((c) => c.suit === s)).length;
@@ -395,12 +458,13 @@ export function scoreHand(run: Run): Breakdown {
 	const st = run.hand.state!;
 	const ctx = scoreContext(run);
 	const lines: Line[] = [];
-	const baseX = run.relics.reduce((x, r) => x * (r.def.baseX ?? 1), 1);
+	const live = activeRelics(run);
+	const baseX = live.reduce((x, r) => x * (r.def.baseX ?? 1), 1);
 	let chips = 0,
 		mult = 1;
 	if (ctx.shooter === H.PLAYER) {
-		const moonX = run.relics.reduce((x, r) => x * (r.def.moonX ?? 1), 1);
-		chips = 3 * st.totalPoints * moonX * baseX;
+		const moonX = live.reduce((x, r) => x * (r.def.moonX ?? 1), 1);
+		chips = 3 * H.positiveTotal(st) * moonX * baseX;
 		lines.push({ label: 'Shot the moon!', chips });
 	} else if (ctx.shooter !== null) {
 		lines.push({ label: `${H.SEAT_NAMES[ctx.shooter]} shot the moon`, chips: 0 });
@@ -410,9 +474,14 @@ export function scoreHand(run: Run): Breakdown {
 		const dodged = Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
 		chips = dodged * baseX;
 		lines.push({ label: ctx.myPoints > 0 ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point', chips });
-		if (ctx.myPoints === 0) {
+		if (ctx.myPoints === 0 && !bossIs(run, 'auditor')) {
 			chips += CLEAN_BONUS;
 			lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
+		}
+		if (bossIs(run, 'taxman') && ctx.heartsTaken > 0) {
+			const tax = 5 * ctx.heartsTaken;
+			chips -= tax;
+			lines.push({ label: `The Taxman: ${ctx.heartsTaken} heart${ctx.heartsTaken === 1 ? '' : 's'}`, chips: -tax });
 		}
 	}
 	const level = (key: UpgradeKey, applies: boolean) => {
@@ -426,8 +495,8 @@ export function scoreHand(run: Run): Breakdown {
 	};
 	level('moon', ctx.shooter === H.PLAYER);
 	level('dodge', ctx.shooter === null);
-	level('clean', ctx.shooter === null && ctx.myPoints === 0);
-	for (const relic of run.relics) {
+	level('clean', ctx.shooter === null && ctx.myPoints === 0 && !bossIs(run, 'auditor'));
+	for (const relic of live) {
 		const e = relic.def.score?.(ctx, relic);
 		if (e && (e.chips || e.mult || (e.xmult && e.xmult !== 1))) {
 			if (e.chips) chips += e.chips;
@@ -492,7 +561,7 @@ export function finishHand(run: Run): Breakdown {
 	if (b.total > run.stats.bestHand) run.stats.bestHand = b.total;
 	if (b.shooter === H.PLAYER) run.stats.moons++;
 	if (b.myPoints === 0 && b.shooter === null) run.stats.cleanHands++;
-	for (const r of run.relics) r.def.onHandEnd?.(ctx, r);
+	for (const r of activeRelics(run)) r.def.onHandEnd?.(ctx, r);
 	run.log.push({ table: run.table, board: run.board, points: b.myPoints, score: b.total, moon: b.shooter === H.PLAYER });
 	run.phase = PHASE.HAND_SCORED;
 	return b;
@@ -525,7 +594,8 @@ export function winBoard(run: Run): Payout {
 		relics: bonus,
 		total: 0
 	};
-	p.total = p.board + p.unused + p.interest + p.relics;
+	if (bossActive(run)) p.boss = bosses.BOSS_BONUS;
+	p.total = p.board + p.unused + p.interest + p.relics + (p.boss ?? 0);
 	run.money += p.total;
 	run.lastPayout = p;
 	run.boardsWonThisTable++;

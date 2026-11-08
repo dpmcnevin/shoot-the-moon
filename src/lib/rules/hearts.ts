@@ -279,11 +279,25 @@ export function pointsTaken(state: HandState): number[] {
 	return [0, 1, 2, 3, 4].map((s) => (s === 0 ? 0 : pointsIn(state.taken[s], state.pts)));
 }
 
-/** The seat that took every point in the pack, if any. */
+/** Points in the pack from cards worth something (a card can be worth less
+ *  than nothing under a house rule; the moon ignores those). */
+export function positiveTotal(state: HandState): number {
+	let n = 0;
+	for (const c of state.pack) n += Math.max(0, state.pts(c));
+	return n;
+}
+
+/** The seat that took every point in the pack, if any. Cards worth less
+ *  than nothing don't count either way. With standard points this is the
+ *  same as comparing points taken to the pack's total. */
 export function moonShooter(state: HandState): number | null {
-	if (state.totalPoints <= 0) return null;
-	const pts = pointsTaken(state);
-	for (let s = 1; s <= 4; s++) if (pts[s] === state.totalPoints) return s;
+	const total = positiveTotal(state);
+	if (total <= 0) return null;
+	for (let s = 1; s <= 4; s++) {
+		let n = 0;
+		for (const c of state.taken[s]) n += Math.max(0, state.pts(c));
+		if (n === total) return s;
+	}
 	return null;
 }
 

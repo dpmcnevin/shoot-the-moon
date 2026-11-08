@@ -48,6 +48,20 @@ export function choosePass(hand: Hand, rng: RNG, skill = DEFAULT_SKILL): Card[] 
 export interface AIContext {
 	rng: RNG;
 	skill?: number;
+	/** A seat to push points onto (bosses: the Shark, the Cartel). When it's
+	 *  winning the trick, a void seat dumps its worst card; when it isn't,
+	 *  points are held back for later. */
+	target?: number;
+}
+
+/** The n cards most dangerous to hold: the queen, then the spades above her
+ *  and high hearts. For the Pickpocket boss, who passes you exactly these. */
+export function mostDangerous(hand: Hand, n: number): Card[] {
+	const score = (c: Card) =>
+		H.isQueenOfSpades(c) ? 1000 : c.suit === H.HEARTS ? 100 + c.rank : c.suit === H.SPADES && c.rank > 12 ? 90 + c.rank : c.rank;
+	const scored = hand.map((c) => ({ c, d: score(c) }));
+	luaSort(scored, (a, b) => (a.d !== b.d ? a.d > b.d : a.c.suit > b.c.suit));
+	return scored.slice(0, n).map((x) => x.c);
 }
 
 const lowest = (list: Card[]) => list.reduce((a, b) => (b.rank < a.rank ? b : a));
@@ -95,6 +109,18 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 	const threat = moonThreat(state, seat);
 
 	if (!following) {
+		// Ganging up on a target seat: unload on it, and only on it.
+		if (ctx.target !== undefined && seat !== ctx.target) {
+			if (win.seat !== ctx.target) {
+				const clean = legal.filter((c) => state.pts(c) <= 0);
+				if (clean.length > 0) return highest(clean);
+			} else {
+				const queen = legal.find(H.isQueenOfSpades);
+				if (queen) return queen;
+				const pointy = legal.filter((c) => state.pts(c) > 0);
+				if (pointy.length > 0) return pointy.reduce((a, b) => (state.pts(b) > state.pts(a) || (state.pts(b) === state.pts(a) && b.rank > a.rank) ? b : a));
+			}
+		}
 		// Void: a free discard. Stop a moon shot by keeping points away from
 		// the shooter; otherwise unload the most dangerous card.
 		if (threat !== null && win.seat === threat) {
@@ -152,13 +178,14 @@ export function chooseCard(state: HandState, seat: number, ctx: AIContext): Card
 	return chooseFollow(state, seat, legal, ctx);
 }
 
-/** Play the rest of the hand with every seat on autopilot. */
-export function playOut(state: HandState, ctx: AIContext): HandState {
+/** Play the rest of the hand with every seat on autopilot. The context can
+ *  differ by seat (a boss can make one seat play differently). */
+export function playOut(state: HandState, ctx: AIContext | ((seat: number) => AIContext)): HandState {
 	let guard = 0;
 	while (!state.complete) {
 		if (++guard > 60) throw new Error('playOut: did not terminate');
 		const seat = state.turn;
-		H.play(state, seat, chooseCard(state, seat, ctx));
+		H.play(state, seat, chooseCard(state, seat, typeof ctx === 'function' ? ctx(seat) : ctx));
 	}
 	return state;
 }

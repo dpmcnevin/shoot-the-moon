@@ -383,3 +383,153 @@ test('a run can use other targets, and keeps the standard ones by default', () =
 	assert.equal(gentle.target, 20);
 	assert.equal(R.targetFor(8, 3, R.GENTLE_TABLE_BASE), 2300);
 });
+
+// ------------------------------------------------------------------ bosses
+
+import * as bosses from '../src/lib/game/bosses.ts';
+
+/** A run sitting at the start of a High Board with the given boss. */
+function bossRun(key, seed = 'BOSS', setup) {
+	const run = R.newRun(seed, { bosses: true });
+	setup?.(run);
+	run.board = R.BOARDS_PER_TABLE;
+	run.boss = key;
+	run.handCount = 0; // a left pass
+	R.startBoard(run);
+	return run;
+}
+
+/** Score the hand as if `taken[seat]` were what each seat won. */
+function scoreWithTaken(run, taken) {
+	finish(run);
+	const st = run.hand.state;
+	st.taken = taken;
+	return R.scoreHand(run);
+}
+
+test('bosses are off unless the run turns them on', () => {
+	const run = R.newRun('NOBOSS');
+	assert.equal(run.boss, null);
+	assert.equal(R.bossActive(run), false);
+	const on = R.newRun('NOBOSS', { bosses: true });
+	assert.ok(on.boss && bosses.BOSSES[on.boss].tier === 1, 'table 1 draws a first-tier boss');
+	assert.equal(R.bossActive(on), false, 'not until the High Board');
+});
+
+test('later tables draw harsher bosses, without repeats', () => {
+	const rng = newRng('TIERS');
+	for (let i = 0; i < 200; i++) {
+		assert.equal(bosses.BOSSES[bosses.pickBoss(rng, 1, [])].tier, 1);
+		assert.ok(bosses.BOSSES[bosses.pickBoss(rng, 4, [])].tier <= 2);
+	}
+	const late = new Set(Array.from({ length: 200 }, () => bosses.BOSSES[bosses.pickBoss(rng, 7, [])].tier));
+	assert.ok(late.has(3));
+	const seen = ['open_book', 'moon_thief', 'diamond_jack', 'auditor', 'taxman'];
+	for (let i = 0; i < 50; i++) assert.equal(bosses.pickBoss(rng, 1, seen), 'blindfold');
+});
+
+test('the Shortchanger leaves two hands', () => {
+	assert.equal(bossRun('shortchanger').handsLeft, 2);
+	assert.equal(bossRun('widow').handsLeft, 3);
+});
+
+test('the Widow doubles the queen; the Diamond Jack is worth ten', () => {
+	const w = bossRun('widow');
+	finish(w);
+	const qs = w.hand.state.pack.find(H.isQueenOfSpades);
+	assert.equal(w.hand.state.pts(qs), 26);
+	const d = bossRun('diamond_jack');
+	finish(d);
+	const jd = d.hand.state.pack.find((c) => c.suit === H.DIAMONDS && c.rank === 11);
+	assert.equal(d.hand.state.pts(jd), 10);
+	// The moon now needs the jack too.
+	const st = d.hand.state;
+	const withoutJack = st.pack.filter((c) => st.pts(c) > 0 && c !== jd);
+	st.taken = [[], [], [], withoutJack, st.pack.filter((c) => !withoutJack.includes(c))];
+	assert.equal(H.moonShooter(st), null);
+	st.taken = [[], [], [], [...withoutJack, jd], st.pack.filter((c) => !withoutJack.includes(c) && c !== jd)];
+	assert.equal(H.moonShooter(st), H.PLAYER);
+});
+
+test('the Open Book breaks hearts before the first trick', () => {
+	const run = bossRun('open_book');
+	R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	assert.equal(run.hand.state.heartsBroken, true);
+	const plain = bossRun('taxman');
+	R.commitPass(plain, plain.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	assert.equal(plain.hand.state.heartsBroken, false);
+});
+
+test('the Pickpocket passes you the worst three cards', () => {
+	const run = bossRun('pickpocket');
+	const from = H.passSource(H.PLAYER, run.hand.passDir);
+	const expect = ai.mostDangerous(run.hand.dealt[from], 3);
+	R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	assert.deepEqual(run.hand.received.map((c) => c.id).sort(), expect.map((c) => c.id).sort());
+});
+
+test('the Moon Thief cancels your moon', () => {
+	const take = (run) => [[], [], [], run.hand.state.pack.slice(), []];
+	const thief = bossRun('moon_thief');
+	finish(thief);
+	const b = scoreWithTaken(thief, take(thief));
+	assert.equal(b.shooter, null);
+	assert.equal(b.total, 0);
+	const normal = bossRun('taxman');
+	finish(normal);
+	assert.equal(scoreWithTaken(normal, take(normal)).shooter, H.PLAYER);
+});
+
+test('the Auditor stops the clean bonus; the Taxman charges for hearts', () => {
+	const audit = bossRun('auditor');
+	finish(audit);
+	const pack = audit.hand.state.pack;
+	const clean = scoreWithTaken(audit, [[], pack.filter((c) => c.suit === H.HEARTS), pack.filter((c) => c.suit !== H.HEARTS), [], []]);
+	assert.ok(!clean.lines.some((l) => l.label === 'Clean hand'));
+	assert.equal(clean.total, 26);
+	const tax = bossRun('taxman');
+	finish(tax);
+	const hearts = tax.hand.state.pack.filter((c) => c.suit === H.HEARTS).slice(0, 4);
+	const rest = tax.hand.state.pack.filter((c) => !hearts.includes(c));
+	const b = scoreWithTaken(tax, [[], [], [], hearts, rest]);
+	assert.equal(b.lines.find((l) => l.label.startsWith('The Taxman')).chips, -20);
+	assert.equal(b.total, 26 - 4 - 20);
+});
+
+test('the Jinx switches off one relic for the board', () => {
+	const run = bossRun('jinx', 'JINX', (r) => {
+		r.relics.push(relics.instantiate(relics.get('house_rules')));
+		r.relics.push(relics.instantiate(relics.get('full_moon')));
+	});
+	assert.ok(run.jinxed);
+	assert.equal(R.activeRelics(run).length, 1);
+	assert.ok(!R.activeRelics(run).some((r) => r.key === run.jinxed));
+});
+
+test('the Cartel and the Shark push points onto you', () => {
+	const avg = (key) => {
+		let pts = 0;
+		for (let i = 0; i < 300; i++) {
+			const run = bossRun(key, 'GANG' + i);
+			pts += finish(run).myPoints;
+		}
+		return pts / 300;
+	};
+	const base = avg('taxman');
+	assert.ok(avg('cartel') > base + 1, `cartel ${avg('cartel')} vs ${base}`);
+	assert.ok(avg('shark') > base, `shark ${avg('shark')} vs ${base}`);
+});
+
+test('beating a boss pays a bonus', () => {
+	const run = bossRun('taxman');
+	run.score = run.target;
+	finish(run);
+	run.score = run.target + 1000;
+	R.continueAfterHand(run);
+	assert.equal(run.lastPayout.boss, bosses.BOSS_BONUS);
+	const plain = R.newRun('PLAIN', { bosses: true });
+	finish(plain);
+	plain.score = plain.target + 1000;
+	R.continueAfterHand(plain);
+	assert.equal(plain.lastPayout.boss, undefined);
+});

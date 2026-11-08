@@ -12,6 +12,7 @@ import * as cards from '../src/lib/rules/cards.ts';
 import * as H from '../src/lib/rules/hearts.ts';
 import * as R from '../src/lib/game/run.ts';
 import * as relics from '../src/lib/game/relics.ts';
+import * as bosses from '../src/lib/game/bosses.ts';
 import * as seals from '../src/lib/game/seals.ts';
 import * as packs from '../src/lib/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/lib/app/save.ts';
@@ -114,7 +115,19 @@ function view() {
 		target: r.target,
 		score: r.score,
 		handsLeft: r.handsLeft,
-		handsPerBoard: R.HANDS_PER_BOARD,
+		handsPerBoard: r.handsThisBoard,
+		/** This table's boss (bosses on), and whether it's this board. */
+		boss: r.boss
+			? { key: r.boss, name: bosses.BOSSES[r.boss].name, text: bosses.BOSSES[r.boss].text, active: R.bossActive(r), sharkSeat: bosses.SHARK_SEAT }
+			: null,
+		/** The relic the Jinx has switched off this board. */
+		jinxed: R.bossActive(r) && r.boss === 'jinx' ? r.jinxed : null,
+		/** Every board of this table, for the table overview. */
+		tableBoards: Array.from({ length: R.BOARDS_PER_TABLE }, (_, i) => {
+			const b = i + 1;
+			const boss = r.bosses && b === R.BOARDS_PER_TABLE;
+			return { board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
+		}),
 		money: r.money,
 		interest: R.interest(r),
 		rerollCost: r.rerollCost,
@@ -179,7 +192,7 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE };
+		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());

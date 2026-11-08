@@ -107,7 +107,10 @@ export function playRun(seed: string | number, opts: run_.RunOptions = {}): Run 
 	const run = run_.newRun(seed, opts);
 	for (let k = 0; k < 5000; k++) {
 		if (run.phase === run_.PHASE.PASS) {
-			run_.commitPass(run, ai.choosePass(run.hand.dealt[H.PLAYER], run.rng, run.aiSkill));
+			// Under the Blindfold the pass is chosen unseen: any three cards.
+			const blind = run_.bossActive(run) && run.boss === 'blindfold';
+			const hand = run.hand.dealt[H.PLAYER];
+			run_.commitPass(run, blind ? run.rng.sample(hand, 3) : ai.choosePass(hand, run.rng, run.aiSkill));
 		} else if (run.phase === run_.PHASE.PLAY) {
 			run_.playOut(run);
 		} else if (run.phase === run_.PHASE.HAND_SCORED) {
