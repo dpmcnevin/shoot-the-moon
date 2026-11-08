@@ -640,3 +640,33 @@ test("the Collector's Album, Interest Rate, Bargain Bin and Tip Jar", () => {
 	const fake = { myTricks: Array.from({ length: 7 }, () => ({ points: 0 })) };
 	assert.deepEqual(tip.score(fake), { money: 3 });
 });
+
+// ------------------------------------------------------------------ moon AI
+
+test('moonOnCourse names the seat holding every point taken so far', () => {
+	const run = R.newRun('ONCOURSE');
+	finish(run);
+	const st = run.hand.state;
+	const hearts = st.pack.filter((c) => c.suit === H.HEARTS);
+	st.taken = [[], [], [], hearts.slice(0, 3), []];
+	assert.equal(H.moonOnCourse(st), H.PLAYER);
+	st.taken = [[], [hearts[3]], [], hearts.slice(0, 3), []];
+	assert.equal(H.moonOnCourse(st), null);
+	st.taken = [[], [], [], [], []];
+	assert.equal(H.moonOnCourse(st), null);
+});
+
+test('with moonAI, strong opponents go for the moon and shoot it more often', () => {
+	let attempts = 0, moonsOn = 0, moonsOff = 0;
+	for (let i = 0; i < 400; i++) {
+		for (const moonAI of [true, false]) {
+			const run = R.newRun('MAI' + i, { moonAI });
+			const b = finish(run);
+			if (moonAI && run.hand.state.moonSeats) attempts++;
+			if (b.shooter !== null && b.shooter !== H.PLAYER) moonAI ? moonsOn++ : moonsOff++;
+		}
+	}
+	assert.ok(attempts > 0, 'some hands have an attempt');
+	assert.ok(moonsOn > moonsOff, `moons with ${moonsOn} vs without ${moonsOff}`);
+	assert.equal(R.newRun('MAI0').moonAI, false, 'off by default');
+});

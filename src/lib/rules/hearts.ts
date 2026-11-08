@@ -155,6 +155,8 @@ export interface HandState {
 	 *  and how many of those cards are left. */
 	wildSeat?: number;
 	wildLeft?: number;
+	/** Seats going for the moon this hand (opponents with a strong hand). */
+	moonSeats?: number[];
 }
 
 /** The card that opens the hand: the lowest club, else the lowest card. */
@@ -307,6 +309,16 @@ export function moonShooter(state: HandState): number | null {
 		for (const c of state.taken[s]) n += Math.max(0, state.pts(c));
 		if (n === total) return s;
 	}
+	return null;
+}
+
+/** The seat that has taken every point so far, if any points have been
+ *  taken and that seat holds all of them (a moon still in reach). */
+export function moonOnCourse(state: HandState): number | null {
+	const pts = pointsTaken(state);
+	const total = pts.reduce((a, b) => a + b, 0);
+	if (total <= 0) return null;
+	for (let s = 1; s <= 4; s++) if (pts[s] === total) return s;
 	return null;
 }
 

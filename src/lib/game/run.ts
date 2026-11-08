@@ -201,6 +201,7 @@ export interface Run {
 	handsThisBoard: number;
 	/** The club offers the expansion relics too (off by default). */
 	moreRelics: boolean;
+	moonAI: boolean;
 }
 
 export interface RunOptions {
@@ -211,6 +212,8 @@ export interface RunOptions {
 	tableBase?: number[];
 	bosses?: boolean;
 	moreRelics?: boolean;
+	/** Opponents sometimes go for the moon (off by default). */
+	moonAI?: boolean;
 }
 
 /** Does an active relic have this rule? */
@@ -298,7 +301,8 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		bossesSeen: [],
 		jinxed: null,
 		handsThisBoard: HANDS_PER_BOARD,
-		moreRelics: opts.moreRelics ?? false
+		moreRelics: opts.moreRelics ?? false,
+		moonAI: opts.moonAI ?? false
 	} as Run;
 	startBoard(run);
 	return run;
@@ -363,6 +367,11 @@ function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
 	if (bossIs(run, 'diamond_jack')) pts = (c) => (c.suit === H.DIAMONDS && c.rank === 11 ? base(c) + 10 : base(c));
 	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts });
 	if (bossIs(run, 'open_book')) run.hand.state.heartsBroken = true;
+	// Opponents with a strong hand sometimes go for the moon (decided after the pass).
+	if (run.moonAI) {
+		const seats = [1, 2, 4].filter((s) => ai.moonWorthy(run.hand.state!.hands[s]) && run.rng.chance(0.7));
+		if (seats.length) run.hand.state.moonSeats = seats;
+	}
 	if (hasRule(run, 'wildcard')) {
 		run.hand.state.wildSeat = H.PLAYER;
 		run.hand.state.wildLeft = 3;

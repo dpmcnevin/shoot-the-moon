@@ -160,6 +160,8 @@ function view() {
 			legal,
 			points: st ? H.pointsTaken(st) : [0, 0, 0, 0, 0],
 			heartsBroken: st ? st.heartsBroken : false,
+			/** The seat holding every point taken so far (a moon still in reach). */
+			moonOnCourse: st && !st.complete ? H.moonOnCourse(st) : null,
 			received: hand.received.map((c) => c.id),
 			receivedFrom: hand.received.length ? H.passSource(H.PLAYER, hand.passDir) : null,
 			/** Suits each opponent has shown they're out of (Card Counter only). */
@@ -197,7 +199,7 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true, moreRelics: true };
+		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true, moreRelics: true, moonAI: true };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());

@@ -54,6 +54,44 @@ export interface AIContext {
 	target?: number;
 }
 
+/** Is this hand strong enough to try for the moon? Lots of high cards,
+ *  and the top hearts to take the heart tricks. */
+export function moonWorthy(hand: Hand): boolean {
+	const high = hand.filter((c) => c.rank >= 12).length;
+	const hearts = hand.filter((c) => c.suit === H.HEARTS);
+	const topHearts = hearts.filter((c) => c.rank >= 12).length;
+	const spadeTop = hand.some((c) => c.suit === H.SPADES && c.rank >= 13) || hand.some(H.isQueenOfSpades);
+	return high >= 6 && hearts.length >= 4 && topHearts >= 2 && spadeTop;
+}
+
+/** Still going for the moon: no one else has taken a point. */
+function shooting(state: HandState, seat: number): boolean {
+	if (!state.moonSeats?.includes(seat)) return false;
+	const pts = H.pointsTaken(state);
+	return [1, 2, 3, 4].every((s) => s === seat || pts[s] === 0);
+}
+
+/** Play for every trick: lead the top card of the longest suit, win when
+ *  following if possible (as cheaply as still wins), dump low off-suit. */
+function chooseMoon(state: HandState, seat: number, legal: Card[]): Card {
+	if (state.trick.length === 0) {
+		const bySuit = new Map<number, Card[]>();
+		for (const c of legal) bySuit.set(c.suit, [...(bySuit.get(c.suit) ?? []), c]);
+		let best: Card[] = legal;
+		for (const list of bySuit.values()) if (highest(list).rank > highest(best).rank || (highest(list).rank === highest(best).rank && list.length > best.length)) best = list;
+		return highest(best);
+	}
+	const win = H.trickWinner(state.trick);
+	const following = legal[0].suit === state.ledSuit;
+	if (following) {
+		const above = legal.filter((c) => c.rank > win.card.rank);
+		return above.length > 0 ? (state.trick.length === 3 ? lowest(above) : highest(above)) : lowest(legal);
+	}
+	// Void: throw the lowest card that isn't a point (keep points to win later).
+	const clean = legal.filter((c) => state.pts(c) <= 0);
+	return lowest(clean.length > 0 ? clean : legal);
+}
+
 /** The n cards most dangerous to hold: the queen, then the spades above her
  *  and high hearts. For the Pickpocket boss, who passes you exactly these. */
 export function mostDangerous(hand: Hand, n: number): Card[] {
@@ -173,6 +211,7 @@ export function chooseCard(state: HandState, seat: number, ctx: AIContext): Card
 	const legal = H.legalPlays(state, seat);
 	if (legal.length === 1) return legal[0];
 	const skill = ctx.skill ?? DEFAULT_SKILL;
+	if (shooting(state, seat)) return chooseMoon(state, seat, legal);
 	if (ctx.rng.chance(1 - skill)) return legal[ctx.rng.int(1, legal.length) - 1];
 	if (state.trick.length === 0) return chooseLead(state, seat, legal);
 	return chooseFollow(state, seat, legal, ctx);
