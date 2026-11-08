@@ -31,6 +31,7 @@ test('the bridge plays a run end to end through its JSON API', () => {
 				? JSON.parse(S.act(JSON.stringify({ t: 'play', card: v.hand.legal[0] })))
 				: JSON.parse(S.act(JSON.stringify({ t: 'ai' })));
 			if (r.trick) assert.equal(r.trick.plays.length, 4);
+			if (r.view.phase === 'play' && r.view.hand.tricksPlayed > 0) assert.equal(r.view.hand.lastTrick.plays.length, 4);
 		} else if (v.phase === 'hand_scored') {
 			hands++;
 			r = JSON.parse(S.act(JSON.stringify({ t: 'continue' })));

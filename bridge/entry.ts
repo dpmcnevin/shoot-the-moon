@@ -138,6 +138,8 @@ function view() {
 			kitty: st && st.tricks.length > 0 ? [] : hand.kitty.map((c) => c.id),
 			trick: st ? st.trick.map((p) => ({ seat: p.seat, card: cardView(p.card) })) : [],
 			tricksPlayed: st ? st.tricks.length : 0,
+			/** The last finished trick of this hand, for the Last trick button. */
+			lastTrick: st && st.tricks.length ? trickView(st.tricks[st.tricks.length - 1]) : null,
 			handSize: st ? st.handSize : mine.length,
 			turn: st && !st.complete ? st.turn : null,
 			isPlayerTurn: R.isPlayerTurn(r),
