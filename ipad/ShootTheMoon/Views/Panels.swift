@@ -24,6 +24,12 @@ struct ScorePanel: View {
             : r.myPoints == 0 ? "Clean hand!" : "You took \(r.myPoints) point\(r.myPoints == 1 ? "" : "s")"
         let boardShown = v.score - (model.revealDone ? 0 : r.total)
         let next = v.score >= v.target ? "Board won!" : v.handsLeft <= 0 ? "Out of hands" : "Next hand (\(v.handsLeft) left)"
+        // Room for eight lines at full size; with more, the panel grows (to
+        // fit the stage) and then the lines tighten, so none is cut off.
+        let n = r.lines.count
+        let panelH = min(model.layout.H - 120, 500 + Double(max(0, n - 8)) * 25)
+        let lineH = max(15, min(25, ((200 + panelH - 500) / Double(max(1, n))).rounded(.down)))
+        let lineFont = lineH < 21 ? max(13, lineH - 3) : 17
 
         return Panel(edge: good ? Theme.good : Theme.bad) {
             VStack(alignment: .leading, spacing: 8) {
@@ -45,8 +51,8 @@ struct ScorePanel: View {
                             if let m = line.mult, m != 0 { Text("+\(m, specifier: "%.2f") mult").foregroundStyle(Theme.mult) }
                             if let x = line.xmult, x != 1 { Text("x\(x, specifier: "%.2f")").foregroundStyle(Theme.mult) }
                         }
-                        .font(Theme.font(17)).monospacedDigit()
-                        .frame(height: 25)
+                        .font(Theme.font(lineFont)).monospacedDigit()
+                        .frame(height: lineH)
                         .transition(.move(edge: .leading).combined(with: .opacity))
                     }
                 }
@@ -79,7 +85,7 @@ struct ScorePanel: View {
             .padding(.horizontal, 30).padding(.vertical, 18)
             .foregroundStyle(Theme.ink)
         }
-        .frame(width: 580, height: 500)
+        .frame(width: 580, height: panelH)
         .animation(.spring(duration: 0.3), value: model.revealShown)
         .animation(.spring(duration: 0.3), value: model.revealDone)
         .contentShape(Rectangle())

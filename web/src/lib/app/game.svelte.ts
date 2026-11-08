@@ -522,3 +522,6 @@ class Game {
 }
 
 export const game = new Game();
+
+// For poking at the game from the browser console while developing.
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __game: Game }).__game = game;

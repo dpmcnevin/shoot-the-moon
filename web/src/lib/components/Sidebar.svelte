@@ -250,10 +250,35 @@
 	}
 	/* The relic list gives way first when the column runs short (a boss's
 	   rule showing): empty slots are clipped, never the footer. */
+	/* The relics take the space left; when it runs short, two columns. */
 	.sidebar:not(.portrait) > section.relics {
-		flex: 0 1 auto;
+		flex: 1 1 0;
 		min-height: 0;
 		overflow: hidden;
+		container-type: size;
+	}
+	/* Short of room (a crowded sidebar late in a run): a row of icons, each
+	   still tappable for its details; the shine shows an edition. */
+	@container (max-height: 150px) {
+		.relic-list {
+			flex-direction: row !important;
+			flex-wrap: wrap;
+			gap: 6px !important;
+		}
+		.relic-list .relic {
+			margin: 0;
+			height: auto;
+			padding: 4px;
+			gap: 0;
+		}
+		.relic-list .relic-text,
+		.relic-list .rarity {
+			display: none;
+		}
+		.relic-list .relic.empty {
+			width: 26px;
+			height: 26px;
+		}
 	}
 	.sidebar.portrait {
 		border-right: none;
@@ -540,10 +565,17 @@
 	.boss.active .boss-tag {
 		color: var(--bad);
 	}
+	/* Two lines at most, so the relics below always fit; the whole rule is
+	   in the table overview (a tap on the boss). */
 	.boss-text {
 		font-size: 12px;
 		color: var(--ink-dim);
 		margin-top: 2px;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 	.hands-n {
 		margin-left: auto;
@@ -553,11 +585,23 @@
 	.hands-n.bad {
 		color: var(--bad);
 	}
+	/* One line: the name, then any edition or jinx tag after it. */
 	.relic-text {
 		display: flex;
-		flex-direction: column;
+		align-items: baseline;
+		gap: 6px;
 		min-width: 0;
-		line-height: 1.05;
+		flex: 1;
+		white-space: nowrap;
+	}
+	.relic-text .name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+	}
+	.relic-text .tag {
+		order: 2;
+		flex: none;
 	}
 	.tag {
 		font-size: 10px;

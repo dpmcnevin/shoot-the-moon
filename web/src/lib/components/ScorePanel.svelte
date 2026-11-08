@@ -59,7 +59,11 @@
 		run.score >= run.target ? 'Board won!' : run.handsLeft <= 0 ? 'Out of hands' : `Next hand  (${run.handsLeft} left)`
 	);
 	const pw = $derived(Math.min(580, L.W - 32));
-	const ph = 500;
+	// Room for eight lines at full size; with more, the panel grows (to fit
+	// the stage) and then the lines tighten, so none is ever cut off.
+	const nLines = $derived(rv.items.length);
+	const ph = $derived(Math.min(L.orientation === 'portrait' ? 640 : 600, 500 + Math.max(0, nLines - 8) * 25));
+	const lineH = $derived(Math.max(15, Math.min(25, Math.floor((200 + ph - 500) / Math.max(1, nLines)))));
 	const box = $derived({ x: L.tableCX - pw / 2, y: L.orientation === 'portrait' ? L.table.y + 200 : 100 });
 	$effect(() => {
 		rv.totalY = box.y + ph - 148;
@@ -75,7 +79,7 @@
 				<span class:me={s === H.PLAYER}>{s === H.PLAYER ? 'You' : H.SEAT_NAMES[s]} <b>{r.points[s]}</b></span>
 			{/each}
 		</div>
-		<div class="lines">
+		<div class="lines" style:--lh="{lineH}px" style:font-size="{lineH < 21 ? Math.max(13, lineH - 3) : 17}px">
 			{#each shown as item, i (i)}
 				<div class="line" in:fly={{ x: -20, duration: 180, easing: cubicOut }}>
 					<span style:color={item.edition ? editionColor(item.edition) : null}>{item.label}</span>
@@ -136,16 +140,21 @@
 	.seats .me {
 		color: var(--ink);
 	}
+	/* The rows share the space: each is at most 25px and shrinks to fit. */
 	.lines {
 		flex: 1;
+		min-height: 0;
 		margin-top: 12px;
 		overflow: hidden;
 		font-size: 17px;
+		display: flex;
+		flex-direction: column;
 	}
 	.line {
 		display: flex;
 		justify-content: space-between;
-		height: 25px;
+		flex: 0 1 var(--lh, 25px);
+		min-height: 0;
 		align-items: center;
 	}
 	.parts {
