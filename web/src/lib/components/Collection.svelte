@@ -47,7 +47,7 @@
 	const totals = $derived([
 		['Runs', num(prof.runs)],
 		['Won', `${num(prof.wins)}${prof.runs ? ` (${Math.round((100 * prof.wins) / prof.runs)}%)` : ''}`],
-		['Furthest table', prof.bestTable ? `${prof.bestTable} of ${R.TABLES}` : '-'],
+		['Furthest table', prof.bestTable ? (prof.bestTable > R.TABLES ? `${prof.bestTable} (endless)` : `${prof.bestTable} of ${R.TABLES}`) : '-'],
 		['Best hand', num(prof.bestHand)],
 		['Moons shot', num(prof.moons)],
 		['Clean hands', num(prof.cleanHands)],

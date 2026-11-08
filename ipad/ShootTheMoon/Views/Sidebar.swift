@@ -258,10 +258,10 @@ struct RunProgress: View {
     private var boardWon: Bool { v.phase == .boardWon || v.phase == .shop || v.phase == .victory }
 
     var body: some View {
-        let table = min(v.table, v.tables)
+        let table = v.endless == true ? v.table : min(v.table, v.tables)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Text("Table \(table) of \(v.tables)").font(Theme.font(16))
+                Text(v.endless == true ? "Table \(table) · endless" : "Table \(table) of \(v.tables)").font(Theme.font(16))
                 Spacer()
                 HStack(spacing: 3) {
                     ForEach(1...v.tables, id: \.self) { t in

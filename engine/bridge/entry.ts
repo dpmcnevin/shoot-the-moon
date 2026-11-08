@@ -146,6 +146,8 @@ function view() {
 		money: r.money,
 		/** Ploys (ruleset v5): held, usable now or not; the hand's ploy effects. */
 		ploysOn: r.ploysOn,
+		endlessOn: r.endlessOn,
+		endless: r.endless,
 		ploys: r.ploys.map((k, i) => {
 			const d = ploysLib.PLOYS[k];
 			const [can, why] = R.canUsePloy(r, i);

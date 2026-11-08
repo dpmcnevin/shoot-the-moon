@@ -23,7 +23,8 @@ export type Action =
 	| { t: 'leave' }
 	| { t: 'ploy'; slot: number }
 	| { t: 'pick'; index: number }
-	| { t: 'skip' };
+	| { t: 'skip' }
+	| { t: 'endless' };
 
 export interface Save {
 	version: number;
@@ -85,6 +86,8 @@ export function applyAction(run: Run, a: Action): Outcome {
 			return { ok: R.pickFromBundle(run, a.index)[0] };
 		case 'skip':
 			return { ok: R.skipBoard(run)[0] };
+		case 'endless':
+			return { ok: R.goEndless(run)[0] };
 	}
 }
 

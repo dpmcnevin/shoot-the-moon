@@ -43,6 +43,9 @@
 	</div>
 	<div class="foot">
 		<Button variant="plain" onclick={() => game.toMenu()} style="width: 170px">Main menu</Button>
+		{#if victory && game.run?.endlessOn && !game.run?.endless}
+			<Button variant="ploy" onclick={() => game.goEndless()} style="width: 150px" title="Go on past table 8; the goals keep growing">Keep going</Button>
+		{/if}
 		<Button
 			pulse
 			onclick={() => {

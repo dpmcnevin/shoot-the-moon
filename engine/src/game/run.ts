@@ -243,6 +243,9 @@ export interface Run {
 	skipped?: number[];
 	/** The starting deck. */
 	deck: DeckKey;
+	/** Endless mode: allowed (endlessOn), and under way (endless). */
+	endlessOn: boolean;
+	endless: boolean;
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -300,6 +303,8 @@ export interface RunOptions {
 	tags?: boolean;
 	/** The starting deck (decks.ts; 'standard' by default). */
 	deck?: DeckKey;
+	/** After winning, the run can go on past table 8 (off by default). */
+	endless?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -381,6 +386,7 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		v4Relics: true,
 		ploys: true,
 		tags: true,
+		endless: true,
 		noRepeats: true,
 		tableBase: V3_TABLE_BASE,
 		bosses: true,
@@ -462,6 +468,8 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		opening: null,
 		tagsOn: opts.tags ?? false,
 		deck: opts.deck ?? 'standard',
+		endlessOn: opts.endless ?? false,
+		endless: false,
 		tagOffers: [],
 		pendingTags: [],
 		pack: packs.standardPack(),
@@ -931,9 +939,18 @@ export function canSeeDeck(run: Run): boolean {
 	return (run.hand.state?.tricks.length ?? 0) === 0;
 }
 
+/** After winning: keep going past table 8, goals growing 1.6x a table.
+ *  The club comes first, as after any board. */
+export function goEndless(run: Run): [boolean, string?] {
+	if (!run.endlessOn || run.endless || run.phase !== PHASE.VICTORY) return [false, 'not now'];
+	run.endless = true;
+	run.phase = PHASE.BOARD_WON;
+	return [true];
+}
+
 /** Is this the last board of the run (the last table's High Board)? */
 export function isFinalBoard(run: Run): boolean {
-	return run.table >= TABLES && run.board >= BOARDS_PER_TABLE;
+	return !run.endless && run.table >= TABLES && run.board >= BOARDS_PER_TABLE;
 }
 
 export function continueAfterHand(run: Run): Phase {
@@ -1228,7 +1245,7 @@ export function leaveShop(run: Run): Phase {
 		run.table++;
 		run.boardsWonThisTable = 0;
 	}
-	if (run.table > TABLES) {
+	if (run.table > TABLES && !run.endless) {
 		run.phase = PHASE.VICTORY;
 		return run.phase;
 	}

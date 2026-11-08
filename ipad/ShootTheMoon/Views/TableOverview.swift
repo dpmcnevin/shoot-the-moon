@@ -9,7 +9,7 @@ struct TableOverview: View {
     var body: some View {
         let v = model.view!
         let L = model.layout
-        let table = min(v.table, v.tables)
+        let table = v.endless == true ? v.table : min(v.table, v.tables)
         let current = v.tableBoards.first { $0.board == v.board }
         let playLabel: String = {
             guard let b = current else { return "Back to the table" }
@@ -22,7 +22,7 @@ struct TableOverview: View {
             Panel(edge: v.boss?.active == true ? Theme.bad : Theme.brass) {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text("Table \(table) of \(v.tables)").font(Theme.font(34, .bold)).foregroundStyle(Theme.brass).inkShadow(3)
+                        Text(v.endless == true ? "Table \(table) · endless" : "Table \(table) of \(v.tables)").font(Theme.font(34, .bold)).foregroundStyle(Theme.brass).inkShadow(3)
                         Spacer()
                         HStack(spacing: 4) {
                             ForEach(1...v.tables, id: \.self) { t in

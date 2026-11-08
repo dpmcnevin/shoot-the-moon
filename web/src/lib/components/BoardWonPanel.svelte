@@ -78,7 +78,7 @@
 	<h2>{R.boardName(run)} won</h2>
 	<div class="next">
 		{run.board === R.BOARDS_PER_TABLE
-			? run.table >= R.TABLES
+			? run.table >= R.TABLES && !run.endless
 				? 'That was the last table.'
 				: `Table ${run.table} of ${R.TABLES} cleared. Next: table ${run.table + 1}.`
 			: `Table ${run.table} of ${R.TABLES} · next: ${run.board + 1 === R.BOARDS_PER_TABLE ? 'the High Board' : `Board ${run.board + 1}`}`}

@@ -82,7 +82,7 @@ export function noteRun(p: Profile, run: Run, id: string, now = Date.now()): Pro
 	entry.moons = run.stats.moons;
 	entry.cleanHands = run.stats.cleanHands;
 	entry.hands = run.stats.handsPlayed;
-	entry.table = Math.min(run.table, R.TABLES);
+	entry.table = run.endless ? run.table : Math.min(run.table, R.TABLES);
 	entry.board = run.board;
 	entry.bestHand = Math.max(entry.bestHand, run.stats.bestHand);
 	for (const r of run.relics) {

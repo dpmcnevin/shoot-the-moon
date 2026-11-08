@@ -43,7 +43,7 @@
 	const run = $derived(game.run!);
 	const hand = $derived(game.hand);
 	const boardWon = $derived(run.phase === PHASE.BOARD_WON || run.phase === PHASE.SHOP || run.phase === PHASE.VICTORY);
-	const table = $derived(Math.min(run.table, R.TABLES));
+	const table = $derived(run.endless ? run.table : Math.min(run.table, R.TABLES));
 	const boss = $derived(run.boss ? bosses.bossAt(run.boss, run.balance) : null);
 	const bossNow = $derived(R.bossActive(run));
 	const jinxed = $derived(bossNow && run.boss === 'jinx' ? run.jinxed : null);
@@ -88,7 +88,7 @@
 		<h1>SHOOT THE MOON</h1>
 		<button class="progress" onclick={() => (game.showOverview = true)} title="Show this table's boards and boss">
 			<div class="row">
-				<span>Table {table} of {R.TABLES}</span>
+				<span>{run.endless ? `Table ${table} · endless` : `Table ${table} of ${R.TABLES}`}</span>
 				<span class="tables">
 					{#each { length: R.TABLES }, i (i)}
 						<span class="tsq" class:done={i + 1 < table || (i + 1 === table && boardWon && run.board === R.BOARDS_PER_TABLE)} class:now={i + 1 === table}></span>

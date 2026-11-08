@@ -55,6 +55,8 @@
 					? 'Clean hand!'
 					: `You took ${r.myPoints} point${r.myPoints === 1 ? '' : 's'}`
 	);
+	/** One hand worth the whole board's goal: the total burns. */
+	const onFire = $derived(rv.done && r.total >= run.target && r.total > 0);
 	const good = $derived(r.shooter === H.PLAYER || (r.shooter === null && r.myPoints <= 6));
 	const nextLabel = $derived(
 		run.score >= run.target ? (R.isFinalBoard(run) ? 'Victory!' : 'Board won!') : run.handsLeft <= 0 ? 'Out of hands' : `Next hand  (${run.handsLeft} left)`
@@ -92,7 +94,12 @@
 			<span class="pill chips-bg">{num(chips.current)}</span>
 			<span class="x">x</span>
 			<span class="pill mult-bg">{mult.current.toFixed(2)}</span>
-			{#if rv.done}<span class="total" in:scale={{ start: 1.25, duration: 250 }}>= {num(r.total)}</span>{/if}
+			{#if rv.done}
+				<span class="total" class:fire={onFire} in:scale={{ start: 1.25, duration: 250 }}>
+					{#if onFire}<span class="flames" aria-hidden="true">{#each { length: 7 }, i (i)}<span class="flame" style:--i={i}></span>{/each}</span>{/if}
+					<span class="num">= {num(r.total)}</span>
+				</span>
+			{/if}
 		</div>
 		<div class="board">
 			<div>Board {num(board.current)} / {num(run.target)}</div>
@@ -198,6 +205,42 @@
 	.x {
 		font-size: 28px;
 		color: var(--ink-dim);
+	}
+	.total.fire {
+		position: relative;
+		color: var(--ink);
+	}
+	.total .num {
+		position: relative;
+		z-index: 1;
+	}
+	.flames {
+		position: absolute;
+		left: -6px;
+		right: -6px;
+		bottom: 2px;
+		height: 48px;
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		pointer-events: none;
+	}
+	.flame {
+		width: 14px;
+		height: 30px;
+		background: linear-gradient(to top, var(--bad) 0 34%, #e8772e 34% 68%, var(--brass) 68% 100%);
+		clip-path: polygon(50% 0, 70% 30%, 100% 40%, 100% 100%, 0 100%, 0 40%, 30% 30%);
+		animation: flicker 0.36s steps(3) infinite alternate;
+		animation-delay: calc(var(--i) * -0.11s);
+		opacity: 0.85;
+	}
+	@keyframes flicker {
+		from {
+			height: 22px;
+		}
+		to {
+			height: 44px;
+		}
 	}
 	.total {
 		margin-left: auto;

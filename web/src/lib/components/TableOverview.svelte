@@ -12,7 +12,7 @@
 
 	const L = $derived(game.layout);
 	const run = $derived(game.run!);
-	const table = $derived(Math.min(run.table, R.TABLES));
+	const table = $derived(run.endless ? run.table : Math.min(run.table, R.TABLES));
 	const boss = $derived(run.boss ? bosses.bossAt(run.boss, run.balance) : null);
 	const boardWon = $derived(run.phase === PHASE.BOARD_WON || run.phase === PHASE.SHOP);
 	const boards = $derived(
@@ -58,7 +58,7 @@
 	aria-label="Table {table} of {R.TABLES}"
 >
 	<div class="top">
-		<h2>Table {table} of {R.TABLES}</h2>
+		<h2>{run.endless ? `Table ${table} · endless` : `Table ${table} of ${R.TABLES}`}</h2>
 		<span class="squares">
 			{#each { length: R.TABLES }, i (i)}<span class="sq" class:done={i + 1 < table} class:now={i + 1 === table}></span>{/each}
 		</span>

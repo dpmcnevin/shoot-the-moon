@@ -543,6 +543,14 @@ final class GameModel {
         audio.play("card_play", volume: 0.5, jitter: 0.1)
     }
 
+    /// After winning, go on in endless mode.
+    func goEndless() {
+        if act(.endless)?.ok == true {
+            audio.play("coin")
+            showToast("Endless: the goals keep growing", Theme.ploy)
+        }
+    }
+
     /// Skip this board for its tag.
     func skipBoard() {
         guard let tag = view?.skipTag else { return }

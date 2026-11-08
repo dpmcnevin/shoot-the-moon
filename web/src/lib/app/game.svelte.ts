@@ -359,6 +359,14 @@ class Game {
 		this.bump();
 	}
 
+	/** After winning, go on in endless mode. */
+	goEndless() {
+		if (!this.act({ t: 'endless' }).ok) return;
+		sound.play('coin');
+		this.showToast('Endless: the goals keep growing', C.ploy);
+		this.bump();
+	}
+
 	/** Skip this board for its tag. */
 	skipBoard() {
 		const run = this._run!;

@@ -66,6 +66,7 @@ struct ScorePanel: View {
                     Spacer()
                     if model.revealDone {
                         Text("= \(num(r.total))").font(Theme.font(30, .bold)).inkShadow(3)
+                            .background { if r.total >= v.target && r.total > 0 { ScoreFire() } }
                             .transition(.scale(scale: 1.25).combined(with: .opacity))
                     }
                 }
@@ -160,7 +161,7 @@ struct BoardWonPanel: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("\(v.boardName) won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()
                 Text(v.board == v.boardsPerTable
-                     ? (v.table >= v.tables ? "That was the last table." : "Table \(v.table) of \(v.tables) cleared. Next: table \(v.table + 1).")
+                     ? (v.table >= v.tables && v.endless != true ? "That was the last table." : "Table \(v.table) of \(v.tables) cleared. Next: table \(v.table + 1).")
                      : "Table \(v.table) of \(v.tables) · next: \(v.board + 1 == v.boardsPerTable ? "the High Board" : "Board \(v.board + 1)")")
                     .font(Theme.font(16)).foregroundStyle(Theme.brass)
                 Text("\(num(v.score)) scored against a target of \(num(v.target))").font(Theme.font(17)).foregroundStyle(Theme.inkDim)
@@ -225,6 +226,9 @@ struct EndingPanel: View {
                 HStack {
                     GameButton("Main menu", style: .plain) { model.toMenu() }.frame(width: 170)
                     Spacer()
+                    if victory, v.endlessOn == true, v.endless != true {
+                        GameButton("Keep going", style: .ploy) { model.goEndless() }.frame(width: 150)
+                    }
                     GameButton("New run", pulse: true) { model.seedInput = ""; model.newRun() }.frame(width: 170)
                 }
                 .padding(.top, 14)
@@ -233,5 +237,27 @@ struct EndingPanel: View {
             .foregroundStyle(Theme.ink)
         }
         .frame(width: 520)
+    }
+}
+
+/// Flames behind a hand's total when that one hand beats the board's goal.
+struct ScoreFire: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.12)) { tl in
+            let t = Int(tl.date.timeIntervalSinceReferenceDate / 0.12)
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(0..<7, id: \.self) { i in
+                    let h = 22.0 + Double((t + i * 3) % 4) * 7
+                    LinearGradient(stops: [.init(color: Theme.brass, location: 0), .init(color: Color(hex: 0xe8772e), location: 0.35), .init(color: Theme.bad, location: 0.7)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(width: 12, height: h)
+                        .clipShape(PixelRect(radius: 4))
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .opacity(0.85)
+        }
+        .padding(.horizontal, -8)
+        .allowsHitTesting(false)
     }
 }

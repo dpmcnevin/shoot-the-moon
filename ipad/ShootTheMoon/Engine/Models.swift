@@ -271,6 +271,8 @@ struct GameView: Decodable {
     let cardEditions: [CardEditionV]?
     /// Ploys (ruleset v5) and what they're doing this hand.
     let ploysOn: Bool?
+    let endlessOn: Bool?
+    let endless: Bool?
     let ploys: [PloyV]?
     let ploySlots: Int?
     /// The tag for skipping this board, if it can be skipped now; boards skipped this table.

@@ -1015,6 +1015,24 @@ test('starting decks change the start, and replay the same', () => {
 	assert.equal(R.newRun('DK', { ruleset: 'v5' }).deck, 'standard');
 });
 
+test('v5: after winning, endless goes on to table 9 with higher goals', () => {
+	const run = R.newRun('ENDLESS', { ruleset: 'v5' });
+	run.table = R.TABLES;
+	run.board = R.BOARDS_PER_TABLE;
+	R.startBoard(run);
+	finish(run);
+	run.score = run.target + 1;
+	assert.equal(R.continueAfterHand(run), R.PHASE.VICTORY);
+	assert.ok(R.goEndless(run)[0]);
+	assert.equal(run.phase, R.PHASE.BOARD_WON);
+	R.enterShop(run);
+	R.leaveShop(run);
+	assert.equal(run.table, 9);
+	assert.equal(run.phase, R.PHASE.PASS);
+	assert.ok(run.target > R.targetFor(8, 1, run.tableBase));
+	assert.equal(R.goEndless(R.newRun('E4', { ruleset: 'v4' }))[0], false);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

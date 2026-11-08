@@ -106,6 +106,7 @@ enum Action {
     case ploy(Int)
     case pick(Int)
     case skip
+    case endless
 
     var json: String {
         let dict: [String: Any]
@@ -126,6 +127,7 @@ enum Action {
         case .ploy(let slot): dict = ["t": "ploy", "slot": slot]
         case .pick(let index): dict = ["t": "pick", "index": index]
         case .skip: dict = ["t": "skip"]
+        case .endless: dict = ["t": "endless"]
         }
         let data = try! JSONSerialization.data(withJSONObject: dict)
         return String(decoding: data, as: UTF8.self)
