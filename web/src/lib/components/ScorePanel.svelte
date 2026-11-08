@@ -6,6 +6,7 @@
 	import { backOut, cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import * as H from '$engine/rules/hearts.ts';
+	import * as R from '$engine/game/run.ts';
 	import { game, PHASE } from '../app/game.svelte.ts';
 	import { num } from '../app/format.ts';
 	import Button from './Button.svelte';
@@ -56,7 +57,7 @@
 	);
 	const good = $derived(r.shooter === H.PLAYER || (r.shooter === null && r.myPoints <= 6));
 	const nextLabel = $derived(
-		run.score >= run.target ? 'Board won!' : run.handsLeft <= 0 ? 'Out of hands' : `Next hand  (${run.handsLeft} left)`
+		run.score >= run.target ? (R.isFinalBoard(run) ? 'Victory!' : 'Board won!') : run.handsLeft <= 0 ? 'Out of hands' : `Next hand  (${run.handsLeft} left)`
 	);
 	const pw = $derived(Math.min(580, L.W - 32));
 	// Room for eight lines at full size; with more, the panel grows (to fit

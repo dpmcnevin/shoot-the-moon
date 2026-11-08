@@ -802,10 +802,18 @@ export function finishHand(run: Run): Breakdown {
 	return b;
 }
 
+/** Is this the last board of the run (the last table's High Board)? */
+export function isFinalBoard(run: Run): boolean {
+	return run.table >= TABLES && run.board >= BOARDS_PER_TABLE;
+}
+
 export function continueAfterHand(run: Run): Phase {
 	assert(run.phase === PHASE.HAND_SCORED, 'continueAfterHand: nothing to continue');
-	if (run.score >= run.target) winBoard(run);
-	else if (run.handsLeft <= 0) run.phase = PHASE.GAME_OVER;
+	if (run.score >= run.target) {
+		winBoard(run);
+		// The last table's High Board: the run is won; no club after it.
+		if (isFinalBoard(run)) run.phase = PHASE.VICTORY;
+	} else if (run.handsLeft <= 0) run.phase = PHASE.GAME_OVER;
 	else startHand(run);
 	return run.phase;
 }

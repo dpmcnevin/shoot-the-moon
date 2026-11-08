@@ -23,7 +23,7 @@ struct ScorePanel: View {
             : r.shooter != nil ? "\(v.seatName(r.shooter!)) shot the moon"
             : r.myPoints == 0 ? "Clean hand!" : "You took \(r.myPoints) point\(r.myPoints == 1 ? "" : "s")"
         let boardShown = v.score - (model.revealDone ? 0 : r.total)
-        let next = v.score >= v.target ? "Board won!" : v.handsLeft <= 0 ? "Out of hands" : "Next hand (\(v.handsLeft) left)"
+        let next = v.score >= v.target ? (v.table >= v.tables && v.board >= v.boardsPerTable ? "Victory!" : "Board won!") : v.handsLeft <= 0 ? "Out of hands" : "Next hand (\(v.handsLeft) left)"
         // Room for eight lines at full size; with more, the panel grows (to
         // fit the stage) and then the lines tighten, so none is cut off.
         let n = r.lines.count

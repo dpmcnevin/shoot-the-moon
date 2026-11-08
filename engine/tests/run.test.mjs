@@ -849,6 +849,22 @@ test('v4: the moon scores your Dodge and Clean Sheet levels and doubles the mult
 	assert.ok(v4.total > 3 * v3.total);
 });
 
+test('winning the last High Board ends the run in victory, with no club after it', () => {
+	const run = R.newRun('LAST', { ruleset: 'v4' });
+	run.table = R.TABLES;
+	run.board = R.BOARDS_PER_TABLE;
+	R.startBoard(run);
+	finish(run);
+	run.score = run.target + 1;
+	assert.equal(R.continueAfterHand(run), R.PHASE.VICTORY);
+	assert.equal(run.table, R.TABLES, 'still on the last table, for the sidebar');
+	// Any other board still goes to the club.
+	const mid = R.newRun('MID', { ruleset: 'v4' });
+	finish(mid);
+	mid.score = mid.target + 1;
+	assert.equal(R.continueAfterHand(mid), R.PHASE.BOARD_WON);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {
