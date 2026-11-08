@@ -16,6 +16,11 @@ import * as packs from '../game/pack.ts';
 import type { Action, Outcome } from './save.ts';
 import { fx } from './fx.svelte.ts';
 import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from './layout.ts';
+
+/** The ruleset new web runs use. The iPad app uses 'v2' (bridge/entry.ts);
+ *  switching this to 'v2' gives the web game the same rules, once its UI
+ *  shows bosses, editions and the rest. */
+const WEB_RULESET: R.RulesetName = 'classic';
 import { C, hex, type Color } from '../ui/theme.ts';
 
 const hexHeart = hex('#f08a8a');
@@ -122,7 +127,7 @@ class Game {
 		const run = this._run;
 		if (!run) return;
 		if (run.phase === PHASE.GAME_OVER || run.phase === PHASE.VICTORY) save.clear();
-		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions });
+		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset } } : {}) });
 	}
 
 	restore(): boolean {
@@ -156,7 +161,7 @@ class Game {
 
 	newRun() {
 		const seed = this.seedInput !== '' ? this.seedInput.toUpperCase() : undefined;
-		this.startRun(R.newRun(seed));
+		this.startRun(R.newRun(seed, { ruleset: WEB_RULESET }));
 		this.lastPhase = null;
 		this.screen = 'run';
 		this.persist();

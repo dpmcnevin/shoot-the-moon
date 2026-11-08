@@ -66,11 +66,7 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const S = engine();
 	S.newRun('EDSAVE');
 	const save = JSON.parse(S.save());
-	assert.equal(save.opts.editions, true);
-	assert.equal(save.opts.noRepeats, true);
-	assert.equal(save.opts.tableBase[0], 22);
-	assert.equal(save.opts.bosses, true);
-	assert.equal(save.opts.moreRelics, true);
+	assert.deepEqual(save.opts, { ruleset: 'v2' });
 	const cat = JSON.parse(S.catalog());
 	assert.equal(cat.relics.length, 55); // 23 original + 32 expansion
 	assert.equal(cat.bosses.length, 13);

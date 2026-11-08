@@ -204,9 +204,13 @@ export interface Run {
 	moreRelics: boolean;
 	moonAI: boolean;
 	aiCurve: boolean;
+	/** The ruleset the run was started with (or 'classic'). */
+	ruleset: RulesetName;
 }
 
 export interface RunOptions {
+	/** A named set of rules (RULESETS); options given beside it override it. */
+	ruleset?: RulesetName;
 	money?: number;
 	aiSkill?: number;
 	editions?: boolean;
@@ -235,6 +239,35 @@ function hasRule(run: Run, rule: keyof RelicDef): boolean {
 /** Relic slots: the Collector's Album adds one. */
 export function relicSlots(run: Run): number {
 	return RELIC_SLOTS + (run.relics.some((r) => r.def.extraSlot) ? 1 : 0);
+}
+
+/**
+ * Named rulesets, so the web game and the iPad app can share rules by
+ * name instead of a list of flags that drift apart. `classic` is the
+ * original game (the web game today); `v2` adds editions, bosses, the
+ * expansion relics, moon AI, the AI curve, gentler targets and no repeat
+ * offers (the iPad app). A save records its ruleset, so changing what a
+ * future ruleset means never changes a run in progress: add `v3` instead.
+ */
+export type RulesetName = 'classic' | 'v2';
+export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' | 'aiSkill'>> = {
+	classic: {},
+	v2: {
+		editions: true,
+		noRepeats: true,
+		tableBase: GENTLE_TABLE_BASE,
+		bosses: true,
+		moreRelics: true,
+		moonAI: true,
+		aiCurve: true
+	}
+};
+
+/** The options a ruleset name stands for, with any explicit options on top. */
+export function resolveOptions(opts: RunOptions = {}): RunOptions {
+	const base = opts.ruleset ? RULESETS[opts.ruleset] : {};
+	if (opts.ruleset && !base) throw new Error(`unknown ruleset ${opts.ruleset}`);
+	return { ...base, ...opts };
 }
 
 /** Is this board the boss's? */
@@ -278,7 +311,8 @@ export function boardName(run: Run): string {
 
 // ------------------------------------------------------------------ run
 
-export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
+export function newRun(seed?: string | number, options: RunOptions = {}): Run {
+	const opts = resolveOptions(options);
 	seed = seed ?? rngLib.randomSeedString(rngLib.newRng());
 	const run = {
 		seed,
@@ -314,7 +348,8 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		handsThisBoard: HANDS_PER_BOARD,
 		moreRelics: opts.moreRelics ?? false,
 		moonAI: opts.moonAI ?? false,
-		aiCurve: opts.aiCurve ?? false
+		aiCurve: opts.aiCurve ?? false,
+		ruleset: opts.ruleset ?? 'classic'
 	} as Run;
 	startBoard(run);
 	return run;

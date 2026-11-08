@@ -29,6 +29,10 @@ let actions: Action[] = [];
 /** Options the current run was started with (saved with it). */
 let opts: R.RunOptions | undefined;
 
+/** The ruleset new iPad runs use. The web game names its own; to share
+ *  rules, both name the same one. */
+const IPAD_RULESET: R.RulesetName = 'v2';
+
 // ------------------------------------------------------------------ encoding
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -112,6 +116,7 @@ function view() {
 		board: r.board,
 		boardName: R.boardName(r),
 		boardsPerTable: R.BOARDS_PER_TABLE,
+		ruleset: r.ruleset,
 		target: r.target,
 		score: r.score,
 		handsLeft: r.handsLeft,
@@ -199,7 +204,7 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true, moreRelics: true, moonAI: true, aiCurve: true };
+		opts = { ruleset: IPAD_RULESET };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());

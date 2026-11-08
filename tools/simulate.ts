@@ -8,7 +8,7 @@ import { playRun } from './bot.ts';
 
 const runs = Number(process.argv[2]) || 300;
 const tableBase = process.env.TABLE_BASE?.split(',').map(Number);
-const opts: run_.RunOptions = {
+const opts: run_.RunOptions = process.env.RULESET ? { ruleset: process.env.RULESET as run_.RulesetName } : {
 	editions: process.env.EDITIONS === '1' || process.env.IPAD === '1',
 	noRepeats: process.env.IPAD === '1',
 	bosses: process.env.BOSSES ? process.env.BOSSES === '1' : process.env.IPAD === '1',

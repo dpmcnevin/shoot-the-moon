@@ -696,3 +696,27 @@ test('aiCurve: plausible mistakes, and opponents sharpen table by table', () => 
 	}
 	assert.ok(checked > 1000);
 });
+
+// ------------------------------------------------------------------ rulesets
+
+test('a ruleset stands for its options; explicit options win; classic is the default', () => {
+	const v2 = R.newRun('RS', { ruleset: 'v2' });
+	assert.ok(v2.editions && v2.bosses && v2.moreRelics && v2.moonAI && v2.aiCurve && v2.noRepeats);
+	assert.equal(v2.target, 20);
+	assert.equal(v2.ruleset, 'v2');
+	const plain = R.newRun('RS');
+	assert.equal(plain.ruleset, 'classic');
+	assert.ok(!plain.bosses && !plain.editions);
+	assert.equal(R.newRun('RS', { ruleset: 'v2', bosses: false }).bosses, false);
+	// The same seed and ruleset plays the same run as the flags it names.
+	const flags = R.newRun('SAME', { ...R.RULESETS.v2 });
+	const named = R.newRun('SAME', { ruleset: 'v2' });
+	assert.deepEqual(finish(flags).points, finish(named).points);
+});
+
+test('old saves made with flags still replay', () => {
+	const opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true, moreRelics: true };
+	const run = replay({ version: 3, seed: 'OLDSAVE', actions: [], opts });
+	assert.ok(run.bosses && run.editions);
+	assert.equal(run.ruleset, 'classic');
+});
