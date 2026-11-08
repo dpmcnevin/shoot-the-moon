@@ -11,6 +11,7 @@ import type { Card } from '$engine/rules/cards.ts';
 import type { Trick } from '$engine/rules/hearts.ts';
 import type { Hand, Run } from '$engine/game/run.ts';
 import * as sound from '../audio/sound.ts';
+import * as profileLib from '$engine/app/profile.ts';
 import * as save from '$engine/app/save.ts';
 import * as packs from '$engine/game/pack.ts';
 import type { Action, Outcome } from '$engine/app/save.ts';
@@ -20,6 +21,9 @@ import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from '.
 
 /** The ruleset new web runs use; the iPad's is IPAD_RULESET in
  *  engine/bridge/entry.ts. Keep them the same so both games play alike. */
+/** Where the profile (stats and history) is kept. */
+const PROFILE_KEY = 'shoot-the-moon.profile';
+
 export const WEB_RULESET: R.RulesetName = 'v4';
 import { C, hex, type Color } from '$engine/ui/theme.ts';
 
@@ -132,10 +136,36 @@ class Game {
 
 	// ------------------------------------------------------------------ saving
 
+	// ------------------------------------------------------------------ profile
+
+	/** Totals, relics found, bosses beaten and recent runs (profile.ts). */
+	profile = $state(profileLib.emptyProfile());
+	private runId = '';
+
+	loadProfile() {
+		try {
+			this.profile = profileLib.parseProfile(localStorage.getItem(PROFILE_KEY));
+		} catch {
+			/* private mode: keep an empty one */
+		}
+	}
+
+	private noteProfile() {
+		const run = this._run;
+		if (!run || !this.runId) return;
+		profileLib.noteRun(this.profile, run, this.runId);
+		try {
+			localStorage.setItem(PROFILE_KEY, JSON.stringify(this.profile));
+		} catch {
+			/* ignore */
+		}
+	}
+
 	private act(a: Action): Outcome {
 		const out = save.applyAction(this._run!, a);
 		this.actions.push(a);
 		this.persist();
+		this.noteProfile();
 		return out;
 	}
 
@@ -143,7 +173,7 @@ class Game {
 		const run = this._run;
 		if (!run) return;
 		if (run.phase === PHASE.GAME_OVER || run.phase === PHASE.VICTORY) save.clear();
-		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset } } : {}) });
+		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, id: this.runId, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset } } : {}) });
 	}
 
 	restore(): boolean {
@@ -152,6 +182,7 @@ class Game {
 		try {
 			this.startRun(save.replay(s));
 			this.actions = s.actions.slice();
+			this.runId = s.id ?? `${s.seed}`;
 			this.screen = 'menu';
 			return true;
 		} catch (err) {
@@ -178,9 +209,11 @@ class Game {
 	newRun() {
 		const seed = this.seedInput !== '' ? this.seedInput.toUpperCase() : undefined;
 		this.startRun(R.newRun(seed, { ruleset: WEB_RULESET }));
+		this.runId = `${Date.now().toString(36)}-${this._run!.seed}`;
 		this.lastPhase = null;
 		this.screen = 'run';
 		this.persist();
+		this.noteProfile();
 		this.showOverview = true;
 	}
 

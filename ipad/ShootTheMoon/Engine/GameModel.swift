@@ -97,6 +97,12 @@ final class GameModel {
     private var aiTask: Task<Void, Never>?
     private var streak = 0
     private static let saveKey = "shoot-the-moon.save"
+    private static let profileKey = "shoot-the-moon.profile"
+    private static let runIdKey = "shoot-the-moon.runId"
+
+    /// Totals, relics found, bosses beaten and recent runs (engine profile.ts).
+    private(set) var profile: ProfileV = ProfileV.load(UserDefaults.standard.string(forKey: "shoot-the-moon.profile"))
+    private var runId = UserDefaults.standard.string(forKey: "shoot-the-moon.runId") ?? ""
 
     init() throws {
         let engine = try GameEngine()
@@ -126,7 +132,13 @@ final class GameModel {
         guard let save = UserDefaults.standard.string(forKey: Self.saveKey) else { return }
         do {
             let v = try engine.restore(save)
+            // A run saved before the profile existed gets an id now.
+            if runId.isEmpty {
+                runId = v.seed
+                UserDefaults.standard.set(runId, forKey: Self.runIdKey)
+            }
             apply(v, entering: false)
+            noteProfile()
             lastPhase = v.phase
             // Reopened on the score panel: the hand was counted up before the
             // app closed, so show it finished rather than waiting on a
@@ -141,7 +153,16 @@ final class GameModel {
         }
     }
 
+    private func noteProfile() {
+        guard !runId.isEmpty else { return }
+        let old = UserDefaults.standard.string(forKey: Self.profileKey) ?? ""
+        guard let json = try? engine.noteProfile(old, id: runId) else { return }
+        UserDefaults.standard.set(json, forKey: Self.profileKey)
+        profile = ProfileV.load(json)
+    }
+
     private func persist() {
+        noteProfile()
         guard let v = view else { return }
         if v.phase == .gameOver || v.phase == .victory {
             UserDefaults.standard.removeObject(forKey: Self.saveKey)
@@ -191,6 +212,8 @@ final class GameModel {
         trickHold = nil
         let seed = seedInput.trimmingCharacters(in: .whitespaces).uppercased()
         guard let v = try? engine.newRun(seed: seed.isEmpty ? nil : seed) else { return }
+        runId = "\(Int(Date().timeIntervalSince1970 * 1000))-\(v.seed)"
+        UserDefaults.standard.set(runId, forKey: Self.runIdKey)
         view = nil
         lastPhase = nil
         apply(v, entering: true)

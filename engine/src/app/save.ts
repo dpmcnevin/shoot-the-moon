@@ -28,6 +28,8 @@ export interface Save {
 	actions: Action[];
 	/** Run options (the iPad app turns on editions); absent on web saves. */
 	opts?: R.RunOptions;
+	/** The run's id in the player's profile (its history entry). */
+	id?: string;
 }
 
 export const SAVE_VERSION = 3; // 3: the pack can change; cards are saved by id

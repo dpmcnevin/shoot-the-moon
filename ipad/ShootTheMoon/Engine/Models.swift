@@ -302,3 +302,29 @@ extension HandV {
         moonOnCourse == seat && points[seat] >= 4
     }
 }
+
+// MARK: - Profile
+
+/// The player's record across runs (engine profile.ts), for the Stats tab.
+struct ProfileV: Decodable {
+    struct Run: Decodable, Identifiable {
+        let id: String
+        let seed: String
+        let started: Double
+        let result: String
+        let table: Int
+        let board: Int
+        let bestHand: Int
+        let moons: Int
+        let relics: [String]
+    }
+    var runs = 0, wins = 0, bestTable = 0, bestHand = 0, moons = 0, cleanHands = 0, handsPlayed = 0
+    var relicsFound: [String] = []
+    var bossesBeaten: [String] = []
+    var history: [Run] = []
+
+    static func load(_ json: String?) -> ProfileV {
+        guard let json, let p = try? JSONDecoder().decode(ProfileV.self, from: Data(json.utf8)) else { return ProfileV() }
+        return p
+    }
+}

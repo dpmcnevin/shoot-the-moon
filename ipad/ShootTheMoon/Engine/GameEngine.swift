@@ -67,6 +67,9 @@ final class GameEngine {
 
     func view() throws -> GameView { try decode(try call("view")) }
 
+    /// The player's profile (stats and history), brought up to date with this run.
+    func noteProfile(_ json: String, id: String) throws -> String { try call("noteProfile", [json, id]) }
+
     /// Everything in the game, for the collection page.
     func catalog() throws -> CatalogV { try decode(try call("catalog")) }
 

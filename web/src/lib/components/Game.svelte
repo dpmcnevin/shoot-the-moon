@@ -45,6 +45,7 @@
 
 	onMount(() => {
 		settings.load();
+		game.loadProfile();
 		game.restore();
 		measure();
 		ready = true;

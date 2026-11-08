@@ -92,6 +92,11 @@ input {
 	font-family: inherit;
 }
 
+/* Focus rings for the keyboard only, not after a click or tap. */
+:focus:not(:focus-visible) {
+	outline: none;
+}
+
 /* Pixel art all the way down: square corners everywhere (circles become
    squares), crisp scaled images. */
 *,

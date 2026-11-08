@@ -478,8 +478,8 @@
 	</div>
 {/if}
 {#if (run.phase === PHASE.PLAY || passing) && (void game.v, R.canSeeDeck(run))}
-	<div class="sort" style:left="{L.sortAt.x}px" style:top="{L.sortAt.y - 38}px">
-		<Button variant="plain" size="sm" title="See the whole deck, your hand greyed (until the first trick is done)." onclick={() => (game.showDeck = true)} style="width: 166px">See the deck</Button>
+	<div class="sort" style:left="{L.sortAt.x + 178}px" style:top="{L.sortAt.y}px">
+		<Button variant="plain" size="sm" title="See the whole deck, your hand greyed (until the first trick is done)." onclick={() => (game.showDeck = true)} style="width: 62px">Deck</Button>
 	</div>
 {/if}
 

@@ -4,10 +4,10 @@ import SwiftUI
 /// upgrade, from the main menu.
 struct CollectionView: View {
     @Environment(GameModel.self) private var model
-    @State private var tab = Tab.relics
+    @State private var tab = Tab.stats
 
     enum Tab: String, CaseIterable {
-        case relics = "Relics", bosses = "Bosses", sealsPack = "Seals & Pack", editions = "Editions & Upgrades"
+        case stats = "Stats", relics = "Relics", bosses = "Bosses", sealsPack = "Seals & Pack", editions = "Editions & Upgrades"
     }
 
     var body: some View {
@@ -41,10 +41,14 @@ struct CollectionView: View {
     @ViewBuilder
     private var content: some View {
         if let c = model.catalog {
+            let p = model.profile
+            let found = Set(p.relicsFound), beaten = Set(p.bossesBeaten)
             switch tab {
+            case .stats:
+                stats(p, relics: c.relics.count, bosses: c.bosses.count, icons: Dictionary(c.relics.map { ($0.key, $0.icon) }, uniquingKeysWith: { a, _ in a }))
             case .relics:
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("\(c.relics.count) relics. The club offers ones you don't own; rarer ones turn up less often.")
+                    Text("\(c.relics.count) relics, \(found.count) found. The club offers ones you don't own; rarer ones turn up less often.")
                         .font(Theme.font(15)).foregroundStyle(Theme.inkDim)
                     ForEach(1...4, id: \.self) { rarity in
                         let list = c.relics.filter { $0.rarity == rarity }
@@ -57,6 +61,7 @@ struct CollectionView: View {
                                         VStack(alignment: .leading, spacing: 3) {
                                             HStack {
                                                 Text(r.name).font(Theme.font(17, .bold))
+                                                if found.contains(r.key) { Text("FOUND").font(Theme.font(11)).kerning(1).foregroundStyle(Theme.good) }
                                                 Spacer()
                                                 Text("$\(r.cost)").font(Theme.font(14)).foregroundStyle(Theme.brass)
                                             }
@@ -65,19 +70,21 @@ struct CollectionView: View {
                                         }
                                     }
                                 }
+                                .opacity(found.contains(r.key) ? 1 : 0.6)
                             }
                         }
                     }
                 }
             case .bosses:
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Each table's High Board has one boss, chosen when the table starts. Harsher bosses join from table 3 and table 6.")
+                    Text("Each table's High Board has one boss, chosen when the table starts. Harsher bosses join from table 3 and table 6. \(beaten.count) of \(c.bosses.count) beaten.")
                         .font(Theme.font(15)).foregroundStyle(Theme.inkDim)
                     grid(c.bosses) { b in
                         Tile(edge: Theme.bad) {
                             VStack(alignment: .leading, spacing: 3) {
                                 HStack {
                                     Text(b.name).font(Theme.font(17, .bold))
+                                    if beaten.contains(b.key) { Text("BEATEN").font(Theme.font(11)).kerning(1).foregroundStyle(Theme.good) }
                                     Spacer()
                                     Text("From table \(b.tier == 1 ? 1 : b.tier == 2 ? 3 : 6)").font(Theme.font(13)).foregroundStyle(Theme.inkDim)
                                 }
@@ -85,6 +92,7 @@ struct CollectionView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
+                        .opacity(beaten.contains(b.key) ? 1 : 0.6)
                     }
                 }
             case .sealsPack:
@@ -164,6 +172,56 @@ struct CollectionView: View {
             }
         } else {
             Text("The collection couldn't be loaded.").font(Theme.font(16)).foregroundStyle(Theme.inkDim)
+        }
+    }
+
+    private func stats(_ p: ProfileV, relics: Int, bosses: Int, icons: [String: String]) -> some View {
+        let totals: [(String, String)] = [
+            ("Runs", num(p.runs)),
+            ("Won", "\(num(p.wins))\(p.runs > 0 ? " (\(Int((100 * Double(p.wins) / Double(p.runs)).rounded()))%)" : "")"),
+            ("Furthest table", p.bestTable > 0 ? "\(p.bestTable) of 8" : "-"),
+            ("Best hand", num(p.bestHand)),
+            ("Moons shot", num(p.moons)),
+            ("Clean hands", num(p.cleanHands)),
+            ("Hands played", num(p.handsPlayed)),
+            ("Relics found", "\(p.relicsFound.count) of \(relics)"),
+            ("Bosses beaten", "\(p.bossesBeaten.count) of \(bosses)"),
+        ]
+        let result = ["won": "Won", "lost": "Lost", "abandoned": "Left", "playing": "In play"]
+        let df = DateFormatter()
+        df.setLocalizedDateFormatFromTemplate("MMMd")
+        return VStack(alignment: .leading, spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                ForEach(totals, id: \.0) { t in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t.0).font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                        Text(t.1).font(Theme.font(26, .bold)).foregroundStyle(Theme.brass).inkShadow()
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(PixelRect(radius: 4).fill(Theme.panel))
+                    .overlay(PixelRect(radius: 4).stroke(Theme.panelEdge, lineWidth: 2))
+                }
+            }
+            Text("Recent runs").font(Theme.font(20, .bold)).foregroundStyle(Theme.brass).padding(.top, 6)
+            if p.history.isEmpty {
+                Text("No runs yet.").font(Theme.font(15)).foregroundStyle(Theme.inkDim)
+            }
+            ForEach(p.history) { r in
+                HStack(spacing: 10) {
+                    Text(df.string(from: Date(timeIntervalSince1970: r.started / 1000))).foregroundStyle(Theme.inkDim).frame(width: 70, alignment: .leading)
+                    Text(result[r.result] ?? r.result).foregroundStyle(r.result == "won" ? Theme.good : r.result == "lost" ? Theme.bad : Theme.ink).frame(width: 70, alignment: .leading)
+                    Text(r.result == "won" ? "All 8 tables" : "Table \(r.table), \(r.board == 3 ? "High Board" : "Board \(r.board)")").frame(width: 190, alignment: .leading)
+                    Text(num(r.bestHand)).frame(width: 90, alignment: .leading)
+                    Text("\(r.moons) moon\(r.moons == 1 ? "" : "s")").frame(width: 80, alignment: .leading)
+                    HStack(spacing: 2) { ForEach(r.relics.prefix(6), id: \.self) { k in if let i = icons[k] { Icon(key: i, scale: 1) } } }
+                    Spacer()
+                    Text(r.seed).foregroundStyle(Theme.inkDim)
+                }
+                .font(Theme.font(15))
+                .padding(.vertical, 4)
+                Divider().overlay(Theme.panelEdge)
+            }
         }
     }
 

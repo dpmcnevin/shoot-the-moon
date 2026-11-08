@@ -15,6 +15,7 @@ import * as relics from '../src/game/relics.ts';
 import * as bosses from '../src/game/bosses.ts';
 import * as seals from '../src/game/seals.ts';
 import * as cardEds from '../src/game/cardEditions.ts';
+import * as profileLib from '../src/app/profile.ts';
 import * as packs from '../src/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/app/save.ts';
 import { faceBitmap, backBitmap } from '../src/ui/pixelcards.ts';
@@ -236,6 +237,12 @@ const api = {
 	act,
 	view: () => JSON.stringify(view()),
 	/** Everything in the game, for the collection page. */
+	/** Bring the player's profile (stored JSON) up to date with this run. */
+	noteProfile(json: string, id: string): string {
+		const p = profileLib.parseProfile(json);
+		if (run) profileLib.noteRun(p, run, id);
+		return JSON.stringify(p);
+	},
 	catalog: () =>
 		JSON.stringify({
 			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: relics.textAt(d, CATALOG_BALANCE), rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: relics.costAt(d, CATALOG_BALANCE), icon: d.icon })),

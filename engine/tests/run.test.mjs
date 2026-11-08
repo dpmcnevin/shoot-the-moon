@@ -877,6 +877,41 @@ test('the deck can be seen until the first trick is done, or all hand with the G
 	assert.equal(R.canSeeDeck(run), true, 'with the Glass Deck');
 });
 
+// ------------------------------------------------------------------ profile
+
+import * as profile from '../src/app/profile.ts';
+
+test('the profile records runs, relics found and bosses beaten, idempotently', () => {
+	const p = profile.emptyProfile();
+	const run = R.newRun('PROF', { ruleset: 'v4' });
+	profile.noteRun(p, run, 'a', 1);
+	profile.noteRun(p, run, 'a', 2);
+	assert.equal(p.runs, 1);
+	assert.equal(p.history[0].result, 'playing');
+	run.relics.push(relics.instantiate(relics.get('tip_jar')));
+	run.stats.moons = 2;
+	profile.noteRun(p, run, 'a', 3);
+	profile.noteRun(p, run, 'a', 4);
+	assert.deepEqual(p.relicsFound, ['tip_jar']);
+	assert.equal(p.moons, 2, 'counted once');
+	// A boss beaten, and the run won.
+	run.board = R.BOARDS_PER_TABLE;
+	run.boss = 'taxman';
+	run.phase = R.PHASE.VICTORY;
+	profile.noteRun(p, run, 'a', 5);
+	profile.noteRun(p, run, 'a', 6);
+	assert.deepEqual(p.bossesBeaten, ['taxman']);
+	assert.equal(p.wins, 1);
+	assert.equal(p.history[0].result, 'won');
+	// A new run leaves an unfinished one marked abandoned; the JSON round-trips.
+	const again = profile.parseProfile(JSON.stringify(p));
+	profile.noteRun(again, R.newRun('P2', { ruleset: 'v4' }), 'b', 7);
+	profile.noteRun(again, R.newRun('P3', { ruleset: 'v4' }), 'c', 8);
+	assert.equal(again.runs, 3);
+	assert.equal(again.history.find((e) => e.id === 'b').result, 'abandoned');
+	assert.equal(profile.parseProfile('nonsense').runs, 0);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {
