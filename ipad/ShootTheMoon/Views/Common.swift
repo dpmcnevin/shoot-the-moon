@@ -301,6 +301,13 @@ struct InfoCardView: View {
                         Text(note).font(Theme.font(14)).foregroundStyle(Theme.inkDim)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    if let slot = info.ploySlot, let p = model.view?.ploys?.first(where: { $0.slot == slot }) {
+                        GameButton("Use \(p.name)", size: .small, enabled: p.canUse, sound: nil) {
+                            model.inspect = nil
+                            model.usePloy(slot)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
                 .padding(14)
                 .frame(width: 300, alignment: .leading)

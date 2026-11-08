@@ -113,6 +113,7 @@ struct RootView: View {
                 if let info = model.inspect { InfoCardView(info: info).zIndex(290).transition(.opacity) }
                 if model.pickerSlot != nil { CardPickerView().frame(width: L.W, height: L.H).zIndex(300) }
                 if model.showDeck && v.canSeeDeck != false { DeckView().frame(width: L.W, height: L.H).zIndex(300) }
+                if v.opening != nil { BundleView().frame(width: L.W, height: L.H).zIndex(305) }
                 if model.showOverview && v.phase != .gameOver && v.phase != .victory {
                     TableOverview().frame(width: L.W, height: L.H).zIndex(280)
                         .transition(.opacity)

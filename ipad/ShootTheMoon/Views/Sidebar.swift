@@ -119,6 +119,37 @@ struct Sidebar: View {
                 }
             }
 
+            if v.ploysOn == true {
+                VStack(alignment: .leading, spacing: 4) {
+                    let held = v.ploys ?? [], slots = v.ploySlots ?? 2
+                    Text("Ploys \(held.count)/\(slots)").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                    HStack(spacing: 6) {
+                        ForEach(0..<slots, id: \.self) { i in
+                            if i < held.count {
+                                let p = held[i]
+                                HStack(spacing: 5) {
+                                    Icon(key: p.icon)
+                                    Text(p.name).font(Theme.font(13)).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.horizontal, 6).frame(height: 26).frame(maxWidth: .infinity)
+                                .background(PixelRect(radius: 2).fill(p.canUse ? Theme.ploy.opacity(0.35) : Theme.panel))
+                                .overlay(PixelRect(radius: 2).stroke(Theme.ploy, lineWidth: 2))
+                                .contentShape(Rectangle())
+                                .onTapGesture(coordinateSpace: .named("stage")) { pt in
+                                    model.inspect = InfoCard(kind: "Ploy", title: p.name, text: p.text,
+                                                             note: p.canUse ? nil : "Can't use it \(p.why == "not now" ? "now" : ": \(p.why ?? "")")",
+                                                             color: Theme.ploy, y: pt.y, ploySlot: p.slot)
+                                }
+                            } else {
+                                PixelRect(radius: 2).stroke(Theme.panelEdge, style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+                                    .frame(height: 26).frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("Relics \(v.relicSlotsUsed)/\(v.relicSlots)").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
                 ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in

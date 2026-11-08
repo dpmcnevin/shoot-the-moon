@@ -541,6 +541,22 @@ final class GameModel {
         audio.play("card_play", volume: 0.5, jitter: 0.1)
     }
 
+    /// Use the ploy in this slot.
+    func usePloy(_ slot: Int) {
+        guard let p = view?.ploys?.first(where: { $0.slot == slot }) else { return }
+        guard p.canUse else { showToast("Can't: \(p.why ?? "not now")", Theme.bad); return }
+        if act(.ploy(slot))?.ok == true {
+            audio.play(p.key == "windfall" ? "coin" : "select", pitch: 1.1)
+            showToast("\(p.name)!", Theme.ploy)
+        }
+    }
+
+    /// Take a choice from the open bundle (-1: none).
+    func pickBundle(_ index: Int) {
+        if let r = act(.pick(index)), r.ok { audio.play(index < 0 ? "select" : "coin") }
+        else { showToast("Can't: no room for it", Theme.bad) }
+    }
+
     func move(_ id: Int, toIndex index: Int) {
         var ids = orderedHand().map(\.id)
         guard let from = ids.firstIndex(of: id) else { return }

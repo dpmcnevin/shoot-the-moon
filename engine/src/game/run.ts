@@ -15,6 +15,10 @@ import * as rngLib from '../rules/rng.ts';
 import * as relics from './relics.ts';
 import * as seals from './seals.ts';
 import * as cardEds from './cardEditions.ts';
+import * as ploys from './ploys.ts';
+import type { PloyDef, PloyKey } from './ploys.ts';
+import * as bundles from './bundles.ts';
+import type { BundleDef, BundleKey } from './bundles.ts';
 import type { CardEditionDef, CardEditionMap } from './cardEditions.ts';
 import * as packs from './pack.ts';
 import * as bosses from './bosses.ts';
@@ -103,6 +107,10 @@ export interface Hand {
 	receivedFrom: Map<Card, number>;
 	/** Leftover cards when the pack doesn't split evenly; won with the first trick. */
 	kitty: Card[];
+	/** Ploys in play this hand: Spyglass (the trick it shows), Umbrella, Fall Guy (from which trick). */
+	spyTrick?: number;
+	umbrella?: boolean;
+	fallGuyFrom?: number;
 }
 
 export interface Stats {
@@ -163,7 +171,15 @@ export type ShopItem =
 	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'pack'; def: PackOpDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'edition'; def: CardEditionDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'edition'; def: CardEditionDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'ploy'; def: PloyDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'bundle'; def: BundleDef; name: string; cost: number; sold?: boolean };
+
+/** One of a bundle's three choices. */
+export type BundleChoice =
+	| { kind: 'relic'; def: RelicDef; edition?: EditionKey }
+	| { kind: 'ploy'; def: PloyDef }
+	| { kind: 'edition'; cardId: number; edition: cardEds.CardEditionKey };
 
 export interface Payout {
 	board: number;
@@ -202,6 +218,14 @@ export interface Run {
 	packEditions: boolean;
 	/** The club offers the v4 relics too (off by default). */
 	v4Relics: boolean;
+	/** Ploys and bundles in the club (ruleset v5). */
+	ploysOn: boolean;
+	/** The ploys you hold (at most ploys.PLOY_SLOTS). */
+	ploys: PloyKey[];
+	/** Spotlight: your next hand scores x2 mult. */
+	spotlight: boolean;
+	/** A bundle being opened in the club: its choices. */
+	opening: { bundle: BundleKey; options: BundleChoice[] } | null;
 	/** The run's pack: every hand is dealt from it. */
 	pack: Card[];
 	nextCardId: number;
@@ -253,6 +277,8 @@ export interface RunOptions {
 	packEditions?: boolean;
 	/** The club offers the relics added with ruleset v4 (off by default). */
 	v4Relics?: boolean;
+	/** Ploys and bundles in the club (off by default). */
+	ploys?: boolean;
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
@@ -291,7 +317,7 @@ export function relicSlots(run: Run): number {
  * offers (the iPad app). A save records its ruleset, so changing what a
  * future ruleset means never changes a run in progress: add `v3` instead.
  */
-export type RulesetName = 'classic' | 'v2' | 'v3' | 'v4';
+export type RulesetName = 'classic' | 'v2' | 'v3' | 'v4' | 'v5';
 export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' | 'aiSkill'>> = {
 	classic: {},
 	v2: {
@@ -319,6 +345,20 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		editions: true,
 		packEditions: true,
 		v4Relics: true,
+		noRepeats: true,
+		tableBase: V3_TABLE_BASE,
+		bosses: true,
+		moreRelics: true,
+		moonAI: true,
+		aiCurve: true,
+		balance: 4
+	},
+	/** v4 plus ploys and bundles in the club (and more to come). */
+	v5: {
+		editions: true,
+		packEditions: true,
+		v4Relics: true,
+		ploys: true,
 		noRepeats: true,
 		tableBase: V3_TABLE_BASE,
 		bosses: true,
@@ -394,6 +434,10 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		cardEditions: {},
 		packEditions: opts.packEditions ?? false,
 		v4Relics: opts.v4Relics ?? false,
+		ploysOn: opts.ploys ?? false,
+		ploys: [],
+		spotlight: false,
+		opening: null,
 		pack: packs.standardPack(),
 		nextCardId: 53,
 		score: 0,
@@ -593,8 +637,10 @@ function scoreContext(run: Run): ScoreCtx {
 	const myTricks = st.tricks.filter((t) => t.winner === H.PLAYER);
 	const afterPass = [...st.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card)];
 	const voids = [1, 2, 3, 4].filter((s) => !afterPass.some((c) => c.suit === s)).length;
+	// Umbrella: the queen counts nothing for you this hand.
+	const umbrellaOff = hand.umbrella && mine.some(H.isQueenOfSpades) ? st.pts(mine.find(H.isQueenOfSpades)!) : 0;
 	return {
-		myPoints: pts[H.PLAYER],
+		myPoints: pts[H.PLAYER] - umbrellaOff,
 		heartsTaken,
 		tookQueen: mine.some(H.isQueenOfSpades),
 		shooter,
@@ -740,6 +786,10 @@ export function scoreHand(run: Run): Breakdown {
 		mult *= moonX;
 		lines.push({ label: 'The moon', xmult: moonX });
 	}
+	if (run.spotlight) {
+		mult *= 2;
+		lines.push({ label: 'Spotlight', xmult: 2 });
+	}
 	// The Shark (v3): a hand where you take more points than North loses a quarter.
 	if (bossIs(run, 'shark') && run.balance >= 3 && ctx.shooter === null && ctx.myPoints > H.pointsTaken(st)[bosses.SHARK_SEAT]) {
 		mult *= 0.75;
@@ -762,6 +812,20 @@ export function scoreHand(run: Run): Breakdown {
 	};
 }
 
+/** Fall Guy: the first trick you won from the trick it was played on goes,
+ *  cards and points, to the player on your left (West). */
+function applyFallGuy(run: Run) {
+	const st = run.hand.state!;
+	const from = run.hand.fallGuyFrom;
+	if (from === undefined) return;
+	const t = st.tricks.slice(from).find((x) => x.winner === H.PLAYER);
+	if (!t) return;
+	const moved = new Set([...t.plays.map((p) => p.card), ...t.kitty]);
+	const left = H.WEST;
+	st.taken[H.PLAYER] = st.taken[H.PLAYER].filter((c) => !moved.has(c));
+	st.taken[left] = [...st.taken[left], ...moved];
+}
+
 /** The Fixer: each hand, the first heart you took goes to whoever has the
  *  most points (never when you're shooting the moon). */
 function applyFixer(run: Run) {
@@ -781,9 +845,11 @@ function applyFixer(run: Run) {
 export function finishHand(run: Run): Breakdown {
 	const hand = run.hand;
 	if (hand.result) return hand.result;
+	applyFallGuy(run);
 	applyFixer(run);
 	const ctx = scoreContext(run);
 	const b = scoreHand(run);
+	run.spotlight = false;
 	hand.result = b;
 	run.score += b.total;
 	run.money += b.money;
@@ -896,11 +962,23 @@ function rollOffer(run: Run): ShopItem {
 	// v4: card editions take 12% of offers, from the upgrades' share and the
 	// relics' (measured: all from upgrades costs the bot a quarter of its
 	// wins; all from relics adds a third).
-	if (run.packEditions && roll >= 0.42 && roll < 0.54) {
+	// v5: ploys (8%) and bundles (8%), from the upgrades', editions' and relics' shares.
+	const v5 = run.ploysOn;
+	const edLo = v5 ? 0.38 : 0.42,
+		edHi = v5 ? 0.48 : 0.54;
+	if (v5 && roll >= 0.48 && roll < 0.56) {
+		const def = ploys.rollPloy(run.rng);
+		return { kind: 'ploy', def, name: def.name, cost: def.cost };
+	}
+	if (v5 && roll >= 0.56 && roll < 0.64) {
+		const def = bundles.rollBundle(run.rng);
+		return { kind: 'bundle', def, name: def.name, cost: def.cost };
+	}
+	if (run.packEditions && roll >= edLo && roll < edHi) {
 		const def = cardEds.rollCardEdition(run.rng);
 		return { kind: 'edition', def, name: `${def.name} card`, cost: def.cost };
 	}
-	if (roll < (run.packEditions ? 0.42 : 0.5)) {
+	if (roll < (run.packEditions ? edLo : 0.5)) {
 		const r = run.rng.next();
 		const key: UpgradeKey = r < 0.6 ? 'dodge' : r < 0.85 ? 'clean' : 'moon';
 		const def = UPGRADES[key];
@@ -924,6 +1002,8 @@ export function canBuy(run: Run, i: number): [boolean, string?] {
 	if (!item || item.sold) return [false, 'gone'];
 	if (run.money < item.cost) return [false, 'too expensive'];
 	if (item.kind === 'relic' && item.edition !== 'phantom' && !item.def.extraSlot && relicSlotsUsed(run) >= relicSlots(run)) return [false, 'no relic slots'];
+	if (item.kind === 'ploy' && run.ploys.length >= ploys.PLOY_SLOTS) return [false, 'no ploy slots'];
+	if (run.opening) return [false, 'open the bundle first'];
 	return [true];
 }
 
@@ -944,8 +1024,93 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
 	else if (item.kind === 'seal') run.seals[String(cardId)] = item.def.key;
 	else if (item.kind === 'edition') run.cardEditions[String(cardId)] = item.def.key;
+	else if (item.kind === 'ploy') run.ploys.push(item.def.key);
+	else if (item.kind === 'bundle') run.opening = { bundle: item.def.key, options: bundleOptions(run, item.def.key) };
 	else packs.apply(run, item.def, cardId!);
 	item.sold = true;
+	return [true];
+}
+
+// ------------------------------------------------------------------ bundles and ploys
+
+/** A bundle's three choices, all different. */
+function bundleOptions(run: Run, key: BundleKey): BundleChoice[] {
+	const out: BundleChoice[] = [];
+	if (key === 'relic') {
+		const owned: { key: string }[] = [...run.relics, ...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))];
+		for (let i = 0; i < bundles.BUNDLE_SIZE; i++) {
+			const def = relics.randomUnowned(run.rng, owned, run.moreRelics, run.v4Relics);
+			if (!def) break;
+			owned.push({ key: def.key });
+			out.push({ kind: 'relic', def, edition: run.editions ? relics.rollEdition(run.rng) : undefined });
+		}
+	} else if (key === 'ploy') {
+		const seen = new Set<string>();
+		for (let tries = 0; out.length < bundles.BUNDLE_SIZE && tries < 30; tries++) {
+			const def = ploys.rollPloy(run.rng);
+			if (seen.has(def.key)) continue;
+			seen.add(def.key);
+			out.push({ kind: 'ploy', def });
+		}
+	} else {
+		const free = run.pack.filter((c) => !run.cardEditions[String(c.id)]);
+		for (let i = 0; i < bundles.BUNDLE_SIZE && free.length; i++) {
+			const card = free.splice(run.rng.int(1, free.length) - 1, 1)[0];
+			out.push({ kind: 'edition', cardId: card.id!, edition: cardEds.rollCardEdition(run.rng).key });
+		}
+	}
+	return out;
+}
+
+/** Take one of the open bundle's choices (or none, with -1). */
+export function pickFromBundle(run: Run, i: number): [boolean, string?] {
+	const open = run.opening;
+	if (!open) return [false, 'no bundle open'];
+	if (i < 0) {
+		run.opening = null;
+		return [true];
+	}
+	const c = open.options[i];
+	if (!c) return [false, 'no such choice'];
+	if (c.kind === 'relic') {
+		if (c.edition !== 'phantom' && !c.def.extraSlot && relicSlotsUsed(run) >= relicSlots(run)) return [false, 'no relic slots'];
+		run.relics.push(relics.instantiate(c.def, c.edition, run.balance));
+	} else if (c.kind === 'ploy') {
+		if (run.ploys.length >= ploys.PLOY_SLOTS) return [false, 'no ploy slots'];
+		run.ploys.push(c.def.key);
+	} else run.cardEditions[String(c.cardId)] = c.edition;
+	run.opening = null;
+	return [true];
+}
+
+/** Can the ploy in this slot be used now? */
+export function canUsePloy(run: Run, slot: number): [boolean, string?] {
+	const key = run.ploys[slot];
+	if (!key) return [false, 'no ploy there'];
+	const def = ploys.PLOYS[key];
+	const when = run.phase === PHASE.PASS ? 'pass' : run.phase === PHASE.PLAY ? 'play' : run.phase === PHASE.HAND_SCORED ? 'hand_scored' : run.phase === PHASE.SHOP ? 'shop' : null;
+	if (!when || !def.when.includes(when)) return [false, 'not now'];
+	if (when === 'play' && (!run.hand.state || run.hand.state.complete)) return [false, 'not now'];
+	if (when === 'hand_scored' && key === 'encore' && run.score >= run.target) return [false, 'the board is won'];
+	if (key === 'spotlight' && run.spotlight) return [false, 'already in the spotlight'];
+	if (key === 'umbrella' && run.hand.umbrella) return [false, 'already open'];
+	if (key === 'fall_guy' && run.hand.fallGuyFrom !== undefined) return [false, 'already set up'];
+	return [true];
+}
+
+/** Use the ploy in this slot. */
+export function usePloy(run: Run, slot: number): [boolean, string?] {
+	const ok = canUsePloy(run, slot);
+	if (!ok[0]) return ok;
+	const key = run.ploys[slot];
+	const st = run.hand.state;
+	if (key === 'spyglass') run.hand.spyTrick = st!.tricks.length;
+	else if (key === 'umbrella') run.hand.umbrella = true;
+	else if (key === 'fall_guy') run.hand.fallGuyFrom = st!.tricks.length;
+	else if (key === 'encore') run.handsLeft++;
+	else if (key === 'spotlight') run.spotlight = true;
+	else run.money += 5;
+	run.ploys.splice(slot, 1);
 	return [true];
 }
 
@@ -958,7 +1123,7 @@ export function sellRelic(run: Run, i: number): boolean {
 }
 
 export function reroll(run: Run): boolean {
-	if (run.money < run.rerollCost) return false;
+	if (run.money < run.rerollCost || run.opening) return false;
 	run.money -= run.rerollCost;
 	run.rerollCost = run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL_COST - 1, run.rerollCost + 1) : run.rerollCost + 1;
 	run.shop!.items = [];
@@ -967,6 +1132,7 @@ export function reroll(run: Run): boolean {
 }
 
 export function leaveShop(run: Run): Phase {
+	run.opening = null;
 	run.board++;
 	if (run.board > BOARDS_PER_TABLE) {
 		run.board = 1;

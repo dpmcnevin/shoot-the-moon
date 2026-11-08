@@ -2,6 +2,60 @@
 // 16x16, drawn in the same palette and style as icons.ts.
 
 export const EXPANSION_ICONS: Record<string, string[]> = {
+	bundle_relic: [
+		'................', '.....kk..kk.....', '....kGGkkGGk....', '.....kGGGGk.....',
+		'..kkkkkkkkkkkk..', '..knnnnGGnnnnk..', '..knnnnGGnnnnk..', '..kkkkkkkkkkkk..',
+		'..kNNNNGGNNNNk..', '..kNWNNGGNNNNk..', '..kNNNNGGNNNNk..', '..kNNNNGGNNNNk..',
+		'..kkkkkkkkkkkk..', '................', '................', '................',
+	],
+	bundle_ploy: [
+		'................', '.....kk..kk.....', '....kGGkkGGk....', '.....kGGGGk.....',
+		'..kkkkkkkkkkkk..', '..kppppGGppppk..', '..kppppGGppppk..', '..kkkkkkkkkkkk..',
+		'..kPPPPGGPPPPk..', '..kPWPPGGPPPPk..', '..kPPPPGGPPPPk..', '..kPPPPGGPPPPk..',
+		'..kkkkkkkkkkkk..', '................', '................', '................',
+	],
+	bundle_edition: [
+		'................', '.....kk..kk.....', '....kGGkkGGk....', '.....kGGGGk.....',
+		'..kkkkkkkkkkkk..', '..krrrrGGrrrrk..', '..krrrrGGrrrrk..', '..kkkkkkkkkkkk..',
+		'..kllllGGllllk..', '..klWllGGllllk..', '..kllllGGllllk..', '..kllllGGllllk..',
+		'..kkkkkkkkkkkk..', '................', '................', '................',
+	],
+	ploy_spyglass: [
+		'................', '...........kkk..', '..........kSWSk.', '.........kSWSSk.',
+		'........kSSSSk..', '.......kGgkkk...', '......kGgk......', '.....kdDdk......',
+		'....kdDdk.......', '...kdDdk........', '..kdDdk.........', '..kddk..........',
+		'...kk...........', '................', '................', '................',
+	],
+	ploy_umbrella: [
+		'................', '.......kk.......', '.....kkrrkk.....', '....krlrrrRk....',
+		'...krlrrrrrRk...', '..krrrrrrrrrRk..', '..kkkkkkkkkkkk..', '.......kk.......',
+		'.......kk.......', '.......kk.......', '.......kk.......', '....kk.kk.......',
+		'....kkkk........', '.....kk.........', '................', '................',
+	],
+	ploy_fall_guy: [
+		'................', '....kkkkk.......', '...kWWWWWk......', '...kWkWkWk......',
+		'...kWWWWWk......', '....kkkkk.......', '.......kk.......', '......kbbk......',
+		'...kkkkbBbk.....', '...kbbbbbBbk....', '...kbbbbbBbbk...', '...kkkkbBbk.....',
+		'......kbbk......', '.......kk.......', '................', '................',
+	],
+	ploy_encore: [
+		'................', '................', '......kkk.......', '......kNk.......',
+		'......kNk.......', '...kkkkNkkkk....', '...kNNNNNNNk....', '...kkkkNkkkk....',
+		'......kNk.......', '......kNk.......', '......kkk.......', '................',
+		'................', '................', '................', '................',
+	],
+	ploy_spotlight: [
+		'................', '.......kk.......', '......kYYk......', '......kYYk......',
+		'.kkkkkYyyYkkkkk.', '.kYYYYyyyyYYYYk.', '..kYyyyyyyyyYk..', '...kyyyyyyyyk...',
+		'...kyyygyyyyk...', '..kyyyykkyyyyk..', '..kyyykk.kkyyk..', '.kyykk....kkyyk.',
+		'.kkk........kkk.', '................', '................', '................',
+	],
+	ploy_windfall: [
+		'................', '.....kkkkkk.....', '....kGGGGGGk....', '...kGYYggGGgk...',
+		'...kGYgkkgGgk...', '...kGgkGGGGgk...', '...kGgkkkgGgk...', '...kGgGGGkGgk...',
+		'...kGgkkkgGgk...', '...kGGGkgGggk...', '....kgggggghk...', '.....kkkkkk.....',
+		'................', '................', '................', '................',
+	],
 	ace_of_spades: [
 		'..kkkkkkkkkkkk..', '..kWWWWWWWWWWkt.', '..kWkWWWWWWWWkt.', '..kWWWWkkWWWWkt.',
 		'..kWWWkkkkWWWkt.', '..kWWkkkkkkWWkt.', '..kWkkkkkkkkWkt.', '..kWkkkkkkkkWkt.',

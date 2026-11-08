@@ -15,6 +15,7 @@
 	import SealBadge from './SealBadge.svelte';
 	import * as seals from '$engine/game/seals.ts';
 	import * as cardEds from '$engine/game/cardEditions.ts';
+	import * as ploysLib from '$engine/game/ploys.ts';
 	import * as cards from '$engine/rules/cards.ts';
 	import * as bosses from '$engine/game/bosses.ts';
 	import Shine from './Shine.svelte';
@@ -22,7 +23,7 @@
 	import { editionColor } from './editions.ts';
 
 	/** Open the info card for something in the sidebar, beside where it was clicked. */
-	function inspect(e: MouseEvent, info: { kind: string; title: string; text: string; note?: string; color: string }) {
+	function inspect(e: MouseEvent, info: { kind: string; title: string; text: string; note?: string; color: string; action?: { label: string; enabled: boolean; run: () => void } }) {
 		const stage = (e.currentTarget as HTMLElement).closest('.stage') as HTMLElement;
 		const r = stage.getBoundingClientRect();
 		const k = stage.offsetWidth / r.width;
@@ -191,6 +192,30 @@
 						>
 							<SealBadge seal={key} size={14} /><span style:color={cards.SUITS[c.suit].red ? 'var(--bad)' : 'var(--ink)'}>{cards.name(c)}</span>
 						</button>
+					{/if}
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if run.ploysOn}
+		<section class="ploys">
+			<div class="label">Ploys {run.ploys.length}/{ploysLib.PLOY_SLOTS}</div>
+			<div class="ploy-row">
+				{#each { length: ploysLib.PLOY_SLOTS }, i (i)}
+					{@const key = run.ploys[i]}
+					{#if key}
+						{@const d = ploysLib.PLOYS[key]}
+						{@const can = (void game.v, R.canUsePloy(run, i))}
+						<button
+							class="ploy"
+							class:ready={can[0]}
+							onclick={(e) => inspect(e, { kind: 'Ploy', title: d.name, text: d.text, note: can[0] ? undefined : `Can't use it ${can[1] === 'not now' ? 'now' : `: ${can[1]}`}`, color: 'var(--ploy)', action: { label: `Use ${d.name}`, enabled: can[0], run: () => game.usePloy(i) } })}
+						>
+							<Icon name={d.icon} scale={1} /><span>{d.name}</span>
+						</button>
+					{:else}
+						<div class="ploy empty"></div>
 					{/if}
 				{/each}
 			</div>
@@ -451,6 +476,36 @@
 		margin-top: 4px;
 		font-size: 14px;
 		font-weight: 700;
+	}
+	.ploy-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 6px;
+		margin-top: 4px;
+	}
+	.ploy {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		height: 24px;
+		padding: 0 6px;
+		background: var(--panel);
+		border: 2px solid var(--ploy);
+		clip-path: var(--px-clip);
+		font: inherit;
+		font-size: 13px;
+		color: var(--ink);
+		cursor: pointer;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+	.ploy.ready {
+		background: rgba(122, 79, 193, 0.35);
+	}
+	.ploy.empty {
+		border-style: dashed;
+		border-color: var(--panel-edge);
+		cursor: default;
 	}
 	.ed-dot {
 		width: 10px;

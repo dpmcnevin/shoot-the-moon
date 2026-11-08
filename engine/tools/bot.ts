@@ -36,6 +36,28 @@ function editionTarget(run: Run): number | undefined {
 	return free.filter((c) => c.suit === 1).sort((a, b) => a.rank - b.rank)[0]?.id;
 }
 
+/** Pick from an open bundle: the most valuable relic, the most useful ploy, the best edition. */
+function pickBundle(run: Run) {
+	const opts = run.opening!.options;
+	const rank = (c: run_.BundleChoice): number =>
+		c.kind === 'relic'
+			? value(c.def) + (c.edition ? EDITION_VALUE[c.edition] : 0)
+			: c.kind === 'ploy'
+				? ({ encore: 3, spotlight: 2, umbrella: 1 } as Record<string, number>)[c.def.key] ?? 0
+				: ({ prismatic: 3, lacquered: 2, etched: 1 } as Record<string, number>)[c.edition] ?? 0;
+	const order = opts.map((c, i) => [rank(c), i] as const).sort((a, b) => b[0] - a[0]);
+	for (const [, i] of order) if (run_.pickFromBundle(run, i)[0]) return;
+	run_.pickFromBundle(run, -1);
+}
+
+/** Use a held ploy when it's plainly right. */
+function usePloys(run: Run) {
+	const at = (k: string) => run.ploys.indexOf(k as never);
+	if (run.phase === run_.PHASE.HAND_SCORED && run.score < run.target && run.handsLeft <= 0 && at('encore') >= 0) run_.usePloy(run, at('encore'));
+	if (run.phase === run_.PHASE.PASS && run.handsLeft === 1 && at('spotlight') >= 0) run_.usePloy(run, at('spotlight'));
+	if (run.phase === run_.PHASE.PLAY && at('umbrella') >= 0 && run.hand.state!.hands[H.PLAYER].some(H.isQueenOfSpades)) run_.usePloy(run, at('umbrella'));
+}
+
 export function shop(run: Run) {
 	run_.enterShop(run);
 	for (let k = 0; k < 6; k++) {
@@ -67,6 +89,23 @@ export function shop(run: Run) {
 			}
 			if (item.kind === 'upgrade') {
 				const score = item.def.key === 'dodge' ? 30 : item.def.key === 'clean' ? 14 : 6;
+				if (score > bestScore) {
+					best = i;
+					bestScore = score;
+				}
+				return;
+			}
+			if (item.kind === 'ploy') {
+				// Ploys the bot knows how to use (see playUntil).
+				const score = item.def.key === 'encore' ? 22 : item.def.key === 'spotlight' ? 14 : item.def.key === 'umbrella' ? 8 : -1;
+				if (score > bestScore) {
+					best = i;
+					bestScore = score;
+				}
+				return;
+			}
+			if (item.kind === 'bundle') {
+				const score = item.def.key === 'relic' ? (run_.relicSlotsUsed(run) < run_.relicSlots(run) ? 24 : -1) : item.def.key === 'edition' ? 9 : run.ploys.length < 2 ? 10 : -1;
 				if (score > bestScore) {
 					best = i;
 					bestScore = score;
@@ -114,6 +153,7 @@ export function shop(run: Run) {
 						? editionTarget(run)
 						: undefined;
 		if (!run_.buy(run, best, card)[0]) break;
+		if (run.opening) pickBundle(run);
 	}
 	if (run.money >= 20 && run_.reroll(run)) {
 		run.shop!.items.forEach((_, i) => {
@@ -150,6 +190,7 @@ export function playRunFrom(run: Run): Run {
 export function playUntil(run: Run, stop: (run: Run) => boolean): Run {
 	for (let k = 0; k < 5000; k++) {
 		if (stop(run)) return run;
+		if (run.ploys.length) usePloys(run);
 		if (run.phase === run_.PHASE.PASS) {
 			// Under the Blindfold the pass is chosen unseen: any three cards.
 			const blind = run_.bossActive(run) && run.boss === 'blindfold';

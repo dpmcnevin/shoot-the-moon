@@ -16,6 +16,8 @@ import * as bosses from '../src/game/bosses.ts';
 import * as seals from '../src/game/seals.ts';
 import * as cardEds from '../src/game/cardEditions.ts';
 import * as profileLib from '../src/app/profile.ts';
+import * as ploysLib from '../src/game/ploys.ts';
+import * as bundlesLib from '../src/game/bundles.ts';
 import * as packs from '../src/game/pack.ts';
 import { applyAction, replay, SAVE_VERSION, type Action, type Save } from '../src/app/save.ts';
 import { faceBitmap, backBitmap } from '../src/ui/pixelcards.ts';
@@ -33,7 +35,7 @@ let opts: R.RunOptions | undefined;
 
 /** The ruleset new iPad runs use. The web game names its own; to share
  *  rules, both name the same one. */
-const IPAD_RULESET: R.RulesetName = 'v4';
+const IPAD_RULESET: R.RulesetName = 'v5';
 /** The collection page shows the rules new runs use. */
 const CATALOG_BALANCE = R.RULESETS[IPAD_RULESET].balance ?? 1;
 
@@ -139,6 +141,40 @@ function view() {
 			return { board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: Math.round(R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase) * (boss && r.boss === 'shortchanger' && r.balance >= 3 ? 0.8 : 1)), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
 		}),
 		money: r.money,
+		/** Ploys (ruleset v5): held, usable now or not; the hand's ploy effects. */
+		ploysOn: r.ploysOn,
+		ploys: r.ploys.map((k, i) => {
+			const d = ploysLib.PLOYS[k];
+			const [can, why] = R.canUsePloy(r, i);
+			return { slot: i, key: k, name: d.name, text: d.text, icon: d.icon, canUse: can, why: why ?? null };
+		}),
+		ploySlots: ploysLib.PLOY_SLOTS,
+		spotlight: r.spotlight,
+		spying: r.hand?.spyTrick !== undefined && !!r.hand.state && r.hand.spyTrick === r.hand.state.tricks.length,
+		/** While a Spyglass shows them: each opponent's cards. */
+		spyHands:
+			r.hand?.spyTrick !== undefined && r.hand.state && r.hand.spyTrick === r.hand.state.tricks.length
+				? Object.fromEntries([1, 2, 4].map((s) => [s, r.hand.state!.hands[s].map(cardView)]))
+				: null,
+		umbrella: !!r.hand?.umbrella,
+		fallGuy: r.hand?.fallGuyFrom !== undefined,
+		opening: r.opening
+			? {
+					bundle: r.opening.bundle,
+					name: bundlesLib.BUNDLES[r.opening.bundle].name,
+					options: r.opening.options.map((c) =>
+						c.kind === 'relic'
+							? { kind: 'relic', name: c.def.name, text: relics.textAt(c.def, r.balance), icon: c.def.icon, rarity: c.def.rarity, rarityName: relics.RARITY_NAME[c.def.rarity], edition: editionView(c.edition), card: null, cardEdition: null }
+							: c.kind === 'ploy'
+								? { kind: 'ploy', name: c.def.name, text: c.def.text, icon: c.def.icon, rarity: null, rarityName: null, edition: null, card: null, cardEdition: null }
+								: (() => {
+										const card = r.pack.find((x) => x.id === c.cardId)!;
+										const e = cardEds.CARD_EDITIONS[c.edition];
+										return { kind: 'edition', name: `${e.name} ${cards.name(card)}`, text: e.text, icon: null, rarity: null, rarityName: null, edition: null, card: cardView(card), cardEdition: c.edition };
+									})()
+					)
+				}
+			: null,
 		interest: R.interest(r),
 		rerollCost: r.rerollCost,
 		relicSlots: R.relicSlots(r),
@@ -247,6 +283,8 @@ const api = {
 		JSON.stringify({
 			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: relics.textAt(d, CATALOG_BALANCE), rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: relics.costAt(d, CATALOG_BALANCE), icon: d.icon })),
 			editions: relics.EDITION_KEYS.map((k) => ({ key: k, name: relics.EDITIONS[k].name, text: relics.EDITIONS[k].text, cost: relics.EDITIONS[k].cost })),
+			ploys: ploysLib.PLOY_KEYS.map((k) => ({ key: k, name: ploysLib.PLOYS[k].name, text: ploysLib.PLOYS[k].text, cost: ploysLib.PLOYS[k].cost, icon: ploysLib.PLOYS[k].icon })),
+			bundles: bundlesLib.BUNDLE_KEYS.map((k) => ({ key: k, name: bundlesLib.BUNDLES[k].name, text: bundlesLib.BUNDLES[k].text, cost: bundlesLib.BUNDLES[k].cost, icon: bundlesLib.BUNDLES[k].icon })),
 			cardEditions: cardEds.CARD_EDITION_KEYS.map((k) => ({ key: k, name: cardEds.CARD_EDITIONS[k].name, text: cardEds.CARD_EDITIONS[k].text, cost: cardEds.CARD_EDITIONS[k].cost })),
 			seals: seals.SEAL_KEYS.map((k) => ({ key: k, name: seals.SEALS[k].name, text: seals.SEALS[k].text, cost: seals.SEALS[k].cost, color: seals.SEALS[k].color })),
 			packItems: [

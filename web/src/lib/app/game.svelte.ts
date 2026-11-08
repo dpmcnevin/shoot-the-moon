@@ -11,6 +11,7 @@ import type { Card } from '$engine/rules/cards.ts';
 import type { Trick } from '$engine/rules/hearts.ts';
 import type { Hand, Run } from '$engine/game/run.ts';
 import * as sound from '../audio/sound.ts';
+import * as ploysLib from '$engine/game/ploys.ts';
 import * as profileLib from '$engine/app/profile.ts';
 import * as save from '$engine/app/save.ts';
 import * as packs from '$engine/game/pack.ts';
@@ -24,7 +25,7 @@ import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from '.
 /** Where the profile (stats and history) is kept. */
 const PROFILE_KEY = 'shoot-the-moon.profile';
 
-export const WEB_RULESET: R.RulesetName = 'v4';
+export const WEB_RULESET: R.RulesetName = 'v5';
 import { C, hex, type Color } from '$engine/ui/theme.ts';
 
 const hexHeart = hex('#f08a8a');
@@ -102,7 +103,7 @@ class Game {
 	/** The deck view (open while R.canSeeDeck allows). */
 	showDeck = $state(false);
 	/** A relic, seal or upgrade being read from the sidebar. */
-	inspect = $state.raw<{ kind: string; title: string; text: string; note?: string; color: string; y: number } | null>(null);
+	inspect = $state.raw<{ kind: string; title: string; text: string; note?: string; color: string; y: number; action?: { label: string; enabled: boolean; run: () => void } } | null>(null);
 
 	private _run: Run | null = null;
 	private actions: Action[] = [];
@@ -354,6 +355,37 @@ class Game {
 		if (run.phase !== PHASE.HAND_SCORED || this.trickHold) return;
 		if (this.reveal && !this.reveal.done) return this.finishReveal();
 		this.act({ t: 'continue' });
+		this.bump();
+	}
+
+	/** Use the ploy in this slot. */
+	usePloy(slot: number) {
+		const run = this._run!;
+		const key = run.ploys[slot];
+		const [ok, why] = R.canUsePloy(run, slot);
+		if (!ok) {
+			this.showToast(`Can't: ${why}`, C.bad);
+			return;
+		}
+		this.act({ t: 'ploy', slot });
+		sound.play(key === 'windfall' ? 'coin' : 'select', { pitch: 1.1 });
+		this.showToast(`${ploysLib.PLOYS[key].name}!`, C.ploy);
+		this.bump();
+	}
+
+	/** Take a choice from the open bundle (-1: none). */
+	pickBundle(index: number) {
+		const run = this._run!;
+		const [ok, why] = R.pickFromBundle(run, index);
+		if (!ok) {
+			this.showToast(`Can't: ${why}`, C.bad);
+			return;
+		}
+		// Re-apply through the action log so saves replay it.
+		this.actions.push({ t: 'pick', index });
+		this.persist();
+		this.noteProfile();
+		sound.play(index < 0 ? 'select' : 'coin');
 		this.bump();
 	}
 

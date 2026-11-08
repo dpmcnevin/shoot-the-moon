@@ -20,7 +20,9 @@ export type Action =
 	| { t: 'buy'; slot: number; card?: number }
 	| { t: 'sellRelic'; slot: number }
 	| { t: 'reroll' }
-	| { t: 'leave' };
+	| { t: 'leave' }
+	| { t: 'ploy'; slot: number }
+	| { t: 'pick'; index: number };
 
 export interface Save {
 	version: number;
@@ -76,6 +78,10 @@ export function applyAction(run: Run, a: Action): Outcome {
 		case 'leave':
 			R.leaveShop(run);
 			return { ok: true };
+		case 'ploy':
+			return { ok: R.usePloy(run, a.slot)[0] };
+		case 'pick':
+			return { ok: R.pickFromBundle(run, a.index)[0] };
 	}
 }
 

@@ -7,7 +7,7 @@ struct CollectionView: View {
     @State private var tab = Tab.stats
 
     enum Tab: String, CaseIterable {
-        case stats = "Stats", relics = "Relics", bosses = "Bosses", sealsPack = "Seals & Pack", editions = "Editions & Upgrades"
+        case stats = "Stats", relics = "Relics", bosses = "Bosses", sealsPack = "Seals, Ploys & Pack", editions = "Editions & Upgrades"
     }
 
     var body: some View {
@@ -106,6 +106,21 @@ struct CollectionView: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack { Text(s.name).font(Theme.font(17, .bold)); Spacer(); Text("$\(s.cost)").font(Theme.font(14)).foregroundStyle(Theme.brass) }
                                     Text(s.text).font(Theme.font(14)).foregroundStyle(Theme.inkDim).fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+                    if let ploys = c.ploys, let bundles = c.bundles {
+                        Text("Ploys").font(Theme.font(20, .bold)).foregroundStyle(Theme.ploy).padding(.top, 8)
+                        Text("One-shot cards: hold up to 2 and use them from the sidebar when you choose.").font(Theme.font(15)).foregroundStyle(Theme.inkDim)
+                        grid(ploys + bundles) { p in
+                            Tile(edge: Theme.ploy) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Icon(key: p.icon, scale: 2)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack { Text(p.name).font(Theme.font(17, .bold)); Spacer(); Text("$\(p.cost)").font(Theme.font(14)).foregroundStyle(Theme.brass) }
+                                        Text(p.text).font(Theme.font(14)).foregroundStyle(Theme.inkDim).fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                             }
                         }

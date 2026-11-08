@@ -79,6 +79,7 @@ struct ShopItemCard: View {
         case "relic": Theme.rarity[item.rarity ?? 1]
         case "seal": Color(css: item.color ?? "#d9a441")
         case "pack": Theme.chips
+        case "ploy", "bundle": Theme.ploy
         case "edition": Edition.color(item.cardEdition ?? "etched")
         default: Theme.brass
         }
@@ -89,6 +90,8 @@ struct ShopItemCard: View {
         case "relic": "\(item.rarityName ?? "") relic"
         case "seal": "Seal"
         case "pack": "Pack"
+        case "ploy": "Ploy"
+        case "bundle": "Bundle"
         case "edition": "Card edition"
         default: "Upgrade"
         }
@@ -120,6 +123,7 @@ struct ShopItemCard: View {
                     .font(Theme.font(16))
             }
             if item.kind == "pack" { Text("Changes the pack everyone is dealt from. You choose the card.").font(Theme.font(15)) }
+            if item.kind == "ploy" { Text("One use. Hold up to 2; use it from the sidebar.").font(Theme.font(15)) }
             if item.kind == "seal" { Text("You choose the card.").font(Theme.font(16)) }
             if item.kind == "edition" { Text("Lasts the run. You choose the card.").font(Theme.font(16)) }
             Spacer(minLength: 0)

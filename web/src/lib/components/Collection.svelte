@@ -7,6 +7,8 @@
 	import * as bosses from '$engine/game/bosses.ts';
 	import * as seals from '$engine/game/seals.ts';
 	import * as cardEds from '$engine/game/cardEditions.ts';
+	import * as ploysLib from '$engine/game/ploys.ts';
+	import * as bundlesLib from '$engine/game/bundles.ts';
 	import * as cards from '$engine/rules/cards.ts';
 	import { cardFace } from '../ui/images.ts';
 	import { settings } from '../ui/settings.svelte.ts';
@@ -26,7 +28,7 @@
 		['stats', 'Stats'],
 		['relics', 'Relics'],
 		['bosses', 'Bosses'],
-		['seals', 'Seals & Pack'],
+		['seals', 'Seals, Ploys & Pack'],
 		['editions', 'Editions & Upgrades']
 	];
 	let tab = $state<Tab>('stats');
@@ -134,6 +136,34 @@
 						<div class="tbody">
 							<div class="trow"><span class="tname">{sd.name}</span><span class="brass">${sd.cost}</span></div>
 							<div class="ttext">{sd.text}</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+			<h3 style:color="var(--ploy)">Ploys</h3>
+			<p class="lead">One-shot cards: hold up to {ploysLib.PLOY_SLOTS} and use them from the sidebar when you choose.</p>
+			<div class="grid">
+				{#each ploysLib.PLOY_KEYS as k (k)}
+					{@const d = ploysLib.PLOYS[k]}
+					<div class="tile" style:border-color="var(--ploy)">
+						<Icon name={d.icon} scale={2} />
+						<div class="tbody">
+							<div class="trow"><span class="tname">{d.name}</span><span class="brass">${d.cost}</span></div>
+							<div class="ttext">{d.text}</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+			<h3 style:color="var(--ploy)">Bundles</h3>
+			<p class="lead">Open one in the club and choose one of three.</p>
+			<div class="grid">
+				{#each bundlesLib.BUNDLE_KEYS as k (k)}
+					{@const d = bundlesLib.BUNDLES[k]}
+					<div class="tile" style:border-color="var(--ploy)">
+						<Icon name={d.icon} scale={2} />
+						<div class="tbody">
+							<div class="trow"><span class="tname">{d.name}</span><span class="brass">${d.cost}</span></div>
+							<div class="ttext">{d.text}</div>
 						</div>
 					</div>
 				{/each}

@@ -15,6 +15,8 @@
 	import Button from './Button.svelte';
 	import SealBadge from './SealBadge.svelte';
 	import CardPicker from './CardPicker.svelte';
+	import BundleOpen from './BundleOpen.svelte';
+	import * as ploysLib from '$engine/game/ploys.ts';
 	import * as cards from '$engine/rules/cards.ts';
 	import { cardFace } from '../ui/images.ts';
 	import { settings } from '../ui/settings.svelte.ts';
@@ -34,7 +36,7 @@
 		run.board === R.BOARDS_PER_TABLE && run.table === R.TABLES ? 'Claim victory' : run.board === R.BOARDS_PER_TABLE ? 'Next table' : 'Next board'
 	);
 	const edge = (it: R.ShopItem) =>
-		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : it.kind === 'pack' ? 'var(--chips)' : it.kind === 'edition' ? editionColor(it.def.key) : 'var(--brass)';
+		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : it.kind === 'pack' ? 'var(--chips)' : it.kind === 'edition' ? editionColor(it.def.key) : it.kind === 'ploy' || it.kind === 'bundle' ? 'var(--ploy)' : 'var(--brass)';
 	function canBuy(i: number) {
 		void game.v;
 		return R.canBuy(run, i);
@@ -88,6 +90,15 @@
 						<div class="title-row"><h3>{item.name}</h3><Shine edition={item.def.key}><img class="ed-card" src={cardFace(cards.card(3, 13), false, settings.pixelCards, settings.fourColor)} alt="" /></Shine></div>
 						<p>{item.def.text}.</p>
 						<p class="ink">Lasts the run. You choose the card.</p>
+					{:else if item.kind === 'ploy'}
+						<div class="kind" style:color="var(--ploy)">Ploy</div>
+						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
+						<p>{item.def.text}.</p>
+						<p class="ink">One use. You hold up to {ploysLib.PLOY_SLOTS}; use it from the sidebar.</p>
+					{:else if item.kind === 'bundle'}
+						<div class="kind" style:color="var(--ploy)">Bundle</div>
+						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
+						<p>{item.def.text}.</p>
 					{:else}
 						<div class="kind pack">Pack</div>
 						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
@@ -131,6 +142,7 @@
 	</div>
 
 	{#if game.sealPick !== null}<CardPicker />{/if}
+	{#if run.opening}<BundleOpen />{/if}
 
 	<div class="foot">
 		<Button variant="plain" sound="reroll" enabled={run.money >= run.rerollCost} onclick={() => game.reroll()} style="width: 190px; height: 44px">Reroll ${run.rerollCost}</Button>

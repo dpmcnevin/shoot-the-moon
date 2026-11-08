@@ -2,6 +2,7 @@
      upgrade. Click anywhere to close. -->
 <script lang="ts">
 	import { game } from '../app/game.svelte.ts';
+	import Button from './Button.svelte';
 	const L = $derived(game.layout);
 	const info = $derived(game.inspect!);
 	const portrait = $derived(L.orientation === 'portrait');
@@ -15,6 +16,9 @@
 	<div class="title">{info.title}</div>
 	<div class="text">{info.text}</div>
 	{#if info.note}<div class="note">{info.note}</div>{/if}
+	{#if info.action}
+		<Button size="sm" enabled={info.action.enabled} sound={false} onclick={() => { info.action!.run(); game.inspect = null; }} style="width: 100%; margin-top: 6px">{info.action.label}</Button>
+	{/if}
 </div>
 
 <style>

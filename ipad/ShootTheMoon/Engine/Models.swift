@@ -186,6 +186,36 @@ struct SealV: Decodable, Identifiable {
     var id: Int { cardId }
 }
 
+/// A ploy you hold (ruleset v5).
+struct PloyV: Decodable, Identifiable {
+    let slot: Int
+    let key: String
+    let name: String
+    let text: String
+    let icon: String
+    let canUse: Bool
+    let why: String?
+    var id: Int { slot }
+}
+
+/// An opened bundle: its three choices.
+struct OpeningV: Decodable {
+    struct Choice: Decodable {
+        let kind: String
+        let name: String
+        let text: String
+        let icon: String?
+        let rarity: Int?
+        let rarityName: String?
+        let edition: EditionV?
+        let card: CardV?
+        let cardEdition: String?
+    }
+    let bundle: String
+    let name: String
+    let options: [Choice]
+}
+
 /// An edition on a card in your pack (ruleset v4).
 struct CardEditionV: Decodable, Identifiable {
     let cardId: Int
@@ -230,6 +260,17 @@ struct GameView: Decodable {
     let relics: [RelicV]
     let seals: [SealV]
     let cardEditions: [CardEditionV]?
+    /// Ploys (ruleset v5) and what they're doing this hand.
+    let ploysOn: Bool?
+    let ploys: [PloyV]?
+    let ploySlots: Int?
+    let spotlight: Bool?
+    let spying: Bool?
+    let spyHands: [String: [CardV]]?
+    let umbrella: Bool?
+    let fallGuy: Bool?
+    /// A bundle being opened in the club.
+    let opening: OpeningV?
     let pack: [CardV]
     /// Whether the deck may be looked at now (see DeckView).
     let canSeeDeck: Bool?
@@ -280,6 +321,8 @@ struct CatalogV: Decodable {
     let editions: [Edition]
     let seals: [Seal]
     let cardEditions: [Edition]?
+    let ploys: [PackItem]?
+    let bundles: [PackItem]?
     let packItems: [PackItem]
     let upgrades: [Upgrade]
     let bosses: [Boss]
@@ -294,6 +337,8 @@ struct InfoCard: Equatable {
     var color: Color
     /// Where the tap was, on the stage, so the card sits beside it.
     var y: Double
+    /// A held ploy: the card offers to use it.
+    var ploySlot: Int? = nil
 }
 
 extension HandV {

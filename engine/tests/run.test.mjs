@@ -912,6 +912,69 @@ test('the profile records runs, relics found and bosses beaten, idempotently', (
 	assert.equal(profile.parseProfile('nonsense').runs, 0);
 });
 
+// ------------------------------------------------------------------ ploys and bundles
+
+test('v5: ploys are offered and used when they may be', () => {
+	const run = R.newRun('PLOY', { ruleset: 'v5' });
+	run.ploys = ['encore', 'spotlight'];
+	assert.equal(R.canUsePloy(run, 0)[0], true, 'encore while passing');
+	const hands = run.handsLeft;
+	assert.ok(R.usePloy(run, 0)[0]);
+	assert.equal(run.handsLeft, hands + 1);
+	assert.deepEqual(run.ploys, ['spotlight']);
+	assert.ok(R.usePloy(run, 0)[0]);
+	assert.equal(run.spotlight, true);
+	finish(run);
+	assert.ok(run.hand.result.lines.some((l) => l.label === 'Spotlight' && l.xmult === 2));
+	assert.equal(run.spotlight, false, 'used up by the hand');
+	// Not in v4's club; in v5's.
+	const kinds = (ruleset) => {
+		const seen = new Set();
+		for (let i = 0; i < 40; i++) {
+			const r = R.newRun('PK' + i, { ruleset, money: 0 });
+			r.phase = R.PHASE.BOARD_WON;
+			R.enterShop(r);
+			for (const it of r.shop.items) seen.add(it.kind);
+		}
+		return seen;
+	};
+	const v5 = kinds('v5'), v4 = kinds('v4');
+	assert.ok(v5.has('ploy') && v5.has('bundle'));
+	assert.ok(!v4.has('ploy') && !v4.has('bundle'));
+});
+
+test('Umbrella takes the queen off your points; Fall Guy hands a trick to the left', () => {
+	const run = R.newRun('UMB', { ruleset: 'v5' });
+	finish(run);
+	const st = run.hand.state;
+	run.hand.result = null;
+	run.hand.umbrella = true;
+	const qs = st.pack.find(H.isQueenOfSpades);
+	st.taken = [[], [], [], [qs], st.pack.filter((c) => c !== qs)];
+	assert.equal(R.scoreHand(run).myPoints, 0);
+	// Fall Guy: the first trick you win from then on goes to West.
+	const fg = R.newRun('FALL', { ruleset: 'v5' });
+	if (fg.phase === R.PHASE.PASS) R.commitPass(fg, fg.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+	fg.hand.fallGuyFrom = 0;
+	R.playOut(fg);
+	const won = fg.hand.state.tricks.find((t) => t.winner === H.PLAYER);
+	if (won) assert.ok(!fg.hand.state.taken[H.PLAYER].includes(won.plays[0].card) && fg.hand.state.taken[H.WEST].includes(won.plays[0].card));
+});
+
+test('a bundle opens three choices; picking one takes it', () => {
+	const run = R.newRun('BUN', { ruleset: 'v5', money: 50 });
+	run.phase = R.PHASE.BOARD_WON;
+	R.enterShop(run);
+	run.shop.items[0] = { kind: 'bundle', def: { key: 'ploy', name: 'Ploy Bundle', text: '', cost: 4, icon: 'bundle_ploy', weight: 1 }, name: 'Ploy Bundle', cost: 4 };
+	assert.ok(R.buy(run, 0)[0]);
+	assert.equal(run.opening.options.length, 3);
+	assert.equal(R.canBuy(run, 1)[0], false, 'nothing else while it is open');
+	const key = run.opening.options[1].def.key;
+	assert.ok(R.pickFromBundle(run, 1)[0]);
+	assert.deepEqual(run.ploys, [key]);
+	assert.equal(run.opening, null);
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {

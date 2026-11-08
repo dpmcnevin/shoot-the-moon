@@ -103,6 +103,8 @@ enum Action {
     case sellRelic(Int)
     case reroll
     case leave
+    case ploy(Int)
+    case pick(Int)
 
     var json: String {
         let dict: [String: Any]
@@ -120,6 +122,8 @@ enum Action {
         case .sellRelic(let slot): dict = ["t": "sellRelic", "slot": slot]
         case .reroll: dict = ["t": "reroll"]
         case .leave: dict = ["t": "leave"]
+        case .ploy(let slot): dict = ["t": "ploy", "slot": slot]
+        case .pick(let index): dict = ["t": "pick", "index": index]
         }
         let data = try! JSONSerialization.data(withJSONObject: dict)
         return String(decoding: data, as: UTF8.self)

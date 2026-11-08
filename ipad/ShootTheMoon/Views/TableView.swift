@@ -143,8 +143,10 @@ struct TableView: View {
             let ids = hand.opponentCards(seat)
             let spots = L.opponentSlots(seat, ids.count)
             let s = L.seats[seat]!
+            let spied = v.spyHands?[String(seat)]
             for (i, id) in ids.enumerated() {
-                out.append(Placement(id: key(id), card: nil, faceUp: false, x: spots[i].x, y: spots[i].y,
+                let card = spied?.first { $0.id == id }
+                out.append(Placement(id: key(id), card: card, faceUp: card != nil, x: spots[i].x, y: spots[i].y,
                                      r: s.r, s: s.s, z: 5 + Double(i), from: L.origin(seat), delay: 0.15 + Double(i) * 0.03))
             }
         }
@@ -283,6 +285,9 @@ struct TableView: View {
                 seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
                           note: model.isLegal(v.hand.legal.first ?? -1) ? "Your play" : nil)
                 if v.hand.moonChip(for: Seat.player) { moonChip(mine: true) }
+                if v.umbrella == true { ployChip("UMBRELLA") }
+                if v.fallGuy == true { ployChip("FALL GUY") }
+                if v.spotlight == true { ployChip("SPOTLIGHT") }
             }
                 .position(x: L.tableCX, y: L.handY - 16 - 30 * L.handScale) // above a picked card
             if !v.hand.kitty.isEmpty {
@@ -290,6 +295,14 @@ struct TableView: View {
                     .position(x: L.tableCX + L.ovalRX - 64, y: L.trickCY - L.ovalRY + 112)
             }
         }
+    }
+
+    /// A ploy at work this hand.
+    private func ployChip(_ text: String) -> some View {
+        Text(text).font(Theme.font(12, .bold)).kerning(1)
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(PixelRect(radius: 4).fill(Theme.ploy))
     }
 
     /// Every point taken so far is in one pile: a moon is still possible.

@@ -214,7 +214,8 @@
 			});
 		});
 
-		// Opponents' face-down hands.
+		// Opponents' face-down hands (face up for a Spyglass's trick).
+		const spying = hand.spyTrick !== undefined && hand.state !== null && hand.spyTrick === hand.state.tricks.length && !game.trickHold;
 		for (const seat of [cards.WEST, cards.NORTH, cards.EAST]) {
 			const list = seatCards(seat);
 			const spots = opponentSlots(L, seat, list.length);
@@ -228,7 +229,7 @@
 					y: sp.y,
 					r: sp.r,
 					s: sp.s,
-					faceUp: false,
+					faceUp: spying,
 					z: 5 + i,
 					spawn: fresh ? { x: o[0], y: o[1], delay: 0.15 + i * 0.03, faceUp: false } : undefined
 				});
@@ -442,6 +443,9 @@
 	{#if livePoints[H.PLAYER] > 0}<span class="pts">{livePoints[H.PLAYER]}</span>{/if}
 	{#if isTurn}<span class="your-play">Your play</span>{/if}
 	{#if moonSeat === H.PLAYER}<span class="moon" title="You hold every point so far: the moon is still on">MOON ON</span>{/if}
+	{#if hand.umbrella}<span class="moon ploy-chip" title="If you take the queen this hand, she counts 0 for you">UMBRELLA</span>{/if}
+	{#if hand.fallGuyFrom !== undefined}<span class="moon ploy-chip" title="The next trick you win goes to West">FALL GUY</span>{/if}
+	{#if run.spotlight}<span class="moon ploy-chip" title="Your next hand scores x2">SPOTLIGHT</span>{/if}
 </div>
 
 {#if passing}
@@ -517,6 +521,10 @@
 		pointer-events: none;
 	}
 	.seat-label,
+	.ploy-chip {
+		background: var(--ploy) !important;
+		color: var(--ink) !important;
+	}
 	.you-label {
 		position: absolute;
 		width: 200px;
