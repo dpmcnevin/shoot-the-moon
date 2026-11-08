@@ -375,3 +375,11 @@ test('with noRepeats, a club never offers the same item twice at once', () => {
 	}
 	assert.ok(repeatsWithout > 0, 'the old behavior does repeat (so the test means something)');
 });
+
+test('a run can use other targets, and keeps the standard ones by default', () => {
+	assert.equal(R.newRun('T1').target, R.targetFor(1, 1));
+	assert.equal(R.targetFor(1, 1), 35);
+	const gentle = R.newRun('T2', { tableBase: R.GENTLE_TABLE_BASE });
+	assert.equal(gentle.target, 20);
+	assert.equal(R.targetFor(8, 3, R.GENTLE_TABLE_BASE), 2300);
+});

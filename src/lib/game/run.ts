@@ -41,6 +41,11 @@ export const CLEAN_BONUS = 10;
 
 // Target for the first board of each table, fitted with tools/simulate.
 export const TABLE_BASE = [34, 67, 120, 208, 360, 610, 1005, 1650];
+/** Gentler targets (the iPad app's): a first board that bad luck alone
+ *  rarely loses, and late tables about 15% lower. Measured with the bot
+ *  (iPad rules, 3000 runs): 29.5% wins and 0.7% of runs lost on table 1,
+ *  against 14.4% and 7.5% with TABLE_BASE. */
+export const GENTLE_TABLE_BASE = [22, 52, 108, 188, 320, 530, 870, 1400];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -179,6 +184,8 @@ export interface Run {
 	/** A club never offers the same item twice at once (off by default, so
 	 *  older saves replay against the same offers). */
 	noRepeats: boolean;
+	/** Each table's base target, if not the standard TABLE_BASE. */
+	tableBase?: number[];
 }
 
 export interface RunOptions {
@@ -186,6 +193,7 @@ export interface RunOptions {
 	aiSkill?: number;
 	editions?: boolean;
 	noRepeats?: boolean;
+	tableBase?: number[];
 }
 
 /** Relic slots in use: Phantom relics take none. */
@@ -203,9 +211,9 @@ function round5(n: number): number {
 	return Math.floor(n / mag + 0.5) * mag;
 }
 
-export function targetFor(table: number, board: number): number {
-	let base = TABLE_BASE[Math.min(table, TABLE_BASE.length) - 1];
-	if (table > TABLE_BASE.length) base *= 1.6 ** (table - TABLE_BASE.length);
+export function targetFor(table: number, board: number, tableBase: number[] = TABLE_BASE): number {
+	let base = tableBase[Math.min(table, tableBase.length) - 1];
+	if (table > tableBase.length) base *= 1.6 ** (table - tableBase.length);
 	return round5(base * BOARD_SCALE[board - 1]);
 }
 
@@ -242,14 +250,15 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		stats: { handsPlayed: 0, moons: 0, cleanHands: 0, bestHand: 0, totalScore: 0, pointsTaken: 0 },
 		boardPoints: [0, 0, 0, 0, 0],
 		editions: opts.editions ?? false,
-		noRepeats: opts.noRepeats ?? false
+		noRepeats: opts.noRepeats ?? false,
+		...(opts.tableBase ? { tableBase: opts.tableBase } : {})
 	} as Run;
 	startBoard(run);
 	return run;
 }
 
 export function startBoard(run: Run) {
-	run.target = targetFor(run.table, run.board);
+	run.target = targetFor(run.table, run.board, run.tableBase);
 	run.score = 0;
 	run.handsLeft = HANDS_PER_BOARD;
 	run.boardPoints = [0, 0, 0, 0, 0];
