@@ -44,6 +44,9 @@ targets:
       - path: ShootTheMoon/Resources/game-bundle.js
         optional: true
         buildPhase: resources
+      - path: ShootTheMoon/Resources/engine-version.txt
+        optional: true
+        buildPhase: resources
       - path: ShootTheMoon/Resources/Audio
         type: folder
         optional: true
@@ -88,6 +91,8 @@ targets:
           cd "$WEB"
           [ -d node_modules ] || npm install --silent
           BRIDGE_OUT="$RES/game-bundle.js" npm run --silent build:bridge
+          # Record which engine this build used (shown on the menu).
+          git -C "$WEB" describe --always --dirty --abbrev=7 > "$RES/engine-version.txt" 2>/dev/null || echo unknown > "$RES/engine-version.txt"
           # The audio takes a few seconds to render; only when missing.
           if [ ! -f "$RES/Audio/music.json" ]; then node tools/render-audio.ts "$RES/Audio"; fi
         basedOnDependencyAnalysis: false
