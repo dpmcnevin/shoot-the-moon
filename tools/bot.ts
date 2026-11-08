@@ -9,7 +9,10 @@ import type { RelicDef } from '../src/lib/game/relics.ts';
 import * as packs from '../src/lib/game/pack.ts';
 import type { PackOpDef } from '../src/lib/game/pack.ts';
 
-const value = (d: RelicDef) => d.rarity * 10 + d.cost;
+import { RELIC_VALUE } from './relic-values.ts';
+
+/** What a relic is worth to this bot: measured where known, else by rarity and price. */
+const value = (d: RelicDef) => 4 * (RELIC_VALUE[d.key] ?? (d.rarity * 10 + d.cost) / 5);
 
 /** The card a simple player would use a pack item on, if any. */
 function packTarget(run: Run, def: PackOpDef): number | undefined {
@@ -104,7 +107,11 @@ export function shop(run: Run) {
 const EDITION_VALUE: Record<string, number> = { etched: 6, lacquered: 10, prismatic: 16, phantom: 8 };
 
 export function playRun(seed: string | number, opts: run_.RunOptions = {}): Run {
-	const run = run_.newRun(seed, opts);
+	return playRunFrom(run_.newRun(seed, opts));
+}
+
+/** Play a run already set up (for experiments that change the start). */
+export function playRunFrom(run: Run): Run {
 	for (let k = 0; k < 5000; k++) {
 		if (run.phase === run_.PHASE.PASS) {
 			// Under the Blindfold the pass is chosen unseen: any three cards.

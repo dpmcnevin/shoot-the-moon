@@ -70,6 +70,11 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	assert.equal(save.opts.noRepeats, true);
 	assert.equal(save.opts.tableBase[0], 22);
 	assert.equal(save.opts.bosses, true);
+	assert.equal(save.opts.moreRelics, true);
+	const cat = JSON.parse(S.catalog());
+	assert.equal(cat.relics.length, 55); // 23 original + 32 expansion
+	assert.equal(cat.bosses.length, 13);
+	assert.ok(cat.seals.length === 5 && cat.editions.length === 4 && cat.packItems.length === 4 && cat.upgrades.length === 3);
 	const view = JSON.parse(S.view());
 	assert.ok(view.boss && view.boss.name && view.boss.active === false);
 	assert.equal(view.tableBoards.length, 3);

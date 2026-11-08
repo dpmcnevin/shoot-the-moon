@@ -199,6 +199,8 @@ export interface Run {
 	jinxed: string | null;
 	/** Hands this board started with (the Shortchanger takes one). */
 	handsThisBoard: number;
+	/** The club offers the expansion relics too (off by default). */
+	moreRelics: boolean;
 }
 
 export interface RunOptions {
@@ -208,6 +210,17 @@ export interface RunOptions {
 	noRepeats?: boolean;
 	tableBase?: number[];
 	bosses?: boolean;
+	moreRelics?: boolean;
+}
+
+/** Does an active relic have this rule? */
+function hasRule(run: Run, rule: keyof RelicDef): boolean {
+	return activeRelics(run).some((r) => !!r.def[rule]);
+}
+
+/** Relic slots: the Collector's Album adds one. */
+export function relicSlots(run: Run): number {
+	return RELIC_SLOTS + (run.relics.some((r) => r.def.extraSlot) ? 1 : 0);
 }
 
 /** Is this board the boss's? */
@@ -226,7 +239,7 @@ export function activeRelics(run: Run): Relic[] {
 
 /** Relic slots in use: Phantom relics take none. */
 export function relicSlotsUsed(run: Run): number {
-	return run.relics.filter((r) => r.edition !== 'phantom').length;
+	return run.relics.filter((r) => r.edition !== 'phantom' && !r.def.extraSlot).length;
 }
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -284,7 +297,8 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		boss: null,
 		bossesSeen: [],
 		jinxed: null,
-		handsThisBoard: HANDS_PER_BOARD
+		handsThisBoard: HANDS_PER_BOARD,
+		moreRelics: opts.moreRelics ?? false
 	} as Run;
 	startBoard(run);
 	return run;
@@ -349,6 +363,10 @@ function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
 	if (bossIs(run, 'diamond_jack')) pts = (c) => (c.suit === H.DIAMONDS && c.rank === 11 ? base(c) + 10 : base(c));
 	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts });
 	if (bossIs(run, 'open_book')) run.hand.state.heartsBroken = true;
+	if (hasRule(run, 'wildcard')) {
+		run.hand.state.wildSeat = H.PLAYER;
+		run.hand.state.wildLeft = 3;
+	}
 	run.phase = PHASE.PLAY;
 	if (!opts?.stepwise) advanceAI(run);
 }
@@ -428,6 +446,8 @@ function scoreContext(run: Run): ScoreCtx {
 	// Half Moon: every heart counts as the moon, even without the queen.
 	const packHearts = st.pack.filter((c) => c.suit === H.HEARTS).length;
 	if (shooter === null && packHearts > 0 && heartsTaken === packHearts && activeRelics(run).some((r) => r.def.halfMoon)) shooter = H.PLAYER;
+	// Shadow Moon: all but one point counts as the moon.
+	if (shooter === null && hasRule(run, 'shadowMoon') && pts[H.PLAYER] > 0 && pts[H.PLAYER] >= H.positiveTotal(st) - 3) shooter = H.PLAYER;
 	// The Moon Thief: your moon doesn't count.
 	if (shooter === H.PLAYER && bossIs(run, 'moon_thief')) shooter = null;
 	const myTricks = st.tricks.filter((t) => t.winner === H.PLAYER);
@@ -449,7 +469,18 @@ function scoreContext(run: Run): ScoreCtx {
 		voidsAfterPass: voids,
 		tookJackOfDiamonds: mine.some((c) => c.suit === H.DIAMONDS && c.rank === 11),
 		boardsWonThisTable: run.boardsWonThisTable,
-		moonsThisRun: run.stats.moons
+		moonsThisRun: run.stats.moons,
+		taken: mine.slice(),
+		pts: st.pts,
+		firstHandOfBoard: run.handsLeft === run.handsThisBoard,
+		lastHandOfBoard: run.handsLeft === 1,
+		behindGoal: run.score < run.target,
+		bossBoard: bossActive(run),
+		cardsBurned: Math.max(0, 52 - run.pack.filter((c) => (c.id ?? 0) <= 52).length),
+		sealedTaken: mine.filter((c) => seals.sealOf(run.seals, c)).length,
+		editionCount: run.relics.filter((r) => r.edition).length,
+		passedPointsAway: hand.passed.filter((c) => st.pts(c) > 0 && [1, 2, 4].some((s) => st.taken[s].includes(c))).length,
+		opponentVoids: [1, 2, 4].reduce((n, s) => n + Object.values(st.voids[s]).filter(Boolean).length, 0)
 	};
 }
 
@@ -461,7 +492,8 @@ export function scoreHand(run: Run): Breakdown {
 	const live = activeRelics(run);
 	const baseX = live.reduce((x, r) => x * (r.def.baseX ?? 1), 1);
 	let chips = 0,
-		mult = 1;
+		mult = 1,
+		relicMoney = 0;
 	if (ctx.shooter === H.PLAYER) {
 		const moonX = live.reduce((x, r) => x * (r.def.moonX ?? 1), 1);
 		chips = 3 * H.positiveTotal(st) * moonX * baseX;
@@ -471,9 +503,13 @@ export function scoreHand(run: Run): Breakdown {
 	} else {
 		// Always out of 26, whatever the pack holds: burning point cards makes
 		// dodging safer without shrinking the prize; copying them raises the risk.
-		const dodged = Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
+		const moonlit = hasRule(run, 'moonlighter') && ctx.myPoints >= 16;
+		const dodged = moonlit ? H.TOTAL_POINTS : Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
 		chips = dodged * baseX;
-		lines.push({ label: ctx.myPoints > 0 ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point', chips });
+		lines.push({
+			label: moonlit ? `Moonlighter: ${ctx.myPoints} points taken, scored as dodged` : ctx.myPoints > 0 ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point',
+			chips
+		});
 		if (ctx.myPoints === 0 && !bossIs(run, 'auditor')) {
 			chips += CLEAN_BONUS;
 			lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
@@ -498,11 +534,12 @@ export function scoreHand(run: Run): Breakdown {
 	level('clean', ctx.shooter === null && ctx.myPoints === 0 && !bossIs(run, 'auditor'));
 	for (const relic of live) {
 		const e = relic.def.score?.(ctx, relic);
-		if (e && (e.chips || e.mult || (e.xmult && e.xmult !== 1))) {
+		if (e && (e.chips || e.mult || e.money || (e.xmult && e.xmult !== 1))) {
 			if (e.chips) chips += e.chips;
 			if (e.mult) mult += e.mult;
 			if (e.xmult) mult *= e.xmult;
-			lines.push({ label: relic.name, chips: e.chips || undefined, mult: e.mult || undefined, xmult: e.xmult });
+			if (e.money) relicMoney += e.money;
+			lines.push({ label: relic.name, chips: e.chips || undefined, mult: e.mult || undefined, xmult: e.xmult, money: e.money || undefined });
 		}
 		const ed = relic.edition ? relics.EDITIONS[relic.edition] : null;
 		if (ed?.effect) {
@@ -514,7 +551,7 @@ export function scoreHand(run: Run): Breakdown {
 		}
 	}
 	// Seals on the cards that changed hands this deal.
-	let money = 0;
+	let money = relicMoney;
 	for (const t of st.tricks) {
 		for (const p of t.plays) {
 			const seal = seals.sealOf(run.seals, p.card);
@@ -544,9 +581,26 @@ export function scoreHand(run: Run): Breakdown {
 	};
 }
 
+/** The Fixer: each hand, the first heart you took goes to whoever has the
+ *  most points (never when you're shooting the moon). */
+function applyFixer(run: Run) {
+	const fixer = activeRelics(run).find((r) => r.def.fixer);
+	const st = run.hand.state!;
+	if (!fixer || H.moonShooter(st) === H.PLAYER) return;
+	const won = st.tricks.filter((t) => t.winner === H.PLAYER);
+	const heart = won.flatMap((t) => [...t.plays.map((p) => p.card), ...t.kitty]).find((c) => c.suit === H.HEARTS && st.taken[H.PLAYER].includes(c));
+	if (!heart) return;
+	const pts = H.pointsTaken(st);
+	const to = [1, 2, 4].reduce((a, b) => (pts[b] > pts[a] ? b : a));
+	st.taken[H.PLAYER].splice(st.taken[H.PLAYER].indexOf(heart), 1);
+	st.taken[to].push(heart);
+	fixer.state.used = `${run.table}.${run.board}.${run.handCount}`;
+}
+
 export function finishHand(run: Run): Breakdown {
 	const hand = run.hand;
 	if (hand.result) return hand.result;
+	applyFixer(run);
 	const ctx = scoreContext(run);
 	const b = scoreHand(run);
 	hand.result = b;
@@ -578,13 +632,14 @@ export function continueAfterHand(run: Run): Phase {
 // ------------------------------------------------------------------ economy
 
 export function interest(run: Run): number {
-	return Math.min(MAX_INTEREST, Math.floor(run.money / INTEREST_PER));
+	const cap = Math.max(MAX_INTEREST, ...run.relics.map((r) => r.def.interestCap ?? 0));
+	return Math.min(cap, Math.floor(run.money / INTEREST_PER));
 }
 
 export function winBoard(run: Run): Payout {
 	let bonus = 0;
 	for (const r of run.relics) {
-		const out = r.def.onBoardWin?.(r);
+		const out = r.def.onBoardWin?.(r, { boss: bossActive(run), seals: Object.keys(run.seals).length });
 		if (out && out.money) bonus += out.money;
 	}
 	const p: Payout = {
@@ -606,7 +661,7 @@ export function winBoard(run: Run): Payout {
 export function enterShop(run: Run) {
 	assert(run.phase === PHASE.BOARD_WON, 'enterShop: no board won');
 	run.phase = PHASE.SHOP;
-	run.rerollCost = BASE_REROLL_COST;
+	run.rerollCost = run.relics.some((r) => r.def.bargain) ? 0 : BASE_REROLL_COST;
 	run.shop = { items: [] };
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items[i] = rollShopItem(run);
 }
@@ -644,7 +699,7 @@ function rollOffer(run: Run): ShopItem {
 		...run.relics,
 		...(run.shop?.items ?? []).filter((i) => i && i.kind === 'relic').map((i) => ({ key: i.def.key }))
 	];
-	const def = relics.randomUnowned(run.rng, owned) ?? relics.DEFS[0];
+	const def = relics.randomUnowned(run.rng, owned, run.moreRelics) ?? relics.DEFS[0];
 	// Only roll when editions are on, so runs without them keep their
 	// exact sequence of shop offers.
 	const edition = run.editions ? relics.rollEdition(run.rng) : undefined;
@@ -656,7 +711,7 @@ export function canBuy(run: Run, i: number): [boolean, string?] {
 	const item = run.shop?.items[i];
 	if (!item || item.sold) return [false, 'gone'];
 	if (run.money < item.cost) return [false, 'too expensive'];
-	if (item.kind === 'relic' && item.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slots'];
+	if (item.kind === 'relic' && item.edition !== 'phantom' && !item.def.extraSlot && relicSlotsUsed(run) >= relicSlots(run)) return [false, 'no relic slots'];
 	return [true];
 }
 
@@ -691,7 +746,7 @@ export function sellRelic(run: Run, i: number): boolean {
 export function reroll(run: Run): boolean {
 	if (run.money < run.rerollCost) return false;
 	run.money -= run.rerollCost;
-	run.rerollCost++;
+	run.rerollCost = run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL_COST - 1, run.rerollCost + 1) : run.rerollCost + 1;
 	run.shop!.items = [];
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop!.items[i] = rollShopItem(run);
 	return true;

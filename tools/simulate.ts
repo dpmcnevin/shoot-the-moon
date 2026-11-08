@@ -1,5 +1,6 @@
 // Headless balance simulator. Run with: node tools/simulate.ts [runs] [prefix]
-// (EDITIONS=1 for relic editions, BOSSES=1 for bosses; IPAD=1 for all the iPad's rules;
+// (EDITIONS=1 for relic editions, BOSSES=1 for bosses, MORE=1 for the expansion relics;
+// IPAD=1 for all the iPad's rules;
 // TABLE_BASE=34,67,... to try other targets)
 
 import * as run_ from '../src/lib/game/run.ts';
@@ -11,6 +12,7 @@ const opts: run_.RunOptions = {
 	editions: process.env.EDITIONS === '1' || process.env.IPAD === '1',
 	noRepeats: process.env.IPAD === '1',
 	bosses: process.env.BOSSES ? process.env.BOSSES === '1' : process.env.IPAD === '1',
+	moreRelics: process.env.MORE ? process.env.MORE === '1' : process.env.IPAD === '1',
 	...(tableBase ? { tableBase } : {})
 };
 const prefix = process.argv[3] ?? 'SIM';

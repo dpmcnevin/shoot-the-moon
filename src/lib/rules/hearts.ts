@@ -151,6 +151,10 @@ export interface HandState {
 	pts: PointsFn;
 	/** Total points in the pack. */
 	totalPoints: number;
+	/** A seat whose first cards of the hand may ignore follow-suit (a relic),
+	 *  and how many of those cards are left. */
+	wildSeat?: number;
+	wildLeft?: number;
 }
 
 /** The card that opens the hand: the lowest club, else the lowest card. */
@@ -210,6 +214,8 @@ export function legalPlays(state: HandState, seat: number): Card[] {
 		}
 		return hand.slice();
 	}
+	// Wildcard: this seat's first card of the hand may be anything.
+	if (state.wildSeat === seat && (state.wildLeft ?? 0) > 0) return hand.slice();
 	const suited = cards.cardsOfSuit(hand, state.ledSuit!);
 	if (suited.length > 0) return suited;
 	if (firstTrick) {
@@ -238,7 +244,10 @@ export function play(state: HandState, seat: number, card: Card): Trick | null {
 	if (seat !== state.turn) throw new Error("play: not this seat's turn");
 	if (!isLegal(state, seat, card)) throw new Error('play: illegal card');
 
-	if (state.ledSuit && card.suit !== state.ledSuit) state.voids[seat][state.ledSuit] = true;
+	// A wildcard play off-suit says nothing about voids.
+	const wild = state.wildSeat === seat && (state.wildLeft ?? 0) > 0;
+	if (wild) state.wildLeft = state.wildLeft! - 1;
+	if (state.ledSuit && card.suit !== state.ledSuit && !wild) state.voids[seat][state.ledSuit] = true;
 	cards.removeCard(state.hands[seat], card);
 	state.trick.push({ seat, card });
 	state.played.push({ seat, card });

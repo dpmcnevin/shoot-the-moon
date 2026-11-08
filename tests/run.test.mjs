@@ -533,3 +533,110 @@ test('beating a boss pays a bonus', () => {
 	R.continueAfterHand(plain);
 	assert.equal(plain.lastPayout.boss, undefined);
 });
+
+// ------------------------------------------------------------------ expansion relics
+
+const expansion = relics.DEFS.filter((d) => d.expansion);
+
+test('there are 32 expansion relics, offered only when the run asks', () => {
+	assert.equal(expansion.length, 32);
+	const rng = newRng('POOL');
+	for (let i = 0; i < 500; i++) assert.ok(!relics.randomUnowned(rng, []).expansion);
+	const seen = new Set(Array.from({ length: 2000 }, () => relics.randomUnowned(rng, [], true).key));
+	assert.ok(expansion.filter((d) => d.rarity <= 2).every((d) => seen.has(d.key)), 'every common and uncommon turns up');
+	for (const d of expansion) assert.ok(d.icon === d.key, `${d.key} has its own icon`);
+});
+
+test('holding every expansion relic plays and scores cleanly', () => {
+	for (let i = 0; i < 60; i++) {
+		const run = R.newRun('ALL' + i, { moreRelics: true, bosses: true });
+		for (const d of expansion) run.relics.push(relics.instantiate(d));
+		for (let h = 0; h < 6 && (run.phase === R.PHASE.PASS || run.phase === R.PHASE.PLAY); h++) {
+			const b = finish(run);
+			assert.ok(Number.isFinite(b.total) && b.total >= 0);
+			R.continueAfterHand(run);
+			if (run.phase === R.PHASE.BOARD_WON) break;
+		}
+	}
+});
+
+test('Wildcard lets your first cards ignore follow-suit', () => {
+	let checked = 0;
+	for (let i = 0; i < 80 && checked < 5; i++) {
+		const run = R.newRun('WILD' + i, { moreRelics: true });
+		run.relics.push(relics.instantiate(relics.get('wildcard')));
+		if (run.phase === R.PHASE.PASS) R.commitPass(run, run.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+		const st = run.hand.state;
+		assert.equal(st.wildSeat, H.PLAYER);
+		assert.equal(st.wildLeft, 3);
+		while (!st.complete && st.turn !== H.PLAYER) H.play(st, st.turn, H.legalPlays(st, st.turn)[0]);
+		if (st.trick.length === 0) continue; // you lead: nothing to show
+		assert.equal(H.legalPlays(st, H.PLAYER).length, st.hands[H.PLAYER].length, 'anything goes');
+		H.play(st, H.PLAYER, H.legalPlays(st, H.PLAYER)[0]);
+		assert.equal(st.wildLeft, 2);
+		checked++;
+	}
+	assert.ok(checked > 0);
+});
+
+test('The Fixer hands one of your hearts to the leader each hand', () => {
+	let moved = 0;
+	for (let i = 0; i < 60; i++) {
+		const run = R.newRun('FIX' + i, { moreRelics: true });
+		const fixer = relics.instantiate(relics.get('the_fixer'));
+		run.relics.push(fixer);
+		if (run.phase === R.PHASE.PASS) R.commitPass(run, ai.choosePass(run.hand.dealt[H.PLAYER], newRng('p' + i)));
+		if (run.phase === R.PHASE.PLAY) R.playOut(run);
+		const st = run.hand.state;
+		const tookHeart = st.tricks.some((t) => t.winner === H.PLAYER && [...t.plays.map((p) => p.card), ...t.kitty].some((c) => c.suit === H.HEARTS));
+		if (tookHeart && run.hand.result.shooter !== H.PLAYER) {
+			assert.ok(fixer.state.used);
+			moved++;
+		}
+	}
+	assert.ok(moved > 0);
+});
+
+test('Shadow Moon and Moonlighter', () => {
+	const shadow = R.newRun('SHADOW', { moreRelics: true });
+	shadow.relics.push(relics.instantiate(relics.get('shadow_moon')));
+	finish(shadow);
+	const st = shadow.hand.state;
+	const oneHeart = st.pack.find((c) => c.suit === H.HEARTS);
+	const b = scoreWithTaken(shadow, [[], [oneHeart], st.pack.filter((c) => st.pts(c) <= 0), st.pack.filter((c) => st.pts(c) > 0 && c !== oneHeart), []]);
+	assert.equal(b.shooter, H.PLAYER);
+
+	const moon = R.newRun('MOONLIT', { moreRelics: true });
+	moon.relics.push(relics.instantiate(relics.get('moonlighter')));
+	finish(moon);
+	const m = moon.hand.state;
+	const qs = m.pack.find(H.isQueenOfSpades);
+	const hearts = m.pack.filter((c) => c.suit === H.HEARTS).slice(0, 4); // 17 points
+	const rest = m.pack.filter((c) => c !== qs && !hearts.includes(c));
+	const mb = scoreWithTaken(moon, [[], rest.filter((c) => c.suit === H.HEARTS), rest.filter((c) => c.suit !== H.HEARTS), [qs, ...hearts], []]);
+	assert.equal(mb.lines[0].chips, 26);
+});
+
+test("the Collector's Album, Interest Rate, Bargain Bin and Tip Jar", () => {
+	const run = R.newRun('ECON', { moreRelics: true });
+	assert.equal(R.relicSlots(run), R.RELIC_SLOTS);
+	run.relics.push(relics.instantiate(relics.get('collectors_album')));
+	assert.equal(R.relicSlots(run), R.RELIC_SLOTS + 1);
+	assert.equal(R.relicSlotsUsed(run), 0);
+	run.money = 60;
+	assert.equal(R.interest(run), R.MAX_INTEREST);
+	run.relics.push(relics.instantiate(relics.get('interest_rate')));
+	assert.equal(R.interest(run), 8);
+	run.relics.push(relics.instantiate(relics.get('bargain_bin')));
+	finish(run);
+	run.score = run.target + 1;
+	R.continueAfterHand(run);
+	R.enterShop(run);
+	assert.equal(run.rerollCost, 0);
+	R.reroll(run);
+	assert.equal(run.rerollCost, R.BASE_REROLL_COST - 1);
+
+	const tip = relics.get('tip_jar');
+	const fake = { myTricks: Array.from({ length: 7 }, () => ({ points: 0 })) };
+	assert.deepEqual(tip.score(fake), { money: 3 });
+});

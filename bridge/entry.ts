@@ -131,7 +131,7 @@ function view() {
 		money: r.money,
 		interest: R.interest(r),
 		rerollCost: r.rerollCost,
-		relicSlots: R.RELIC_SLOTS,
+		relicSlots: R.relicSlots(r),
 		relicSlotsUsed: R.relicSlotsUsed(r),
 		levels: Object.values(R.UPGRADES).map((u) => {
 			const [c, m] = R.upgradeBonus(u.key, r.levels[u.key]);
@@ -161,7 +161,12 @@ function view() {
 			points: st ? H.pointsTaken(st) : [0, 0, 0, 0, 0],
 			heartsBroken: st ? st.heartsBroken : false,
 			received: hand.received.map((c) => c.id),
-			receivedFrom: hand.received.length ? H.passSource(H.PLAYER, hand.passDir) : null
+			receivedFrom: hand.received.length ? H.passSource(H.PLAYER, hand.passDir) : null,
+			/** Suits each opponent has shown they're out of (Card Counter only). */
+			voids:
+				st && R.activeRelics(r).some((x) => x.def.cardCounter)
+					? Object.fromEntries([1, 2, 4].map((s) => [s, Object.entries(st.voids[s]).filter(([, v]) => v).map(([k]) => Number(k))]))
+					: null
 		},
 		result: res
 			? { lines: res.lines, chips: res.chips, mult: res.mult, total: res.total, myPoints: res.myPoints, shooter: res.shooter, points: res.points, money: res.money }
@@ -192,7 +197,7 @@ function act(json: string): string {
 
 const api = {
 	newRun(seed: string | null): string {
-		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true };
+		opts = { editions: true, noRepeats: true, tableBase: R.GENTLE_TABLE_BASE, bosses: true, moreRelics: true };
 		run = R.newRun(seed && seed.length ? seed.toUpperCase() : undefined, opts);
 		actions = [];
 		return JSON.stringify(view());
@@ -211,6 +216,19 @@ const api = {
 	},
 	act,
 	view: () => JSON.stringify(view()),
+	/** Everything in the game, for the collection page. */
+	catalog: () =>
+		JSON.stringify({
+			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: d.text, rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: d.cost, icon: d.icon })),
+			editions: relics.EDITION_KEYS.map((k) => ({ key: k, name: relics.EDITIONS[k].name, text: relics.EDITIONS[k].text, cost: relics.EDITIONS[k].cost })),
+			seals: seals.SEAL_KEYS.map((k) => ({ key: k, name: seals.SEALS[k].name, text: seals.SEALS[k].text, cost: seals.SEALS[k].cost, color: seals.SEALS[k].color })),
+			packItems: [
+				...Object.values(packs.OPS).map((o) => ({ key: o.key, name: o.name, text: o.text, cost: o.cost, icon: o.icon })),
+				{ key: 'recolor', name: 'Recolor', text: 'Turn a card into another suit (the suit is on the item), same rank', cost: packs.recolorDef(1).cost, icon: packs.recolorDef(1).icon }
+			],
+			upgrades: Object.values(R.UPGRADES).map((u) => ({ key: u.key, name: u.name, text: u.text, icon: u.icon, chips: u.chips, mult: u.mult })),
+			bosses: bosses.BOSS_KEYS.map((k) => ({ key: k, name: bosses.BOSSES[k].name, text: bosses.BOSSES[k].text, tier: bosses.BOSSES[k].tier }))
+		}),
 	/** Can a pack item be used on this card? */
 	canApply(slot: number, cardId: number): string {
 		const item = run?.shop?.items[slot];

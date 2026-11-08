@@ -44,18 +44,49 @@ export interface ScoreCtx {
 	/** Boards won so far this table, moons shot this run. */
 	boardsWonThisTable: number;
 	moonsThisRun: number;
+	// For the expansion relics (filled in by the run; see run.scoreContext).
+	/** Cards you won this hand. */
+	taken: Card[];
+	/** Points each card carries this hand. */
+	pts: (c: Card) => number;
+	firstHandOfBoard: boolean;
+	lastHandOfBoard: boolean;
+	/** Your board score before this hand was below the goal. */
+	behindGoal: boolean;
+	bossBoard: boolean;
+	/** Cards burned from the pack so far. */
+	cardsBurned: number;
+	/** Sealed cards you won this hand. */
+	sealedTaken: number;
+	/** Your relics with an edition. */
+	editionCount: number;
+	/** Point cards you passed that someone else took. */
+	passedPointsAway: number;
+	/** Voids the opponents revealed this hand. */
+	opponentVoids: number;
 }
 
 export interface Effect {
 	chips?: number;
 	mult?: number;
 	xmult?: number;
+	/** Money, paid when the hand is banked. */
+	money?: number;
 }
 
 export interface RelicState {
 	mult?: number;
 	x?: number;
 	streak?: number;
+	chips?: number;
+	/** The board a once-per-board relic was last used on. */
+	used?: string;
+}
+
+/** What a relic knows when a board is won. */
+export interface BoardWinInfo {
+	boss: boolean;
+	seals: number;
 }
 
 export interface Relic {
@@ -118,15 +149,35 @@ export interface RelicDef {
 	score?: (ctx: ScoreCtx, relic: Relic) => Effect | null;
 	/** Called after each hand is scored; scaling relics grow here. */
 	onHandEnd?: (ctx: ScoreCtx, relic: Relic) => void;
-	onBoardWin?: (relic: Relic) => { money?: number } | void;
+	onBoardWin?: (relic: Relic, info: BoardWinInfo) => { money?: number } | void;
 	describe?: (relic: Relic) => string;
 	/** Rule-changing relics. */
 	halfMoon?: boolean;
 	moonX?: number;
 	baseX?: number;
+	/** In the expanded pool only (the iPad app's runs). */
+	expansion?: boolean;
+	/** Interest can reach this much. */
+	interestCap?: number;
+	/** Rerolls cost $1 less, and the first in each club is free. */
+	bargain?: boolean;
+	/** Taking 16 or more points (short of the moon) scores as dodging them. */
+	moonlighter?: boolean;
+	/** Taking all but three or fewer points counts as shooting the moon. */
+	shadowMoon?: boolean;
+	/** Each hand, the first heart you take goes to the player with the most points. */
+	fixer?: boolean;
+	/** Your first three cards each hand may ignore the follow-suit rule. */
+	wildcard?: boolean;
+	/** You can see which suits each opponent is void in (the app shows it). */
+	cardCounter?: boolean;
+	/** Takes no relic slot and adds one. */
+	extraSlot?: boolean;
 }
 
 const dodging = (ctx: ScoreCtx) => ctx.shooter === null;
+/** The card you played to a trick. */
+const myPlay = (t: Trick) => t.plays.find((p) => p.seat === H.PLAYER)!.card;
 
 export const DEFS: RelicDef[] = [
 	// ---------------------------------------------------------------- common
@@ -261,6 +312,224 @@ export const DEFS: RelicDef[] = [
 		key: 'full_moon', name: 'Full Moon', rarity: 4, cost: 13, icon: 'life_master',
 		text: 'x1.5, and x1.5 again for every board already won at this table',
 		score: (ctx) => ({ xmult: 1.5 ** (1 + ctx.boardsWonThisTable) })
+	},
+
+	// ============================================================ expansion
+	// The iPad app's runs add these to the pool (RunOptions.moreRelics).
+
+	// ---------------------------------------------------------------- common
+	{
+		key: 'low_ball', name: 'Low Ball', rarity: 1, cost: 4, icon: 'low_ball', expansion: true,
+		text: '+2 chips for each card under 6 still in your hand when you first take points',
+		score: (ctx) => {
+			const k = ctx.tricks.findIndex((t) => t.winner === H.PLAYER && t.points > 0);
+			if (k < 0) return null;
+			const left = ctx.tricks.slice(k + 1).filter((t) => myPlay(t).rank < 6).length;
+			return left > 0 ? { chips: 2 * left } : null;
+		}
+	},
+	{
+		key: 'club_sandwich', name: 'Club Sandwich', rarity: 1, cost: 4, icon: 'club_sandwich', expansion: true,
+		text: '+20 chips if you win the opening trick',
+		score: (ctx) => (ctx.tricks[0]?.winner === H.PLAYER ? { chips: 20 } : null)
+	},
+	{
+		key: 'diamond_mine', name: 'Diamond Mine', rarity: 1, cost: 5, icon: 'diamond_mine', expansion: true,
+		text: '+3 chips for each diamond you win',
+		score: (ctx) => {
+			const n = ctx.taken.filter((c) => c.suit === H.DIAMONDS).length;
+			return n > 0 ? { chips: 3 * n } : null;
+		}
+	},
+	{
+		key: 'spade_work', name: 'Spade Work', rarity: 1, cost: 4, icon: 'spade_work', expansion: true,
+		text: '+4 chips for each spade below the queen you play on a spade trick',
+		score: (ctx) => {
+			const n = ctx.tricks.filter((t) => t.ledSuit === H.SPADES && myPlay(t).suit === H.SPADES && myPlay(t).rank < 12).length;
+			return n > 0 ? { chips: 4 * n } : null;
+		}
+	},
+	{
+		key: 'second_chair', name: 'Second Chair', rarity: 1, cost: 5, icon: 'second_chair', expansion: true,
+		text: '+10 chips for each trick you win playing second',
+		score: (ctx) => {
+			const n = ctx.tricks.filter((t) => t.plays[1]?.seat === H.PLAYER && t.winner === H.PLAYER).length;
+			return n > 0 ? { chips: 10 * n } : null;
+		}
+	},
+	{
+		key: 'tip_jar', name: 'Tip Jar', rarity: 1, cost: 5, icon: 'tip_jar', expansion: true,
+		text: 'Earn $1 for every two tricks you win that hold no points',
+		score: (ctx) => {
+			const n = Math.floor(ctx.myTricks.filter((t) => t.points === 0).length / 2);
+			return n > 0 ? { money: n } : null;
+		}
+	},
+	{
+		key: 'lucky_seven', name: 'Lucky Seven', rarity: 1, cost: 4, icon: 'lucky_seven', expansion: true,
+		text: '+7 chips for each seven you play',
+		score: (ctx) => {
+			const n = ctx.tricks.filter((t) => myPlay(t).rank === 7).length;
+			return n > 0 ? { chips: 7 * n } : null;
+		}
+	},
+	{
+		key: 'wallflower', name: 'Wallflower', rarity: 1, cost: 4, icon: 'wallflower', expansion: true,
+		text: '+25 chips if you win no tricks at all',
+		score: (ctx) => (ctx.myTricks.length === 0 && ctx.tricks.length > 0 ? { chips: 25 } : null)
+	},
+
+	// -------------------------------------------------------------- uncommon
+	{
+		key: 'heart_surgeon', name: 'Heart Surgeon', rarity: 2, cost: 6, icon: 'heart_surgeon', expansion: true,
+		text: '+1 mult if you take exactly one heart',
+		score: (ctx) => (ctx.heartsTaken === 1 ? { mult: 1 } : null)
+	},
+	{
+		key: 'slow_burn', name: 'Slow Burn', rarity: 2, cost: 6, icon: 'slow_burn', expansion: true,
+		text: 'Gains +3 chips each hand; resets if you take the queen of spades',
+		describe: (r) => `Gains +3 chips each hand; resets if you take the queen of spades (now +${r.state.chips ?? 0})`,
+		onHandEnd: (ctx, r) => {
+			r.state.chips = ctx.tookQueen ? 0 : (r.state.chips ?? 0) + 3;
+		},
+		score: (_ctx, r) => ((r.state.chips ?? 0) > 0 ? { chips: r.state.chips } : null)
+	},
+	{
+		key: 'cold_feet', name: 'Cold Feet', rarity: 2, cost: 7, icon: 'cold_feet', expansion: true,
+		text: 'x1.5 if hearts stay unbroken until the last three tricks',
+		score: (ctx) => {
+			const broke = ctx.tricks.findIndex((t) => t.plays.some((p) => p.card.suit === H.HEARTS || H.isQueenOfSpades(p.card)));
+			return ctx.tricks.length > 3 && (broke < 0 || broke >= ctx.tricks.length - 3) ? { xmult: 1.5 } : null;
+		}
+	},
+	{
+		key: 'duck_hunter', name: 'Duck Hunter', rarity: 2, cost: 6, icon: 'duck_hunter', expansion: true,
+		text: '+0.3 mult for each trick you duck under a higher card already played',
+		score: (ctx) => {
+			const n = ctx.tricks.filter((t) => {
+				const i = t.plays.findIndex((p) => p.seat === H.PLAYER);
+				const mine = t.plays[i].card;
+				return t.winner !== H.PLAYER && mine.suit === t.ledSuit && t.plays.slice(0, i).some((p) => p.card.suit === t.ledSuit && p.card.rank > mine.rank);
+			}).length;
+			return n > 0 ? { mult: 0.3 * n } : null;
+		}
+	},
+	{
+		key: 'undertaker', name: 'Undertaker', rarity: 2, cost: 6, icon: 'undertaker', expansion: true,
+		text: '+0.25 mult for each card burned from the pack',
+		score: (ctx) => (ctx.cardsBurned > 0 ? { mult: 0.25 * ctx.cardsBurned } : null)
+	},
+	{
+		key: 'wax_collector', name: 'Wax Collector', rarity: 2, cost: 6, icon: 'wax_collector', expansion: true,
+		text: '+0.5 mult for each sealed card you win',
+		score: (ctx) => (ctx.sealedTaken > 0 ? { mult: 0.5 * ctx.sealedTaken } : null)
+	},
+	{
+		key: 'mint_condition', name: 'Mint Condition', rarity: 2, cost: 6, icon: 'mint_condition', expansion: true,
+		text: '+0.25 mult for each of your relics with an edition',
+		score: (ctx) => (ctx.editionCount > 0 ? { mult: 0.25 * ctx.editionCount } : null)
+	},
+	{
+		key: 'interest_rate', name: 'Interest Rate', rarity: 2, cost: 7, icon: 'interest_rate', expansion: true,
+		text: 'Interest can reach $8 instead of $5',
+		interestCap: 8
+	},
+	{
+		key: 'bargain_bin', name: 'Bargain Bin', rarity: 2, cost: 6, icon: 'bargain_bin', expansion: true,
+		text: 'Rerolls cost $1 less, and the first one in each club is free',
+		bargain: true
+	},
+	{
+		key: 'tailwind', name: 'Tailwind', rarity: 2, cost: 6, icon: 'tailwind', expansion: true,
+		text: '+20 chips on the first hand of each board',
+		score: (ctx) => (ctx.firstHandOfBoard ? { chips: 20 } : null)
+	},
+
+	// ------------------------------------------------------------------ rare
+	{
+		key: 'crown_jewels', name: 'Crown Jewels', rarity: 3, cost: 8, icon: 'crown_jewels', expansion: true,
+		text: 'x1.5 for each king of hearts or queen of spades you pass',
+		score: (ctx) => {
+			const n = ctx.passed.filter((c) => (c.suit === H.HEARTS && c.rank === 13) || H.isQueenOfSpades(c)).length;
+			return n > 0 ? { xmult: 1.5 ** n } : null;
+		}
+	},
+	{
+		key: 'clean_slate', name: 'Clean Slate', rarity: 3, cost: 8, icon: 'clean_slate', expansion: true,
+		text: 'x2 if you take no points two hands in a row',
+		describe: (r) => `x2 if you take no points two hands in a row${(r.state.streak ?? 0) > 0 ? ' (last hand was clean)' : ''}`,
+		onHandEnd: (ctx, r) => {
+			r.state.streak = ctx.myPoints === 0 && dodging(ctx) ? (r.state.streak ?? 0) + 1 : 0;
+		},
+		score: (ctx, r) => (ctx.myPoints === 0 && dodging(ctx) && (r.state.streak ?? 0) >= 1 ? { xmult: 2 } : null)
+	},
+	{
+		key: 'comeback', name: 'Comeback', rarity: 3, cost: 8, icon: 'comeback', expansion: true,
+		text: "x2 on a board's last hand if you're behind the goal",
+		score: (ctx) => (ctx.lastHandOfBoard && ctx.behindGoal ? { xmult: 2 } : null)
+	},
+	{
+		key: 'hot_potato', name: 'Hot Potato', rarity: 3, cost: 8, icon: 'hot_potato', expansion: true,
+		text: 'x1.25 for each point card you pass that someone else takes',
+		score: (ctx) => (ctx.passedPointsAway > 0 ? { xmult: 1.25 ** ctx.passedPointsAway } : null)
+	},
+	{
+		key: 'boss_hunter', name: 'Boss Hunter', rarity: 3, cost: 9, icon: 'boss_hunter', expansion: true,
+		text: 'x1.5 on boss boards, and beating a boss pays $2 more',
+		score: (ctx) => (ctx.bossBoard ? { xmult: 1.5 } : null),
+		onBoardWin: (_r, info) => (info.boss ? { money: 2 } : undefined)
+	},
+	{
+		key: 'moonlighter', name: 'Moonlighter', rarity: 3, cost: 8, icon: 'moonlighter', expansion: true,
+		text: 'Taking 16 or more points, short of the moon, scores as if you dodged them',
+		moonlighter: true
+	},
+	{
+		key: 'gilded_cage', name: 'Gilded Cage', rarity: 3, cost: 8, icon: 'gilded_cage', expansion: true,
+		text: 'Earn $1 for each seal you own when you win a board',
+		onBoardWin: (_r, info) => (info.seals > 0 ? { money: info.seals } : undefined)
+	},
+	{
+		key: 'long_game', name: 'Long Game', rarity: 3, cost: 9, icon: 'long_game', expansion: true,
+		text: 'Gains x0.03 for each board you win',
+		describe: (r) => `Gains x0.03 for each board you win (now x${(1 + (r.state.x ?? 0)).toFixed(2)})`,
+		onBoardWin: (r) => {
+			r.state.x = (r.state.x ?? 0) + 0.03;
+		},
+		score: (_ctx, r) => ((r.state.x ?? 0) > 0 ? { xmult: 1 + r.state.x! } : null)
+	},
+
+	// ------------------------------------------------------------- legendary
+	{
+		key: 'the_fixer', name: 'The Fixer', rarity: 4, cost: 12, icon: 'the_fixer', expansion: true,
+		text: 'The first heart you take each hand goes to the player with the most points',
+		fixer: true
+	},
+	{
+		key: 'shadow_moon', name: 'Shadow Moon', rarity: 4, cost: 12, icon: 'shadow_moon', expansion: true,
+		text: 'Taking all but three or fewer points counts as shooting the moon',
+		shadowMoon: true
+	},
+	{
+		key: 'double_down', name: 'Double Down', rarity: 4, cost: 13, icon: 'double_down', expansion: true,
+		text: "Your score for each board's last hand counts twice",
+		score: (ctx) => (ctx.lastHandOfBoard ? { xmult: 2 } : null)
+	},
+	{
+		key: 'card_counter', name: 'Card Counter', rarity: 4, cost: 11, icon: 'card_counter', expansion: true,
+		text: 'See which suits each opponent is out of, and +0.25 mult for each void they show',
+		cardCounter: true,
+		score: (ctx) => (ctx.opponentVoids > 0 ? { mult: 0.25 * ctx.opponentVoids } : null)
+	},
+	{
+		key: 'wildcard', name: 'Wildcard', rarity: 4, cost: 12, icon: 'wildcard', expansion: true,
+		text: "Your first three cards each hand don't have to follow suit",
+		wildcard: true
+	},
+	{
+		key: 'collectors_album', name: "The Collector's Album", rarity: 4, cost: 11, icon: 'collectors_album', expansion: true,
+		text: 'Takes no relic slot, and adds one',
+		extraSlot: true
 	}
 ];
 
@@ -281,7 +550,7 @@ export function textFor(relic: Relic): string {
 }
 
 /** Weighted rarity roll, never offering a relic you already own. */
-export function randomUnowned(rng: RNG, owned: { key: string }[]): RelicDef | undefined {
+export function randomUnowned(rng: RNG, owned: { key: string }[], expanded = false): RelicDef | undefined {
 	const weights = [0.6, 0.3, 0.085, 0.015];
 	const have = new Set(owned.map((o) => o.key));
 	for (let attempt = 0; attempt < 40; attempt++) {
@@ -295,11 +564,11 @@ export function randomUnowned(rng: RNG, owned: { key: string }[]): RelicDef | un
 				break;
 			}
 		}
-		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key));
+		const pool = DEFS.filter((d) => d.rarity === rarity && !have.has(d.key) && (expanded || !d.expansion));
 		const pick = rng.pick(pool);
 		if (pick) return pick;
 	}
-	return DEFS.find((d) => !have.has(d.key));
+	return DEFS.find((d) => !have.has(d.key) && (expanded || !d.expansion));
 }
 
 void cards;

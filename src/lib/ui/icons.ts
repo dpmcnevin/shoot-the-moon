@@ -5,6 +5,7 @@
 
 import { hex, type Color } from './theme.ts';
 import { newBitmap, type Bitmap } from './pixel.ts';
+import { EXPANSION_ICONS } from './icons2.ts';
 
 export const PALETTE: Record<string, Color> = {
 	k: hex('#1b1d26'),
@@ -356,7 +357,7 @@ const FALLBACK = [
 
 /** Bitmap for an icon on its cream tile (18x18: a 1px rim around 16x16). */
 export function bitmap(key: string): Bitmap {
-	const rows = ICONS[key] ?? FALLBACK;
+	const rows = ICONS[key] ?? EXPANSION_ICONS[key] ?? FALLBACK;
 	const T = TILE;
 	const b = newBitmap(T, T);
 	const P = PALETTE;
