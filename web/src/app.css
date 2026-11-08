@@ -45,14 +45,44 @@ body {
 	overscroll-behavior: none;
 }
 
+/* Pixel corners, as on the iPad: `clip-path: var(--px-clip)` cuts a box's
+   corners into steps (--px-a and --px-b: how far the first and second rows
+   are pulled in) and keeps a straight-down drop shadow of --px-sy (use a
+   box-shadow of 0 <sy> 0). A 2px border with 2px steps gives a clean
+   one-pixel notch. Shadows are straight down so they stay on the grid. */
+@property --px-a {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 2px;
+}
+@property --px-b {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 2px;
+}
+@property --px-sy {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+* {
+	--px-clip: polygon(
+		0 var(--px-a), var(--px-b) var(--px-a), var(--px-b) var(--px-b), var(--px-a) var(--px-b), var(--px-a) 0,
+		calc(100% - var(--px-a)) 0, calc(100% - var(--px-a)) var(--px-b), calc(100% - var(--px-b)) var(--px-b), calc(100% - var(--px-b)) var(--px-a), 100% var(--px-a),
+		100% calc(100% + var(--px-sy) - var(--px-a)), calc(100% - var(--px-b)) calc(100% + var(--px-sy) - var(--px-a)), calc(100% - var(--px-b)) calc(100% + var(--px-sy) - var(--px-b)), calc(100% - var(--px-a)) calc(100% + var(--px-sy) - var(--px-b)), calc(100% - var(--px-a)) calc(100% + var(--px-sy)),
+		var(--px-a) calc(100% + var(--px-sy)), var(--px-a) calc(100% + var(--px-sy) - var(--px-b)), var(--px-b) calc(100% + var(--px-sy) - var(--px-b)), var(--px-b) calc(100% + var(--px-sy) - var(--px-a)), 0 calc(100% + var(--px-sy) - var(--px-a))
+	);
+}
+
 /* Panels over the table share this look. */
 .panel {
 	position: absolute;
 	box-sizing: border-box;
 	background: var(--panel);
 	border: 2px solid var(--brass-dim);
-	border-radius: 10px;
-	box-shadow: 4px 6px 0 rgba(0, 0, 0, 0.35);
+	box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+	--px-sy: 6px;
+	clip-path: var(--px-clip);
 	color: var(--ink);
 }
 

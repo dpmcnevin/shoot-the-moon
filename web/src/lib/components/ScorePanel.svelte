@@ -174,8 +174,9 @@
 		font-size: 28px;
 		font-weight: 700;
 		padding: 2px 12px;
-		border-radius: 8px;
-		box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.2);
+		box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2);
+		--px-a: 4px;
+		clip-path: var(--px-clip);
 		font-variant-numeric: tabular-nums;
 	}
 	.chips-bg {

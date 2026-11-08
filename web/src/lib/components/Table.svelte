@@ -509,8 +509,8 @@
 		display: inline-block;
 		margin-left: 6px;
 		padding: 0 7px;
-		border-radius: 9px;
 		background: var(--bad);
+		clip-path: var(--px-clip);
 		color: var(--ink);
 		font-weight: 700;
 		font-size: 13px;
@@ -559,8 +559,9 @@
 		padding: 14px;
 		background: var(--sidebar);
 		border: 2px solid var(--ploy);
-		border-radius: 10px;
-		box-shadow: 3px 5px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
 		z-index: 85;
 	}
 	.pass-title {

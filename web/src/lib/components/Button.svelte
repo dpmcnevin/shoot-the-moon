@@ -49,15 +49,17 @@
 	.btn {
 		position: relative;
 		border: none;
-		border-radius: 8px;
 		font: inherit;
 		font-weight: 700;
 		cursor: pointer;
 		color: var(--bg);
 		background: var(--brass);
 		box-shadow:
-			2px 5px 0 rgba(0, 0, 0, 0.35),
-			inset 0 3px 0 rgba(255, 255, 255, 0.18);
+			0 4px 0 rgba(0, 0, 0, 0.35),
+			inset 0 2px 0 rgba(255, 255, 255, 0.18);
+		--px-a: 4px;
+		--px-sy: 4px;
+		clip-path: var(--px-clip);
 		transition:
 			transform 0.08s,
 			filter 0.08s;
@@ -93,13 +95,14 @@
 		transform: translateY(-2px);
 	}
 	.btn:active:not(:disabled) {
-		transform: translateY(3px);
-		box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.35);
+		transform: translateY(2px);
+		box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 2px;
 	}
 	.btn:disabled {
 		background: var(--panel-edge);
 		color: var(--ink-faint);
-		box-shadow: 2px 5px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
 		cursor: default;
 	}
 	.pulse:not(:hover) {

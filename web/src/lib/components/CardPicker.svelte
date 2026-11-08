@@ -102,8 +102,9 @@
 		padding: 18px 22px;
 		background: var(--panel);
 		border: 2px solid var(--brass-dim);
-		border-radius: 10px;
-		box-shadow: 4px 6px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
 		z-index: 310;
 	}
 	.head {
@@ -145,8 +146,7 @@
 		width: 100%;
 		height: 100%;
 		display: block;
-		border-radius: 5px;
-		box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.35);
+		filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35));
 	}
 	.card.pixel img {
 		image-rendering: pixelated;

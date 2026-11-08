@@ -178,8 +178,9 @@
 		position: relative;
 		background: var(--panel);
 		border: 2px solid var(--brass-dim);
-		border-radius: 10px;
-		box-shadow: 3px 5px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
 	}
 	.item {
 		display: flex;
@@ -238,7 +239,6 @@
 		position: absolute;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.55);
-		border-radius: 8px;
 	}
 	.owned h3 {
 		margin: 0 0 8px;
@@ -287,6 +287,8 @@
 		background: var(--bg);
 		border: none;
 		box-shadow: none;
+		--px-a: 4px;
+		--px-sy: 0px;
 		color: var(--ink-faint);
 		font-size: 14px;
 	}

@@ -301,7 +301,7 @@
 	.box {
 		background: var(--panel);
 		border: 2px solid var(--brass-dim);
-		border-radius: 10px;
+		clip-path: var(--px-clip);
 		padding: 0 12px 6px;
 		margin: 0 -6px;
 	}
@@ -363,11 +363,11 @@
 		flex-direction: column;
 		align-items: center;
 		background: var(--panel);
-		border-radius: 6px;
+		clip-path: var(--px-clip);
 		padding: 1px 0;
 	}
 	.pt.me {
-		box-shadow: inset 0 0 0 1px var(--brass-dim);
+		box-shadow: inset 0 0 0 2px var(--brass-dim);
 	}
 	.who {
 		font-size: 12px;
@@ -418,7 +418,7 @@
 		gap: 6px;
 		height: 22px;
 		background: var(--panel);
-		border-radius: 5px;
+		clip-path: var(--px-clip);
 		margin: 0 -4px;
 		font-size: 14px;
 		overflow: hidden;
@@ -494,6 +494,7 @@
 		background: var(--panel);
 		color: var(--ink-faint);
 		border: 2px solid transparent;
+		clip-path: var(--px-clip);
 	}
 	.chip.now {
 		background: var(--brass);
@@ -508,6 +509,7 @@
 		padding: 4px 8px;
 		background: var(--panel);
 		border: 2px solid transparent;
+		clip-path: var(--px-clip);
 		font-size: 14px;
 		color: var(--ink-dim);
 	}

@@ -142,13 +142,19 @@
 		padding: 14px;
 		background: var(--panel);
 		border: 2px solid var(--panel-edge);
-		box-shadow: 3px 5px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
 	}
 	.board.now {
 		border: 3px solid var(--brass);
+		--px-a: 3px;
+		--px-b: 3px;
 	}
 	.board.boss {
 		border: 3px solid var(--bad);
+		--px-a: 3px;
+		--px-b: 3px;
 	}
 	.board.won {
 		background: var(--bg);

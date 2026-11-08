@@ -193,6 +193,7 @@
 		min-height: 68px;
 		background: var(--panel);
 		border: 2px solid;
+		clip-path: var(--px-clip);
 	}
 	.tbody {
 		display: flex;

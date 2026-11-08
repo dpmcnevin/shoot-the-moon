@@ -89,7 +89,7 @@
 					<div
 						class="face front"
 						class:pixel={settings.pixelCards}
-						style:box-shadow="{shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA})"
+						style:filter="drop-shadow({shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA}))"
 					>
 						<Shine edition={p.edition}><img src={front} alt="" draggable="false" /></Shine>
 						{#if p.seal}<span class="seal-spot"><SealBadge seal={p.seal} size={28} /></span>{/if}
@@ -100,7 +100,7 @@
 					<div
 						class="face back"
 						class:pixel={settings.pixelCards}
-						style:box-shadow="{-shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA})"
+						style:filter="drop-shadow({-shadowOff * 0.6}px {shadowOff}px 0 rgba(0,0,0,{shadowA}))"
 					>
 						<img src={back} alt="" draggable="false" />
 					</div>
@@ -225,6 +225,8 @@
 		position: absolute;
 		inset: -3px;
 		border: 3px solid;
-		border-radius: 10px;
+		--px-a: 3px;
+		--px-b: 3px;
+		clip-path: var(--px-clip);
 	}
 </style>

@@ -268,7 +268,7 @@
 		background: var(--panel-edge);
 		color: var(--ink);
 		border: none;
-		border-radius: 6px;
+		clip-path: var(--px-clip);
 		padding: 6px 12px;
 		cursor: pointer;
 	}
@@ -308,7 +308,7 @@
 		color: var(--ink);
 		background: var(--felt-edge);
 		border: 2px solid var(--panel-edge);
-		border-radius: 6px;
+		clip-path: var(--px-clip);
 		outline: none;
 		letter-spacing: 0.06em;
 	}

@@ -38,8 +38,9 @@
 		padding: 10px 20px;
 		background: var(--sidebar);
 		border: 2px solid;
-		border-radius: 8px;
-		box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 4px;
+		clip-path: var(--px-clip);
 		font-size: 20px;
 		text-align: center;
 	}
