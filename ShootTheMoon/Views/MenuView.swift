@@ -1,30 +1,61 @@
 import SwiftUI
 
-/// The main menu: a fan of the cards that matter (draggable, tap to flip),
-/// the title, a seed box and settings.
+/// The main menu: a fan of four random cards, some with an edition
+/// (draggable, tap to flip), the title, a seed box and settings.
 struct MenuView: View {
     @Environment(GameModel.self) private var model
     @State private var moved: [Int: CGPoint] = [:]
     @State private var faceDown: Set<Int> = []
     @State private var dealt = false
 
-    private let fan: [CardV] = [
-        CardV(id: -1, suit: 3, rank: 14, code: "AH", name: "A♥", seal: nil),
-        CardV(id: -2, suit: 4, rank: 12, code: "QS", name: "Q♠", seal: nil),
-        CardV(id: -3, suit: 3, rank: 13, code: "KH", name: "K♥", seal: nil),
-        CardV(id: -4, suit: 2, rank: 11, code: "JD", name: "J♦", seal: nil)
-    ]
+    /// Dealt fresh each time the menu appears.
+    @State private var fan = MenuView.dealFan()
+
+    struct FanCard: Identifiable {
+        let card: CardV
+        let edition: String?
+        var id: Int { card.id }
+    }
+
+    /// Four different cards, each with about a one-in-three chance of an
+    /// edition (weighted like the club's: Etched most often, Phantom rarely).
+    static func dealFan() -> [FanCard] {
+        let ranks = Array("23456789TJQKA"), suits = Array("CDHS"), symbols = ["♣", "♦", "♥", "♠"]
+        var deck = (1...4).flatMap { s in (2...14).map { r in (s, r) } }.shuffled()
+        return (0..<4).map { i in
+            let (s, r) = deck.removeFirst()
+            let label = r <= 10 ? String(r) : String(ranks[r - 2])
+            let card = CardV(id: -(i + 1), suit: s, rank: r, code: "\(ranks[r - 2])\(suits[s - 1])", name: label + symbols[s - 1], seal: nil)
+            var edition: String?
+            if Double.random(in: 0..<1) < 0.33 {
+                let roll = Double.random(in: 0..<1)
+                edition = roll < 0.4 ? "etched" : roll < 0.7 ? "lacquered" : roll < 0.9 ? "prismatic" : "phantom"
+            }
+            return FanCard(card: card, edition: edition)
+        }
+    }
 
     var body: some View {
         let L = model.layout
         @Bindable var model = model
         ZStack {
             Felt()
-            ForEach(Array(fan.enumerated()), id: \.element.id) { i, c in
+            ForEach(Array(fan.enumerated()), id: \.element.id) { i, f in
+                let c = f.card
                 let k = Double(i + 1) - 2.5
                 let home = CGPoint(x: L.W / 2 + k * 70, y: 120 + L.dy * 0.6 + k * k * 6)
                 let at = moved[c.id] ?? home
                 CardView(card: c, faceUp: dealt && !faceDown.contains(c.id), lift: 6)
+                    .modifier(EditionShine(edition: faceDown.contains(c.id) ? nil : f.edition))
+                    .overlay(alignment: .bottom) {
+                        if let e = f.edition, !faceDown.contains(c.id) {
+                            Text(e.uppercased()).font(Theme.font(10, .bold)).kerning(1)
+                                .foregroundStyle(Edition.color(e))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(PixelRect(radius: 2).fill(Theme.sidebar.opacity(0.9)))
+                                .offset(y: 12)
+                        }
+                    }
                     .scaleEffect(1.1)
                     .rotationEffect(.radians(moved[c.id] == nil ? k * 0.16 : 0))
                     .position(dealt ? at : CGPoint(x: L.W / 2, y: -150))
