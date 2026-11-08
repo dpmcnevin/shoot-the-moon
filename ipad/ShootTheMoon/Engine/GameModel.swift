@@ -47,6 +47,9 @@ final class GameModel {
     var showHelp = false
     /// The Last trick panel is open.
     var showLastTrick = false
+    /// While the board-won panel counts up its payout: the money the sidebar
+    /// shows so far (nil when not counting).
+    var moneyShown: Int?
     /// A relic, seal or upgrade being read from the sidebar.
     var inspect: InfoCard?
     /// The collection page is open (from the menu).

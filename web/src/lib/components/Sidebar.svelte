@@ -58,7 +58,7 @@
 		score.target = run.score - pending;
 	});
 	$effect(() => {
-		money.target = run.money;
+		money.target = game.moneyShown ?? run.money;
 	});
 	const reached = $derived(run.score >= run.target);
 	const points = $derived.by(() => {

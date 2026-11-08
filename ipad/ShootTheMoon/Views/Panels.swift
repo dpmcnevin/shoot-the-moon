@@ -93,18 +93,63 @@ struct ScorePanel: View {
     }
 }
 
+/// Board won: the payout, itemised, and the way into the club. Like a
+/// cash-out, the rows come in one by one with dollar pips, and the total
+/// counts up a dollar at a time (the sidebar's money with it). A tap on the
+/// panel skips to the end.
 struct BoardWonPanel: View {
     @Environment(GameModel.self) private var model
+    @State private var shown = 0
+    @State private var counted = 0
+    @State private var skipped = false
 
     var body: some View {
-        if let v = model.view, let p = v.payout { panel(v, p) }
+        if let v = model.view, let p = v.payout {
+            panel(v, p)
+                .task { await countUp(v, p) }
+                .onDisappear { model.moneyShown = nil }
+        }
     }
 
-    private func panel(_ v: GameView, _ p: PayoutV) -> some View {
+    private func rows(_ p: PayoutV) -> [(String, Int)] {
         var rows: [(String, Int)] = [("Board", p.board), ("Unused hands", p.unused), ("Interest", p.interest)]
         if p.relics > 0 { rows.append(("Relics", p.relics)) }
         if let b = p.boss, b > 0 { rows.append(("Boss beaten", b)) }
         if let o = p.overshoot, o > 0 { rows.append(("Beat the goal by \(o * 50)%+", o)) }
+        return rows
+    }
+
+    private func countUp(_ v: GameView, _ p: PayoutV) async {
+        let list = rows(p)
+        let start = v.money - p.total
+        let pace = 1 / max(0.5, model.speed)
+        func wait(_ s: Double) async { try? await Task.sleep(for: .seconds(s * pace)) }
+        model.moneyShown = start
+        await wait(0.45)
+        while shown < list.count && !skipped {
+            shown += 1
+            let amount = list[shown - 1].1
+            model.audio.play("tick", pitch: amount > 0 ? 1.1 : 0.85, volume: 0.6)
+            await wait(amount > 0 ? 0.3 : 0.2)
+        }
+        while counted < p.total && !skipped {
+            counted += 1
+            model.moneyShown = start + counted
+            model.audio.play("coin", pitch: Float(0.9 + min(0.6, Double(counted) * 0.05)), volume: 0.5)
+            await wait(max(0.07, 0.26 - Double(counted) * 0.025))
+        }
+        finish(p)
+    }
+
+    private func finish(_ p: PayoutV) {
+        skipped = true
+        shown = rows(p).count
+        counted = p.total
+        model.moneyShown = nil
+    }
+
+    private func panel(_ v: GameView, _ p: PayoutV) -> some View {
+        let rows = rows(p)
         return Panel(edge: Theme.brass) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("\(v.boardName) won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()
@@ -114,20 +159,34 @@ struct BoardWonPanel: View {
                     .font(Theme.font(16)).foregroundStyle(Theme.brass)
                 Text("\(num(v.score)) scored against a target of \(num(v.target))").font(Theme.font(17)).foregroundStyle(Theme.inkDim)
                 VStack(spacing: 4) {
-                    ForEach(rows, id: \.0) { row in
-                        HStack { Text(row.0); Spacer(); Text("$\(row.1)").foregroundStyle(row.1 > 0 ? Theme.brass : Theme.inkFaint) }
+                    ForEach(Array(rows.enumerated()), id: \.element.0) { i, row in
+                        HStack {
+                            Text(row.0)
+                            Spacer()
+                            HStack(spacing: 3) {
+                                ForEach(0..<min(row.1, 10), id: \.self) { _ in
+                                    PixelRect(radius: 2).fill(Theme.brass).frame(width: 8, height: 8)
+                                }
+                            }
+                            Text("$\(row.1)").foregroundStyle(row.1 > 0 ? Theme.brass : Theme.inkFaint)
+                        }
+                        .opacity(i < shown ? 1 : 0)
+                        .offset(x: i < shown ? 0 : -12)
+                        .animation(.easeOut(duration: 0.15), value: shown)
                     }
                     Divider().overlay(Theme.panelEdge)
-                    HStack { Text("Total").bold(); Spacer(); Text("$\(p.total)").bold().foregroundStyle(Theme.brass) }.font(Theme.font(20))
+                    HStack { Text("Total").bold(); Spacer(); Text("$\(counted)").bold().foregroundStyle(Theme.brass).contentTransition(.numericText()) }.font(Theme.font(20))
                 }
                 .font(Theme.font(17))
                 .padding(.top, 10)
-                HStack { Spacer(); GameButton("Enter the club", pulse: true, sound: nil) { model.enterShop() }.frame(width: 200) }
+                HStack { Spacer(); GameButton("Enter the club", pulse: skipped, sound: nil) { finish(p); model.enterShop() }.frame(width: 200) }
                     .padding(.top, 10)
             }
             .padding(.horizontal, 30).padding(.vertical, 18)
             .foregroundStyle(Theme.ink)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { if !skipped { finish(p) } }
         .frame(width: 460)
     }
 }

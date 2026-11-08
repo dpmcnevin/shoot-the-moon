@@ -61,7 +61,7 @@ struct Sidebar: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .top) {
-                    stat("Money", "$\(num(v.money))", color: Theme.brass)
+                    stat("Money", "$\(num(model.moneyShown ?? v.money))", color: Theme.brass)
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("Interest").font(Theme.font(14)).foregroundStyle(Theme.inkDim)

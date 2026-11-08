@@ -86,6 +86,9 @@ class Game {
 	shopRolls = $state(0);
 	/** Shop slot of a seal waiting for you to pick its card. */
 	sealPick = $state<number | null>(null);
+	/** While the board-won panel counts up its payout: the money to show
+	 *  in the sidebar so far (null when not counting). */
+	moneyShown = $state<number | null>(null);
 	/** The table overview (boards, goals, the boss); play waits behind it. */
 	showOverview = $state(false);
 	/** The last finished trick is on show. */
