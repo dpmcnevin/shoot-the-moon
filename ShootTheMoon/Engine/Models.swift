@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // Snapshots the bridge returns (see ios/bridge/entry.ts `view()`).
 
@@ -256,4 +257,15 @@ struct CatalogV: Decodable {
     let packItems: [PackItem]
     let upgrades: [Upgrade]
     let bosses: [Boss]
+}
+
+/// What the sidebar's info card shows for a tapped relic, seal or upgrade.
+struct InfoCard: Equatable {
+    var kind: String
+    var title: String
+    var text: String
+    var note: String? = nil
+    var color: Color
+    /// Where the tap was, on the stage, so the card sits beside it.
+    var y: Double
 }

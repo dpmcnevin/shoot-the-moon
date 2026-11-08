@@ -280,3 +280,36 @@ struct EditionTag: View {
             .foregroundStyle(Edition.color(edition.key))
     }
 }
+
+/// The card beside the sidebar that explains a tapped relic, seal or
+/// upgrade. Tap anywhere to close.
+struct InfoCardView: View {
+    @Environment(GameModel.self) private var model
+    let info: InfoCard
+
+    var body: some View {
+        let L = model.layout
+        ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001).onTapGesture { model.inspect = nil }
+            Panel(edge: info.color) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(info.kind.uppercased()).font(Theme.font(11, .bold)).kerning(1).foregroundStyle(info.color)
+                    Text(info.title).font(Theme.font(22, .bold)).inkShadow()
+                    Text(info.text).font(Theme.font(16)).foregroundStyle(Theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let note = info.note {
+                        Text(note).font(Theme.font(14)).foregroundStyle(Theme.inkDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(14)
+                .frame(width: 300, alignment: .leading)
+                .foregroundStyle(Theme.ink)
+            }
+            .fixedSize()
+            .position(x: L.sidebar.width + 166, y: min(max(info.y, 90), L.H - 90))
+            .onTapGesture { model.inspect = nil }
+        }
+        .frame(width: L.W, height: L.H)
+    }
+}

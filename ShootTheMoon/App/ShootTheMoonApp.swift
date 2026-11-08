@@ -110,6 +110,7 @@ struct RootView: View {
                     .zIndex(120)
                 }
                 Sidebar().zIndex(100)
+                if let info = model.inspect { InfoCardView(info: info).zIndex(290).transition(.opacity) }
                 if model.pickerSlot != nil { CardPickerView().frame(width: L.W, height: L.H).zIndex(300) }
                 if model.showOverview && v.phase != .gameOver && v.phase != .victory {
                     TableOverview().frame(width: L.W, height: L.H).zIndex(280)

@@ -75,6 +75,13 @@ struct Sidebar: View {
                             .foregroundStyle(l.level > 1 ? Theme.brass : Theme.inkFaint)
                     }
                     .font(Theme.font(14))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture(coordinateSpace: .named("stage")) { p in
+                        model.inspect = InfoCard(kind: "Upgrade, level \(l.level)", title: l.name, text: l.text,
+                                                 note: l.level > 1 ? "Now +\(num(l.chips)) chips, +\(String(format: "%.1f", l.mult)) mult" : "Not levelled yet",
+                                                 color: Theme.brass, y: p.y)
+                    }
                 }
             }
 
@@ -87,6 +94,11 @@ struct Sidebar: View {
                                 SealBadge(key: s.key, size: 14)
                                 Text(s.card?.name ?? "?").font(Theme.font(14, .bold))
                                     .foregroundStyle((s.card?.suit == 2 || s.card?.suit == 3) ? Theme.bad : Theme.ink)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture(coordinateSpace: .named("stage")) { p in
+                                model.inspect = InfoCard(kind: "Seal on \(s.card?.name ?? "a card")", title: s.name, text: s.text,
+                                                         color: Theme.ploy, y: p.y)
                             }
                         }
                     }
@@ -115,6 +127,17 @@ struct Sidebar: View {
                         .frame(height: 36)
                         .background(PixelRect(radius: 5).fill(Theme.panel))
                         .padding(.horizontal, -4)
+                        .contentShape(Rectangle())
+                        .onTapGesture(coordinateSpace: .named("stage")) { p in
+                            var notes: [String] = []
+                            if let e = r.edition { notes.append("\(e.name): \(e.text)") }
+                            if jinxed { notes.append("Jinxed: does nothing this board") }
+                            notes.append("Sells for $\(r.sell)")
+                            model.inspect = InfoCard(kind: "\(r.rarityName) relic", title: r.name, text: r.text,
+                                                     note: notes.joined(separator: "\n"), color: Theme.rarity[r.rarity], y: p.y)
+                        }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Shows what it does")
                     } else {
                         PixelRect(radius: 5).fill(Theme.bg).frame(height: 36).padding(.horizontal, -4)
                     }

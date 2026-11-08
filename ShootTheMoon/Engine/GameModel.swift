@@ -47,6 +47,8 @@ final class GameModel {
     var showHelp = false
     /// The Last trick panel is open.
     var showLastTrick = false
+    /// A relic, seal or upgrade being read from the sidebar.
+    var inspect: InfoCard?
     /// The collection page is open (from the menu).
     var showCollection = false
     /// Everything in the game, for the collection page.
