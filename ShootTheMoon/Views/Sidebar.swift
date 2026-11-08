@@ -13,6 +13,8 @@ struct Sidebar: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("SHOOT THE MOON").font(Theme.font(19, .bold)).kerning(1).foregroundStyle(Theme.brass).inkShadow()
                 RunProgress(v: v)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.showOverview = true }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -96,12 +98,17 @@ struct Sidebar: View {
                 ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
                     if i < v.relics.count {
                         let r = v.relics[i]
+                        let jinxed = v.jinxed == r.key
                         HStack(spacing: 6) {
-                            Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key))
+                            Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key)).saturation(jinxed ? 0 : 1)
                             PixelRect(radius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: 24)
                             VStack(alignment: .leading, spacing: -1) {
-                                if let e = r.edition { EditionTag(edition: e, size: 10) }
+                                if jinxed {
+                                    Text("JINXED").font(Theme.font(10, .bold)).kerning(1).foregroundStyle(Theme.bad)
+                                } else if let e = r.edition { EditionTag(edition: e, size: 10) }
                                 Text(r.name).font(Theme.font(14)).lineLimit(1)
+                                    .foregroundStyle(jinxed ? Theme.inkFaint : Theme.ink)
+                                    .strikethrough(jinxed, color: Theme.bad)
                             }
                             Spacer(minLength: 0)
                         }
@@ -209,8 +216,26 @@ struct RunProgress: View {
                         .overlay(PixelRect(radius: 4).stroke(done ? Theme.good : .clear, lineWidth: 2))
                 }
             }
+            if let boss = v.boss {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(boss.active ? "BOSS NOW" : "HIGH BOARD BOSS").font(Theme.font(11, .bold)).kerning(1)
+                            .foregroundStyle(boss.active ? Theme.bad : Theme.inkDim)
+                        Text(boss.name).font(Theme.font(14)).foregroundStyle(boss.active ? Theme.ink : Theme.inkDim)
+                    }
+                    if boss.active {
+                        Text(boss.text).font(Theme.font(12)).foregroundStyle(Theme.inkDim).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(PixelRect(radius: 4).fill(Theme.panel))
+                .overlay(PixelRect(radius: 4).stroke(boss.active ? Theme.bad : .clear, lineWidth: 2))
+            }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Table \(table) of \(v.tables), \(v.boardName)")
+        .accessibilityLabel("Table \(table) of \(v.tables), \(v.boardName)" + (v.boss.map { ", boss \($0.name)" } ?? ""))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Shows the table's boards and boss")
     }
 }

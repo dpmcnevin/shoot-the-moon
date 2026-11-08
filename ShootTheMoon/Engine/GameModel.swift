@@ -47,6 +47,11 @@ final class GameModel {
     var showHelp = false
     /// The Last trick panel is open.
     var showLastTrick = false
+    /// The table overview (boards, goals, the boss) is open. Play waits
+    /// behind it.
+    var showOverview = false {
+        didSet { if !showOverview { pump() } }
+    }
     var seedInput = ""
 
     /// Cards picked to pass.
@@ -176,6 +181,7 @@ final class GameModel {
         apply(v, entering: true)
         screen = .run
         persist()
+        showOverview = true
     }
 
     func continueRun() {
@@ -232,7 +238,7 @@ final class GameModel {
 
     /// Run the AI, a card at a time, whenever it's an opponent's turn.
     private func pump() {
-        guard screen == .run, aiTask == nil, trickHold == nil, let v = view,
+        guard screen == .run, !showOverview, aiTask == nil, trickHold == nil, let v = view,
               v.phase == .play, !v.hand.isPlayerTurn else { return }
         let wait = aiSeconds
         aiTask = Task { [weak self] in
@@ -463,6 +469,8 @@ final class GameModel {
     func leaveShop() {
         act(.leave)
         audio.play("button")
+        // A new board: show where it sits in the table, and the boss.
+        if let v = view, v.phase == .pass || v.phase == .play { showOverview = true }
     }
 
     // MARK: - Hand order
@@ -471,6 +479,11 @@ final class GameModel {
     /// low to high, then any order you've set by dragging.
     func orderedHand() -> [CardV] {
         guard let v = view else { return [] }
+        // The Blindfold: while passing, the hand is face down and shuffled,
+        // so its order gives nothing away either.
+        if v.phase == .pass && v.bossNow("blindfold") {
+            return v.hand.mine.sorted { ($0.id &* 2654435761) % 1009 < ($1.id &* 2654435761) % 1009 }
+        }
         let base = v.hand.mine.sorted { a, b in
             a.suit != b.suit ? a.suit > b.suit : (a.rank != b.rank ? a.rank < b.rank : a.id < b.id)
         }

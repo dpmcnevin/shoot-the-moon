@@ -104,8 +104,9 @@ struct TableView: View {
             let hovered = model.hovered == c.id && (legal || passing)
             let lift = (picked ? 30.0 : hovered ? 22 : (legal ? 8 : 0)) * L.handScale
             let received = hand.received.contains(c.id) && hand.tricksPlayed == 0
+            let blind = passing && v.bossNow("blindfold")
             var p = Placement(
-                id: key(c.id), card: c, faceUp: true, x: s.cx, y: s.cy - lift,
+                id: key(c.id), card: c, faceUp: !blind, x: s.cx, y: s.cy - lift,
                 r: picked || hovered ? 0 : s.r, s: (hovered ? 1.1 : 1) * L.handScale, z: hovered ? 45 : 10 + Double(i), lift: lift,
                 highlight: picked ? Theme.ploy : (received || hovered ? Theme.brass : nil),
                 dim: hand.isPlayerTurn && model.trickHold == nil && !legal)
@@ -153,9 +154,11 @@ struct TableView: View {
                                      y: L.trickCY - 90, r: 0.15, s: 0.7, z: 58, to: to))
             }
         } else {
+            let fog = v.bossNow("fog")
             for (i, p) in hand.trick.enumerated() {
                 let (x, y) = L.trickPoint(p.seat)
-                out.append(Placement(id: key(p.card.id), card: p.card, faceUp: true, x: x, y: y, r: tossAngle(p.card),
+                out.append(Placement(id: key(p.card.id), card: p.card, faceUp: !fog || i == 0 || p.seat == Seat.player,
+                                     x: x, y: y, r: tossAngle(p.card),
                                      s: 1, z: 60 + Double(i), lift: 2, from: L.origin(p.seat)))
             }
         }
@@ -237,7 +240,9 @@ struct TableView: View {
         ZStack {
             ForEach([Seat.west, Seat.north, Seat.east], id: \.self) { seat in
                 let s = L.seats[seat]!
-                seatLabel(v.seatName(seat).uppercased(), points: v.hand.points[seat], active: v.hand.turn == seat)
+                let shark = v.bossNow("shark") && seat == v.boss?.sharkSeat
+                seatLabel(v.seatName(seat).uppercased() + (shark ? " · SHARK" : ""), points: v.hand.points[seat],
+                          active: v.hand.turn == seat, alert: shark)
                     .position(x: s.labelX, y: s.labelY)
             }
             seatLabel("SOUTH · You", points: v.hand.points[Seat.player], active: v.hand.turn == Seat.player,
@@ -250,9 +255,9 @@ struct TableView: View {
         }
     }
 
-    private func seatLabel(_ name: String, points: Int, active: Bool, note: String? = nil) -> some View {
+    private func seatLabel(_ name: String, points: Int, active: Bool, note: String? = nil, alert: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Text(name).foregroundStyle(active ? Theme.brass : Theme.inkDim).inkShadow()
+            Text(name).foregroundStyle(active ? Theme.brass : alert ? Theme.bad : Theme.inkDim).inkShadow()
             if points > 0 {
                 Text("\(points)").font(Theme.font(13, .bold)).foregroundStyle(Theme.ink)
                     .padding(.horizontal, 7).background(PixelRect(radius: 4).fill(Theme.bad))
@@ -289,7 +294,7 @@ struct PassBar: View {
         VStack(spacing: 6) {
             Text("Pass three cards \(v.hand.passDir)\(v.hand.passTo.map { " to \($0)" } ?? "")")
                 .font(Theme.font(22, .bold))
-            Text("\(model.passPick.count) of 3 chosen · tap cards to pick them")
+            Text(v.bossNow("blindfold") ? "Blindfolded: \(model.passPick.count) of 3 chosen, unseen" : "\(model.passPick.count) of 3 chosen · tap cards to pick them")
                 .font(Theme.font(14)).foregroundStyle(Theme.inkDim)
             GameButton("Pass \(arrow)", enabled: model.passPick.count == 3, pulse: true) { model.commitPass() }
                 .frame(width: 200)

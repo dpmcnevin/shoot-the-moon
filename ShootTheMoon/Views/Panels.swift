@@ -103,6 +103,7 @@ struct BoardWonPanel: View {
     private func panel(_ v: GameView, _ p: PayoutV) -> some View {
         var rows: [(String, Int)] = [("Board", p.board), ("Unused hands", p.unused), ("Interest", p.interest)]
         if p.relics > 0 { rows.append(("Relics", p.relics)) }
+        if let b = p.boss, b > 0 { rows.append(("Boss beaten", b)) }
         return Panel(edge: Theme.brass) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("\(v.boardName) won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()

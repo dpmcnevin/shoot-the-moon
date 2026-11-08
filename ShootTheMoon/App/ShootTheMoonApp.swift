@@ -110,6 +110,10 @@ struct RootView: View {
                 }
                 Sidebar().zIndex(100)
                 if model.pickerSlot != nil { CardPickerView().frame(width: L.W, height: L.H).zIndex(300) }
+                if model.showOverview && v.phase != .gameOver && v.phase != .victory {
+                    TableOverview().frame(width: L.W, height: L.H).zIndex(280)
+                        .transition(.opacity)
+                }
                 GameButton("Menu", style: .plain, size: .small) { model.toMenu() }
                     .frame(width: 80).position(x: L.W - 50, y: 24).zIndex(110)
             }
@@ -119,5 +123,6 @@ struct RootView: View {
         .frame(width: L.W, height: L.H, alignment: .topLeading)
         .animation(.spring(duration: 0.32, bounce: 0.35), value: model.view?.phase)
         .animation(.spring(duration: 0.25), value: model.pickerSlot)
+        .animation(.easeOut(duration: 0.2), value: model.showOverview)
     }
 }

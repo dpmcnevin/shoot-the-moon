@@ -91,7 +91,29 @@ struct PayoutV: Decodable {
     let unused: Int
     let interest: Int
     let relics: Int
+    /// For beating a boss.
+    let boss: Int?
     let total: Int
+}
+
+/// This table's boss: a house rule for its High Board.
+struct BossV: Decodable, Hashable {
+    let key: String
+    let name: String
+    let text: String
+    /// It's the boss's board now.
+    let active: Bool
+    let sharkSeat: Int
+}
+
+/// One board of the current table, for the table overview.
+struct TableBoardV: Decodable, Identifiable {
+    let board: Int
+    let name: String
+    let target: Int
+    let reward: Int
+    let hands: Int
+    var id: Int { board }
 }
 
 struct ShopItemV: Decodable, Identifiable {
@@ -176,6 +198,9 @@ struct GameView: Decodable {
     let rerollCost: Int
     let relicSlots: Int
     let relicSlotsUsed: Int
+    let boss: BossV?
+    let jinxed: String?
+    let tableBoards: [TableBoardV]
     let levels: [LevelV]
     let relics: [RelicV]
     let seals: [SealV]
@@ -207,4 +232,9 @@ struct ActResult: Decodable {
 enum Seat {
     static let north = 1, east = 2, south = 3, west = 4
     static let player = south
+}
+
+extension GameView {
+    /// The boss whose rule is in force right now, if any.
+    func bossNow(_ key: String) -> Bool { boss?.active == true && boss?.key == key }
 }
