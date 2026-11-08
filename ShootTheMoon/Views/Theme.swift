@@ -27,8 +27,11 @@ enum Theme {
     static let confetti: [Color] = [Color(hex: 0xe8c873), Color(hex: 0xc9a24a), Color(hex: 0xf3ead6), Color(hex: 0x4fbf7a), Color(hex: 0xc8323c)]
     static let rarity: [Color] = [inkDim, inkDim, good, chips, brass]
 
+    /// Jersey 10, the game's pixel font. It runs small for its point size,
+    /// so sizes are scaled up to match the layout's. It has one weight; the
+    /// weight argument is kept so call sites read as they did.
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("Avenir Next", size: size).weight(weight)
+        .custom("Jersey 10", size: (size * 1.3).rounded())
     }
 }
 

@@ -40,10 +40,10 @@ struct GameButton: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: size == .small ? 34 : size == .large ? 48 : 44)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    PixelRect(radius: 8)
                         .fill(enabled ? fill : Theme.panelEdge)
                         .overlay(alignment: .top) {
-                            if enabled { RoundedRectangle(cornerRadius: 2).fill(.white.opacity(0.18)).frame(height: 3).padding(.horizontal, 3).padding(.top, 2) }
+                            if enabled { PixelRect(radius: 2).fill(.white.opacity(0.18)).frame(height: 3).padding(.horizontal, 3).padding(.top, 2) }
                         }
                         .shadow(color: .black.opacity(0.35), radius: 0, x: 2, y: 5)
                 )
@@ -76,8 +76,8 @@ struct Panel<Content: View>: View {
 
     var body: some View {
         content
-            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 4, y: 6))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(edge, lineWidth: 2))
+            .background(PixelRect(radius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 4, y: 6))
+            .overlay(PixelRect(radius: 10).stroke(edge, lineWidth: 2))
     }
 }
 
@@ -102,28 +102,6 @@ struct SealBadge: View {
 }
 
 /// Green baize with a slow art deco sunburst rising from below the table.
-struct Felt: View {
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 15)) { tl in
-            Canvas { g, size in
-                g.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.felt))
-                let t = tl.date.timeIntervalSinceReferenceDate
-                let sway = sin(t * 0.15) * 0.04
-                let c = CGPoint(x: size.width / 2, y: size.height + 120)
-                for i in stride(from: 0, to: 36, by: 2) {
-                    let a0 = .pi + Double(i) / 36 * .pi + sway, a1 = .pi + Double(i + 1) / 36 * .pi + sway
-                    var p = Path()
-                    p.move(to: c)
-                    p.addLine(to: CGPoint(x: c.x + cos(a0) * 1600, y: c.y + sin(a0) * 1600))
-                    p.addLine(to: CGPoint(x: c.x + cos(a1) * 1600, y: c.y + sin(a1) * 1600))
-                    p.closeSubpath()
-                    g.fill(p, with: .color(Theme.feltLight.opacity(0.35)))
-                }
-            }
-        }
-    }
-}
-
 /// Confetti, computed from each burst's start time (no per-frame state).
 struct Particles: View {
     @Environment(GameModel.self) private var model
@@ -141,17 +119,19 @@ struct Particles: View {
                         let v = b.speed * (0.35 + rng.next() * 0.65)
                         let life = b.life * (0.6 + rng.next() * 0.6)
                         let size = b.size * (0.6 + rng.next() * 0.8)
-                        let spin = (rng.next() * 2 - 1) * 10
+                        _ = rng.next() // (was spin; kept so each burst's colors stay the same)
                         let color = b.colors[Int(rng.next() * Double(b.colors.count)) % b.colors.count]
                         guard age < life else { continue }
                         let drag = exp(-1.5 * age)
                         let x = b.x + cos(a) * v * (1 - drag) / 1.5
                         let y = b.y + (sin(a) * v - 120) * (1 - drag) / 1.5 + 0.5 * 520 * age * age
+                        // Square, on the pixel grid, fading in three steps.
+                        let px = Pixel.size * 2
+                        let side = max(px, (size / px).rounded() * px)
                         var ctx = g
-                        ctx.opacity = 1 - age / life
-                        ctx.translateBy(x: x, y: y)
-                        ctx.rotate(by: .radians(spin * age))
-                        ctx.fill(Path(CGRect(x: -size / 2, y: -size / 4, width: size, height: size / 2)), with: .color(color))
+                        ctx.opacity = ((1 - age / life) * 3).rounded(.up) / 3
+                        ctx.fill(Path(CGRect(x: (x / px).rounded() * px - side / 2, y: (y / px).rounded() * px - side / 2,
+                                             width: side, height: side)), with: .color(color))
                     }
                 }
             }
@@ -182,8 +162,8 @@ struct ToastView: View {
                 .font(Theme.font(20))
                 .foregroundStyle(t.color)
                 .padding(.horizontal, 20).padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.sidebar).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 4))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(t.color, lineWidth: 2))
+                .background(PixelRect(radius: 8).fill(Theme.sidebar).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 4))
+                .overlay(PixelRect(radius: 8).stroke(t.color, lineWidth: 2))
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
                 .id(t.id)
                 .position(x: model.layout.tableCX, y: 470 + model.layout.dy)
@@ -206,14 +186,13 @@ struct SpeedSlider: View {
                 Text(label(model.speed)).monospacedDigit().foregroundStyle(Theme.ink)
             }
             .font(Theme.font(14))
-            Slider(value: $model.speed, in: GameModel.speedRange, step: 0.25) {
-                Text("Play speed")
-            } minimumValueLabel: {
-                Image(systemName: "tortoise.fill").font(.system(size: 13)).foregroundStyle(Theme.inkDim)
-            } maximumValueLabel: {
-                Image(systemName: "hare.fill").font(.system(size: 13)).foregroundStyle(Theme.inkDim)
+            HStack(spacing: 8) {
+                PixelSprite(rows: PixelSprite.tortoise)
+                PixelSlider(value: $model.speed, range: GameModel.speedRange, step: 0.25)
+                PixelSprite(rows: PixelSprite.hare)
             }
-            .tint(Theme.brass)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Play speed")
             .accessibilityValue(label(model.speed))
         }
         .frame(width: width)
@@ -251,7 +230,7 @@ struct EditionShine: ViewModifier {
             content
                 .saturation(0.15)
                 .opacity(0.55)
-                .background(content.colorMultiply(Edition.color("phantom")).blur(radius: 3).opacity(0.9))
+                .background(content.colorMultiply(Edition.color("phantom")).opacity(0.8).offset(x: Pixel.size, y: Pixel.size))
         default:
             TimelineView(.animation) { tl in
                 let t = tl.date.timeIntervalSinceReferenceDate

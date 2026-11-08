@@ -29,13 +29,13 @@ struct Sidebar: View {
                 HStack(spacing: 6) {
                     Text("Hands").font(Theme.font(12)).foregroundStyle(Theme.inkDim)
                     ForEach(0..<v.handsPerBoard, id: \.self) { i in
-                        Circle().fill(i + 1 > v.handsLeft ? Theme.panelEdge : Theme.brass).frame(width: 12, height: 12)
+                        Rectangle().fill(i + 1 > v.handsLeft ? Theme.panelEdge : Theme.brass).frame(width: 12, height: 12)
                     }
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.panel))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.brassDim, lineWidth: 2))
+            .background(PixelRect(radius: 10).fill(Theme.panel))
+            .overlay(PixelRect(radius: 10).stroke(Theme.brassDim, lineWidth: 2))
             .padding(.horizontal, -6)
             .animation(.easeOut(duration: 0.6), value: shown)
 
@@ -52,8 +52,8 @@ struct Sidebar: View {
                                 .foregroundStyle(v.hand.points[s] > 0 ? Theme.bad : Theme.inkFaint)
                         }
                         .frame(maxWidth: .infinity).padding(.vertical, 4)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.panel))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(s == Seat.player ? Theme.brassDim : .clear, lineWidth: 1))
+                        .background(PixelRect(radius: 6).fill(Theme.panel))
+                        .overlay(PixelRect(radius: 6).stroke(s == Seat.player ? Theme.brassDim : .clear, lineWidth: 1))
                     }
                 }
             }
@@ -99,7 +99,7 @@ struct Sidebar: View {
                         let r = v.relics[i]
                         HStack(spacing: 6) {
                             Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key))
-                            RoundedRectangle(cornerRadius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: 24)
+                            PixelRect(radius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: 24)
                             VStack(alignment: .leading, spacing: -1) {
                                 if let e = r.edition { EditionTag(edition: e, size: 10) }
                                 Text(r.name).font(Theme.font(14)).lineLimit(1)
@@ -107,10 +107,10 @@ struct Sidebar: View {
                             Spacer(minLength: 0)
                         }
                         .frame(height: 36)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.panel))
+                        .background(PixelRect(radius: 5).fill(Theme.panel))
                         .padding(.horizontal, -4)
                     } else {
-                        RoundedRectangle(cornerRadius: 5).fill(Theme.bg).frame(height: 36).padding(.horizontal, -4)
+                        PixelRect(radius: 5).fill(Theme.bg).frame(height: 36).padding(.horizontal, -4)
                     }
                 }
             }
@@ -141,8 +141,8 @@ struct ProgressBar: View {
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.bg)
-                Capsule().fill(color).frame(width: g.size.width * min(1, max(0, fraction)))
+                PixelRect(radius: 4).fill(Theme.bg)
+                PixelRect(radius: 4).fill(color).frame(width: g.size.width * min(1, max(0, fraction)))
             }
         }
         .frame(height: height)

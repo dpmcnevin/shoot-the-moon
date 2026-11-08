@@ -33,6 +33,8 @@ targets:
         # The launch screen in the game's background color, not black.
         UILaunchScreen:
           UIColorName: LaunchBackground
+        UIAppFonts:
+          - Fonts/Jersey10-Regular.ttf
     sources:
       - path: ShootTheMoon
         excludes:
@@ -45,6 +47,10 @@ targets:
       - path: ShootTheMoon/Resources/Audio
         type: folder
         optional: true
+        buildPhase: resources
+      # The pixel font (Jersey 10, SIL Open Font License; see Fonts/OFL.txt).
+      - path: ShootTheMoon/Resources/Fonts
+        type: folder
         buildPhase: resources
     settings:
       base:

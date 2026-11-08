@@ -26,9 +26,9 @@ struct CardView: View {
                 if let seal = card?.seal {
                     PixelImage(image: model.art.seal(seal)).frame(width: 28, height: 28).offset(x: 1, y: 34)
                 }
-                if dim { RoundedRectangle(cornerRadius: 4).fill(Color(red: 0.06, green: 0.1, blue: 0.09).opacity(0.5)) }
+                if dim { PixelRect(radius: 4).fill(Color(red: 0.06, green: 0.1, blue: 0.09).opacity(0.5)) }
                 if let highlight {
-                    RoundedRectangle(cornerRadius: 6).stroke(highlight, lineWidth: 3).padding(-3)
+                    PixelRect(radius: 6).stroke(highlight, lineWidth: 3).padding(-3)
                 }
             }
         )

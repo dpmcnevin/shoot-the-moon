@@ -115,8 +115,7 @@ struct RootView: View {
             }
             ToastView().zIndex(400)
             Particles().frame(width: L.W, height: L.H).zIndex(500)
-            RadialGradient(colors: [.clear, .black.opacity(0.6)], center: .center, startRadius: 380, endRadius: 820)
-                .allowsHitTesting(false).zIndex(600)
+            PixelVignette().frame(width: L.W, height: L.H).zIndex(600)
         }
         .frame(width: L.W, height: L.H, alignment: .topLeading)
         .animation(.spring(duration: 0.32, bounce: 0.35), value: model.view?.phase)

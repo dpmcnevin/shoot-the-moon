@@ -14,3 +14,7 @@ open ShootTheMoon.xcodeproj
 ```
 
 Each build bundles the engine (`npm run build:bridge` in the web repo) into `Resources/game-bundle.js`. The first build also pre-renders the sound effects and music takes into `Resources/Audio`, which takes a few seconds; delete that folder to render them again.
+
+## Credits
+
+The pixel font is [Jersey 10](https://fonts.google.com/specimen/Jersey+10) by The Soft Type Project Authors, under the SIL Open Font License 1.1 (`ShootTheMoon/Resources/Fonts/OFL.txt`).

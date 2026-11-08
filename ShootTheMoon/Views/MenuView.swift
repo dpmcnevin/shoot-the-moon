@@ -52,8 +52,8 @@ struct MenuView: View {
                     .font(Theme.font(17))
                     .padding(.horizontal, 14)
                     .frame(width: 260, height: 40)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.feltEdge))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.panelEdge, lineWidth: 2))
+                    .background(PixelRect(radius: 6).fill(Theme.feltEdge))
+                    .overlay(PixelRect(radius: 6).stroke(Theme.panelEdge, lineWidth: 2))
                     .foregroundStyle(Theme.ink)
                 GameButton("How to play", style: .plain) { model.showHelp = true }.frame(width: 260)
                 HStack(spacing: 6) {

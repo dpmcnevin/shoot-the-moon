@@ -213,10 +213,10 @@ struct TableView: View {
     // MARK: - Decoration
 
     private var oval: some View {
-        Ellipse()
+        PixelEllipse()
             .fill(Theme.feltEdge.opacity(0.55))
-            .overlay(Ellipse().stroke(Theme.brassDim.opacity(0.6), lineWidth: 2))
-            .overlay(Ellipse().stroke(Theme.brassDim.opacity(0.6), lineWidth: 2).padding(8))
+            .overlay(PixelEllipse().stroke(Theme.brassDim.opacity(0.6), lineWidth: 2))
+            .overlay(PixelEllipse().stroke(Theme.brassDim.opacity(0.6), lineWidth: 2).padding(8))
             .frame(width: L.ovalRX * 2, height: L.ovalRY * 2)
             .position(x: L.tableCX, y: L.trickCY)
     }
@@ -243,7 +243,7 @@ struct TableView: View {
             Text(name).foregroundStyle(active ? Theme.brass : Theme.inkDim).inkShadow()
             if points > 0 {
                 Text("\(points)").font(Theme.font(13, .bold)).foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 7).background(Capsule().fill(Theme.bad))
+                    .padding(.horizontal, 7).background(PixelRect(radius: 4).fill(Theme.bad))
             }
             if let note { Text(note).foregroundStyle(Theme.brass) }
         }
@@ -285,8 +285,8 @@ struct PassBar: View {
         }
         .padding(14)
         .frame(width: 420)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.sidebar).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.ploy, lineWidth: 2))
+        .background(PixelRect(radius: 10).fill(Theme.sidebar).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
+        .overlay(PixelRect(radius: 10).stroke(Theme.ploy, lineWidth: 2))
         .position(x: model.layout.tableCX, y: model.layout.trickCY)
         .zIndex(85)
     }

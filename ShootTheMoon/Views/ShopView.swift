@@ -44,12 +44,12 @@ struct ShopView: View {
                             }
                             .padding(10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.rarity[r.rarity], lineWidth: 2))
+                            .background(PixelRect(radius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
+                            .overlay(PixelRect(radius: 10).stroke(Theme.rarity[r.rarity], lineWidth: 2))
                         } else {
                             Text("empty").font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg))
+                                .background(PixelRect(radius: 10).fill(Theme.bg))
                         }
                     }
                 }
@@ -124,9 +124,9 @@ struct ShopItemCard: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(edge, lineWidth: 2))
-        .overlay { if item.sold { RoundedRectangle(cornerRadius: 10).fill(.black.opacity(0.5)).allowsHitTesting(false) } }
+        .background(PixelRect(radius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
+        .overlay(PixelRect(radius: 10).stroke(edge, lineWidth: 2))
+        .overlay { if item.sold { PixelRect(radius: 10).fill(.black.opacity(0.5)).allowsHitTesting(false) } }
     }
 }
 

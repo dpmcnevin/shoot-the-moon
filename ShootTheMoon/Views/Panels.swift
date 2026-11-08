@@ -89,7 +89,7 @@ struct ScorePanel: View {
     private func pill(_ text: String, _ color: Color) -> some View {
         Text(text).font(Theme.font(28, .bold)).monospacedDigit().contentTransition(.numericText())
             .padding(.horizontal, 12).padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 8).fill(color))
+            .background(PixelRect(radius: 8).fill(color))
     }
 }
 
