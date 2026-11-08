@@ -162,7 +162,7 @@
 			const picked = pick.has(s.card);
 			const canAct = passing || legal.has(s.card);
 			const hovered = hover === id && canAct && !drag?.moved;
-			const lift = picked ? 30 : hovered ? 22 : canAct && isTurn ? 8 : 0;
+			const lift = (picked ? 30 : hovered ? 22 : canAct && isTurn ? 8 : 0) * L.handScale;
 			const from = hand.receivedFrom.get(s.card);
 			const isNew = hand.received.includes(s.card) && hand.state && hand.state.played.length < 4;
 			let spawn: Placement['spawn'];
@@ -174,7 +174,7 @@
 				spawn = { x: o[0], y: o[1], r: 0.5, faceUp: false };
 			}
 			if (drag?.moved && drag.id === id) {
-				out.push({ id, card: s.card, seal: sealOf(run.seals, s.card), x: drag.x, y: drag.y, r: 0, s: 1.14, faceUp: true, z: 95, lift: 26,
+				out.push({ id, card: s.card, seal: sealOf(run.seals, s.card), x: drag.x, y: drag.y, r: 0, s: 1.14 * L.handScale, faceUp: true, z: 95, lift: 26,
 					highlight: legal.has(s.card) && overTrick(drag.x, drag.y) ? css(C.good) : null });
 				return;
 			}
@@ -185,7 +185,7 @@
 				x: s.cx,
 				y: s.cy - lift,
 				r: hovered || picked ? 0 : s.r,
-				s: hovered ? 1.1 : 1,
+				s: (hovered ? 1.1 : 1) * L.handScale,
 				faceUp: !blind,
 				z: hovered ? 45 : 10 + idx,
 				lift,
@@ -250,7 +250,7 @@
 				x,
 				y,
 				r: tossAngle(p.card),
-				s: won ? 1.08 : 1,
+				s: (won ? 1.08 : 1) * L.trickScale,
 				faceUp: !fog || !!game.trickHold || i === 0 || p.seat === H.PLAYER,
 				z: 60 + i,
 				lift: won ? 10 : 2,
@@ -409,9 +409,9 @@
 		class:actionable
 		aria-label={cards.name(s.card)}
 		style:left="{s.x}px"
-		style:top="{L.handY - 30}px"
+		style:top="{L.handY - 30 * L.handScale}px"
 		style:width="{s.w}px"
-		style:height="{CARD_H + 30}px"
+		style:height="{CARD_H * L.handScale + 30 * L.handScale}px"
 		onpointerenter={(e) => e.pointerType === 'mouse' && actionable && (hover = cardId(s.card))}
 		onpointerleave={(e) => e.pointerType === 'mouse' && hover === cardId(s.card) && (hover = null)}
 		onpointerdown={(e) => down(e, s)}

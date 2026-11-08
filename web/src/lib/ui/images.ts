@@ -37,7 +37,8 @@ function cached(key: string, build: () => string): string {
 let pixelScale = 4;
 export function setDeviceScale(cssPxPerStagePx: number) {
 	const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-	pixelScale = Math.max(1, Math.min(8, Math.ceil((CARD_W / pixelcards.W) * cssPxPerStagePx * dpr)));
+	// x1.5: your hand is drawn up to 1.5x (layout handScale).
+	pixelScale = Math.max(1, Math.min(8, Math.ceil((CARD_W / pixelcards.W) * cssPxPerStagePx * dpr * 1.5)));
 }
 
 export function cardFace(card: Card, trump: boolean, pixel: boolean, fourColor: boolean): string {
@@ -55,7 +56,7 @@ export function cardBack(pixel: boolean): string {
 }
 
 function smooth(draw: (g: CanvasRenderingContext2D) => void): string {
-	const k = 3; // supersample; the card is never shown larger than ~3x
+	const k = 4; // supersample; your hand is shown up to 1.5x, on 2x screens
 	const canvas = document.createElement('canvas');
 	canvas.width = CARD_W * k;
 	canvas.height = CARD_H * k;

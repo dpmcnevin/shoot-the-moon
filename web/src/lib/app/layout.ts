@@ -43,6 +43,10 @@ export interface Layout {
 	/** Top of your hand. */
 	handY: number;
 	maxHandWidth: number;
+	/** Your hand is drawn larger than the other cards (as on the iPad). */
+	handScale: number;
+	/** Cards in the trick are drawn a little larger too. */
+	trickScale: number;
 	seats: Record<number, SeatLayout>;
 	trickOffset: Record<number, [number, number]>;
 	playOut: Rect;
@@ -53,7 +57,9 @@ const LANDSCAPE: Layout = (() => {
 		H = 720,
 		sideW = 270;
 	const tableCX = sideW + (W - sideW) / 2;
-	const trickCY = 318;
+	const trickCY = 312;
+	const hs = 1.35,
+		ts = 1.2;
 	return {
 		orientation: 'landscape',
 		W,
@@ -64,20 +70,22 @@ const LANDSCAPE: Layout = (() => {
 		trickCY,
 		ovalRX: 270,
 		ovalRY: 170,
-		handY: 590,
-		maxHandWidth: 780,
+		handY: H - CARD_H * hs - 28,
+		maxHandWidth: 900,
+		handScale: hs,
+		trickScale: ts,
 		seats: {
 			[cards.NORTH]: { x: tableCX, y: 62, dx: 26, dy: 0, r: Math.PI, s: 0.62, labelX: tableCX - 100, labelY: 112, align: 'center' },
 			[cards.WEST]: { x: sideW + 64, y: trickCY, dx: 0, dy: 20, r: Math.PI / 2, s: 0.62, labelX: sideW + 14, labelY: trickCY - 190, align: 'left' },
 			[cards.EAST]: { x: W - 64, y: trickCY, dx: 0, dy: 20, r: -Math.PI / 2, s: 0.62, labelX: W - 154, labelY: trickCY - 190, align: 'right' }
 		},
 		trickOffset: {
-			[cards.NORTH]: [0, -82],
-			[cards.SOUTH]: [0, 82],
-			[cards.WEST]: [-112, 0],
-			[cards.EAST]: [112, 0]
+			[cards.NORTH]: [0, -82 * ts],
+			[cards.SOUTH]: [0, 82 * ts],
+			[cards.WEST]: [-112 * ts, 0],
+			[cards.EAST]: [112 * ts, 0]
 		},
-		playOut: { x: W - 180, y: 520, w: 160, h: 40 }
+		playOut: { x: W - 300, y: 468, w: 160, h: 40 }
 	};
 })();
 
@@ -86,7 +94,9 @@ const PORTRAIT: Layout = (() => {
 		H = 1280,
 		sideH = 300;
 	const tableCX = W / 2;
-	const handY = H - CARD_H - 56;
+	const hs = 1.5,
+		ts = 1.25;
+	const handY = H - CARD_H * hs - 40;
 	const trickCY = 760;
 	return {
 		orientation: 'portrait',
@@ -100,18 +110,20 @@ const PORTRAIT: Layout = (() => {
 		ovalRY: 210,
 		handY,
 		maxHandWidth: 770,
+		handScale: hs,
+		trickScale: ts,
 		seats: {
 			[cards.NORTH]: { x: tableCX, y: sideH + 70, dx: 24, dy: 0, r: Math.PI, s: 0.6, labelX: tableCX - 100, labelY: sideH + 116, align: 'center' },
 			[cards.WEST]: { x: 50, y: trickCY, dx: 0, dy: 20, r: Math.PI / 2, s: 0.6, labelX: 10, labelY: trickCY - 190, align: 'left' },
 			[cards.EAST]: { x: W - 50, y: trickCY, dx: 0, dy: 20, r: -Math.PI / 2, s: 0.6, labelX: W - 150, labelY: trickCY - 190, align: 'right' }
 		},
 		trickOffset: {
-			[cards.NORTH]: [0, -96],
-			[cards.SOUTH]: [0, 96],
-			[cards.WEST]: [-112, 0],
-			[cards.EAST]: [112, 0]
+			[cards.NORTH]: [0, -96 * ts],
+			[cards.SOUTH]: [0, 96 * ts],
+			[cards.WEST]: [-112 * ts, 0],
+			[cards.EAST]: [112 * ts, 0]
 		},
-		playOut: { x: W - 176, y: handY - 70, w: 160, h: 40 }
+		playOut: { x: W - 176, y: handY - 96, w: 160, h: 40 }
 	};
 })();
 
@@ -148,17 +160,19 @@ export interface Slot {
 /** Your fanned hand. */
 export function handSlots(L: Layout, hand: cards.Card[]): Slot[] {
 	const n = hand.length;
-	const spacing = n > 1 ? Math.min(56, (L.maxHandWidth - CARD_W) / (n - 1)) : 0;
-	const total = CARD_W + spacing * Math.max(0, n - 1);
+	const cw = CARD_W * L.handScale,
+		ch = CARD_H * L.handScale;
+	const spacing = n > 1 ? Math.min(56 * L.handScale, (L.maxHandWidth - cw) / (n - 1)) : 0;
+	const total = cw + spacing * Math.max(0, n - 1);
 	const x0 = L.tableCX - total / 2;
 	return hand.map((card, idx) => {
 		const k = idx + 1 - (n + 1) / 2;
 		return {
 			card,
 			x: x0 + idx * spacing,
-			w: idx === n - 1 ? CARD_W : spacing,
-			cx: x0 + idx * spacing + CARD_W / 2,
-			cy: L.handY + CARD_H / 2 + k * k * 0.6,
+			w: idx === n - 1 ? cw : spacing,
+			cx: x0 + idx * spacing + cw / 2,
+			cy: L.handY + ch / 2 + k * k * 0.5,
 			r: k * 0.028,
 			idle: (idx + 1) * 0.7
 		};
