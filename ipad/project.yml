@@ -82,17 +82,14 @@ targets:
           # Xcode's build PATH omits Homebrew and nvm; add the usual places.
           export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$PATH"
           if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true; fi
-          # The engine and the audio come from the web game's repo.
-          WEB="${SHOOT_THE_MOON_WEB:-$HOME/src/node/shoot-the-moon}"
-          if [ ! -f "$WEB/bridge/entry.ts" ]; then
-            echo "error: web repo not found at $WEB (set SHOOT_THE_MOON_WEB)"; exit 1
-          fi
+          # The engine lives beside this app in the same repo (../engine).
+          ROOT="$SRCROOT/.."
           RES="$SRCROOT/ShootTheMoon/Resources"
-          cd "$WEB"
+          cd "$ROOT"
           [ -d node_modules ] || npm install --silent
-          BRIDGE_OUT="$RES/game-bundle.js" npm run --silent build:bridge
-          # Record which engine this build used (shown on the menu).
-          git -C "$WEB" describe --always --dirty --abbrev=7 > "$RES/engine-version.txt" 2>/dev/null || echo unknown > "$RES/engine-version.txt"
+          BRIDGE_OUT="$RES/game-bundle.js" npm run --silent -w engine build:bridge
+          # Record which commit this build used (shown on the menu).
+          git -C "$ROOT" describe --always --dirty --abbrev=7 > "$RES/engine-version.txt" 2>/dev/null || echo unknown > "$RES/engine-version.txt"
           # The audio takes a few seconds to render; only when missing.
-          if [ ! -f "$RES/Audio/music.json" ]; then node tools/render-audio.ts "$RES/Audio"; fi
+          if [ ! -f "$RES/Audio/music.json" ]; then node engine/tools/render-audio.ts "$RES/Audio"; fi
         basedOnDependencyAnalysis: false

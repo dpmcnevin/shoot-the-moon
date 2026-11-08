@@ -1,6 +1,6 @@
 name: Deploy to GitHub Pages
 
-# Builds the game and publishes it with GitHub Pages, the
+# Tests the engine, builds the web game (web/) and publishes it with GitHub Pages, the
 # same way isle-wars is published. With the account's custom domain, the
 # repo "vulnerable" is served at https://corrupt.net/vulnerable/.
 
@@ -35,10 +35,10 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}
       - name: Add .nojekyll to bypass GitHub Pages Jekyll processing
-        run: touch build/.nojekyll
+        run: touch web/build/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build
+          path: web/build
 
   deploy:
     needs: build

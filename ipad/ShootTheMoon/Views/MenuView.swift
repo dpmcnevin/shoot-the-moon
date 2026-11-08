@@ -8,7 +8,7 @@ struct MenuView: View {
     @State private var faceDown: Set<Int> = []
     @State private var dealt = false
 
-    /// The engine commit this build was made from (written by the pre-build step).
+    /// The repo commit this build was made from (written by the pre-build step).
     static let engineVersion: String = Bundle.main.url(forResource: "engine-version", withExtension: "txt")
         .flatMap { try? String(contentsOf: $0, encoding: .utf8) }?
         .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
@@ -110,7 +110,7 @@ struct MenuView: View {
                 GameButton("Tidy the cards", style: .plain, size: .small, sound: "reroll") { moved = [:]; faceDown = [] }
                     .frame(width: 150).position(x: L.W - 100, y: L.H - 36)
             }
-            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · engine \(MenuView.engineVersion)")
+            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · \(MenuView.engineVersion)")
                 .font(Theme.font(14)).foregroundStyle(Theme.inkDim.opacity(0.8))
                 .frame(width: 320, alignment: .leading).position(x: 180, y: L.H - 24)
         }

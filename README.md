@@ -2,7 +2,19 @@
 
 A Hearts roguelike for the browser. Dodge points, or take them all and shoot the moon, and build a relic engine that turns each hand into a bigger score, across eight tables.
 
-Built on the same stack as [Vulnerable](https://corrupt.net/vulnerable/), the contract bridge roguelike: SvelteKit 2, Svelte 5, a pure TypeScript engine, and every card, icon and sound generated in code.
+Built on the same stack as [Vulnerable](https://corrupt.net/vulnerable/), the contract bridge roguelike: SvelteKit 2, Svelte 5, a pure TypeScript engine, and every card, icon and sound generated in code. There's also a native iPad version built on the same engine.
+
+## Layout
+
+One repo, three parts:
+
+| Folder | What it is |
+| --- | --- |
+| `engine/` | The shared core in TypeScript: rules, run logic, saves, pixel art and sound synthesis (`src/`), the bridge the iPad app runs in JavaScriptCore (`bridge/`), the balance bot and simulator (`tools/`), and the tests. |
+| `web/` | The browser game (SvelteKit). Imports the engine as `$engine/...`. |
+| `ipad/` | The iPad app (SwiftUI). Its build step bundles `engine/` into the app. |
+
+Both games name the rules they use: the web game `classic` (`WEB_RULESET` in `web/src/lib/app/game.svelte.ts`), the iPad `v2` (`IPAD_RULESET` in `engine/bridge/entry.ts`). `v2` adds relic editions, bosses, 32 more relics, opponents who go for the moon and gentler targets. A save records its ruleset, so changing the rules later means adding a new one.
 
 ## How to play
 
@@ -20,7 +32,7 @@ Built on the same stack as [Vulnerable](https://corrupt.net/vulnerable/), the co
 
 ## Running it
 
-Needs Node 22.18 or newer.
+Needs Node 22.18 or newer. From the repo root:
 
 ```bash
 npm install
@@ -39,26 +51,10 @@ npm run build
 npm run simulate
 ```
 
-`npm run simulate` plays complete runs with a bot that passes and plays with the opponents' AI and shops by a simple rule. The targets are tuned so it wins about 14% of runs; a thoughtful player should do better.
+`npm test` runs the engine's tests; `npm run check` type-checks the engine and the web app; `npm run simulate` plays runs with the balance bot (`RULESET=v2` for the iPad's rules).
 
-## Layout
+The iPad app needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
+```bash
+cd ipad && xcodegen generate && open ShootTheMoon.xcodeproj
 ```
-src/lib/rules/     cards, RNG, the rules of Hearts, the AI
-src/lib/game/      the run: tables, boards, scoring, relics, upgrades, the club
-src/lib/app/       game controller, auto-save (seed + action log, replayed), layout, effects
-src/lib/audio/     synthesized sound effects and generative music
-src/lib/ui/        pixel-art and smooth cards, icons, palette, settings
-src/lib/components the Svelte UI
-tools/             balance bot and simulator
-tests/             node --test suites
-```
-
-## Deploying
-
-`.github/workflows/deploy.yml` builds and publishes with GitHub Pages on every push to `main`, with the base path taken from the repository name. In a repo named `shoot-the-moon` on the dpmcnevin account, that serves the game at https://corrupt.net/shoot-the-moon/. Turn on Pages once under Settings → Pages → Source: GitHub Actions.
-
-## Prototype status
-
-- Relic icons reuse Vulnerable's pixel art for now.
-- The opponents are heuristic: they duck, dump the queen, flush her out with low spades and gang up on a moon attempt, but never try to shoot the moon themselves.
