@@ -110,6 +110,7 @@ function view() {
 		tables: R.TABLES,
 		board: r.board,
 		boardName: R.boardName(r),
+		boardsPerTable: R.BOARDS_PER_TABLE,
 		target: r.target,
 		score: r.score,
 		handsLeft: r.handsLeft,
