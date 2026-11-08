@@ -63,6 +63,8 @@ export const GENTLE_TABLE_BASE = [22, 52, 106, 184, 308, 500, 820, 1320];
 /** Ruleset v3's targets: about 10% above v2's, because v3 pays for beating
  *  a goal by a margin. Bot on v3, 2 x 3000 runs: about 28% wins. */
 export const V3_TABLE_BASE = [24, 57, 117, 203, 340, 550, 905, 1455];
+/** Ruleset v5's goals: v3's, about 5% higher (ploys, tags and decks help). */
+export const V5_TABLE_BASE = [25, 60, 123, 213, 357, 578, 950, 1528];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -388,7 +390,7 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		tags: true,
 		endless: true,
 		noRepeats: true,
-		tableBase: V3_TABLE_BASE,
+		tableBase: V5_TABLE_BASE,
 		bosses: true,
 		moreRelics: true,
 		moonAI: true,
