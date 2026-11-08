@@ -274,11 +274,11 @@ export const DEFS: RelicDef[] = [
 	// ------------------------------------------------------------------ rare
 	{
 		key: 'moonstruck', name: 'Moonstruck', rarity: 3, cost: 8, icon: 'phantom_trick',
-		text: 'Shooting the moon pays double',
-		moonX: 2
+		text: 'Shooting the moon pays triple',
+		moonX: 3
 	},
 	{
-		key: 'half_moon', name: 'Half Moon', rarity: 3, cost: 9, icon: 'vulnerable',
+		key: 'half_moon', name: 'Half Moon', rarity: 3, cost: 7, icon: 'vulnerable',
 		text: 'Taking every heart counts as shooting the moon, even without the queen',
 		halfMoon: true
 	},
@@ -480,8 +480,8 @@ export const DEFS: RelicDef[] = [
 		onBoardWin: (_r, info) => (info.boss ? { money: 2 } : undefined)
 	},
 	{
-		key: 'moonlighter', name: 'Moonlighter', rarity: 3, cost: 8, icon: 'moonlighter', expansion: true,
-		text: 'Taking 16 or more points, short of the moon, scores as if you dodged them',
+		key: 'moonlighter', name: 'Moonlighter', rarity: 2, cost: 6, icon: 'moonlighter', expansion: true,
+		text: 'Taking 13 or more points, short of the moon, scores as if you dodged them',
 		moonlighter: true
 	},
 	{

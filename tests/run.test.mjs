@@ -381,7 +381,7 @@ test('a run can use other targets, and keeps the standard ones by default', () =
 	assert.equal(R.targetFor(1, 1), 35);
 	const gentle = R.newRun('T2', { tableBase: R.GENTLE_TABLE_BASE });
 	assert.equal(gentle.target, 20);
-	assert.equal(R.targetFor(8, 3, R.GENTLE_TABLE_BASE), 2300);
+	assert.equal(R.targetFor(8, 3, R.GENTLE_TABLE_BASE), 2200);
 });
 
 // ------------------------------------------------------------------ bosses
@@ -669,4 +669,30 @@ test('with moonAI, strong opponents go for the moon and shoot it more often', ()
 	assert.ok(attempts > 0, 'some hands have an attempt');
 	assert.ok(moonsOn > moonsOff, `moons with ${moonsOn} vs without ${moonsOff}`);
 	assert.equal(R.newRun('MAI0').moonAI, false, 'off by default');
+});
+
+test('aiCurve: plausible mistakes, and opponents sharpen table by table', () => {
+	const run = R.newRun('CURVE', { aiCurve: true });
+	const early = R.tableSkill(run);
+	run.table = 8;
+	assert.ok(R.tableSkill(run) > early);
+	assert.equal(R.tableSkill(R.newRun('CURVE')), ai.DEFAULT_SKILL, 'off by default');
+	// Always-a-mistake play stays plausible: no queen thrown when anything
+	// else will do, no heart led while other suits remain.
+	const rng = newRng('MIST');
+	let checked = 0;
+	for (let i = 0; i < 200; i++) {
+		const r = R.newRun('M' + i);
+		if (r.phase === R.PHASE.PASS) R.commitPass(r, r.hand.dealt[H.PLAYER].slice(0, 3), { stepwise: true });
+		const st = r.hand.state;
+		while (!st.complete) {
+			const seat = st.turn, legal = H.legalPlays(st, seat);
+			const card = ai.chooseCard(st, seat, { rng, skill: 0, plausible: true });
+			if (legal.length > 1 && legal.some((c) => !H.isQueenOfSpades(c))) assert.ok(!H.isQueenOfSpades(card), 'no queen thrown');
+			if (st.trick.length === 0 && legal.some((c) => c.suit !== H.HEARTS && !H.isQueenOfSpades(c))) assert.notEqual(card.suit, H.HEARTS, 'no heart lead');
+			H.play(st, seat, card);
+			checked++;
+		}
+	}
+	assert.ok(checked > 1000);
 });

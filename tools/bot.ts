@@ -103,6 +103,17 @@ export function shop(run: Run) {
 	run_.leaveShop(run);
 }
 
+/** Does the bot go for the moon this hand? */
+function wantsMoon(run: Run): boolean {
+	const hand = run.hand.state!.hands[H.PLAYER];
+	if (ai.moonWorthy(hand)) return true;
+	const moonRelics = run.relics.some((r) => r.def.moonX || r.def.halfMoon || r.def.shadowMoon || r.def.moonlighter || r.key === 'night_owl') || run.levels.moon > 1;
+	if (!moonRelics) return false;
+	const high = hand.filter((c) => c.rank >= 12).length;
+	const topHearts = hand.filter((c) => c.suit === H.HEARTS && c.rank >= 12).length;
+	return high >= 5 && topHearts >= 1;
+}
+
 /** What an edition adds to a relic, in the same rough units as `value`. */
 const EDITION_VALUE: Record<string, number> = { etched: 6, lacquered: 10, prismatic: 16, phantom: 8 };
 
@@ -117,8 +128,12 @@ export function playRunFrom(run: Run): Run {
 			// Under the Blindfold the pass is chosen unseen: any three cards.
 			const blind = run_.bossActive(run) && run.boss === 'blindfold';
 			const hand = run.hand.dealt[H.PLAYER];
-			run_.commitPass(run, blind ? run.rng.sample(hand, 3) : ai.choosePass(hand, run.rng, run.aiSkill));
+			run_.commitPass(run, blind ? run.rng.sample(hand, 3) : ai.choosePass(hand, run.rng, run.aiSkill), { stepwise: true });
 		} else if (run.phase === run_.PHASE.PLAY) {
+			// Like a person, go for the moon with a strong hand; with moon
+			// relics, try on a little less.
+			const st = run.hand.state!;
+			if (st.tricks.length === 0 && st.trick.length === 0 && wantsMoon(run)) st.moonSeats = [...(st.moonSeats ?? []), H.PLAYER];
 			run_.playOut(run);
 		} else if (run.phase === run_.PHASE.HAND_SCORED) {
 			run_.continueAfterHand(run);

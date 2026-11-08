@@ -44,10 +44,11 @@ export const CLEAN_BONUS = 10;
 // Target for the first board of each table, fitted with tools/simulate.
 export const TABLE_BASE = [34, 67, 120, 208, 360, 610, 1005, 1650];
 /** Gentler targets (the iPad app's): a first board that bad luck alone
- *  rarely loses, and late tables about 15% lower. Measured with the bot
- *  (iPad rules, 3000 runs): 29.5% wins and 0.7% of runs lost on table 1,
- *  against 14.4% and 7.5% with TABLE_BASE. */
-export const GENTLE_TABLE_BASE = [22, 52, 108, 188, 320, 530, 870, 1400];
+ *  rarely loses, and late tables about 20% lower. Measured with the bot on
+ *  the iPad's full rules (bosses, expansion relics, moon AI, AI curve;
+ *  2 x 3000 runs): about 28% wins. TABLE_BASE gives about 14% on the
+ *  plain rules. */
+export const GENTLE_TABLE_BASE = [22, 52, 106, 184, 308, 500, 820, 1320];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -202,6 +203,7 @@ export interface Run {
 	/** The club offers the expansion relics too (off by default). */
 	moreRelics: boolean;
 	moonAI: boolean;
+	aiCurve: boolean;
 }
 
 export interface RunOptions {
@@ -214,6 +216,15 @@ export interface RunOptions {
 	moreRelics?: boolean;
 	/** Opponents sometimes go for the moon (off by default). */
 	moonAI?: boolean;
+	/** Opponents' mistakes look like a person's, and they sharpen table by
+	 *  table (off by default). */
+	aiCurve?: boolean;
+}
+
+/** Opponent skill at a table, with aiCurve: looser early, sharper late. */
+export function tableSkill(run: Run): number {
+	if (!run.aiCurve) return run.aiSkill;
+	return Math.min(0.97, 0.8 + 0.025 * (Math.min(run.table, TABLES) - 1));
 }
 
 /** Does an active relic have this rule? */
@@ -302,7 +313,8 @@ export function newRun(seed?: string | number, opts: RunOptions = {}): Run {
 		jinxed: null,
 		handsThisBoard: HANDS_PER_BOARD,
 		moreRelics: opts.moreRelics ?? false,
-		moonAI: opts.moonAI ?? false
+		moonAI: opts.moonAI ?? false,
+		aiCurve: opts.aiCurve ?? false
 	} as Run;
 	startBoard(run);
 	return run;
@@ -345,7 +357,7 @@ export function commitPass(run: Run, chosen: Card[], opts?: { stepwise?: boolean
 	assert(chosen.length === 3 && chosen.every((c) => mine.includes(c)), 'commitPass: pick three of your cards');
 	const passes: Card[][] = [[], [], [], [], []];
 	for (let seat = 1; seat <= 4; seat++) {
-		passes[seat] = seat === H.PLAYER ? chosen : ai.choosePass(hand.dealt[seat], run.rng, run.aiSkill);
+		passes[seat] = seat === H.PLAYER ? chosen : run.aiCurve ? ai.choosePassPlausible(hand.dealt[seat], run.rng, tableSkill(run)) : ai.choosePass(hand.dealt[seat], run.rng, run.aiSkill);
 	}
 	// The Pickpocket: whoever passes to you sends their worst three.
 	if (bossIs(run, 'pickpocket')) {
@@ -390,6 +402,10 @@ export function isPlayerTurn(run: Run): boolean {
  *  always plays normally. */
 function aiCtx(run: Run, seat?: number): ai.AIContext {
 	const ctx: ai.AIContext = { rng: run.rng, skill: run.aiSkill };
+	if (run.aiCurve && seat !== H.PLAYER) {
+		ctx.skill = tableSkill(run);
+		ctx.plausible = true;
+	}
 	if (seat === undefined || seat === H.PLAYER) return ctx;
 	if (bossIs(run, 'cartel')) ctx.target = H.PLAYER;
 	if (bossIs(run, 'shark') && seat === bosses.SHARK_SEAT) {
@@ -512,7 +528,7 @@ export function scoreHand(run: Run): Breakdown {
 	} else {
 		// Always out of 26, whatever the pack holds: burning point cards makes
 		// dodging safer without shrinking the prize; copying them raises the risk.
-		const moonlit = hasRule(run, 'moonlighter') && ctx.myPoints >= 16;
+		const moonlit = hasRule(run, 'moonlighter') && ctx.myPoints >= 13;
 		const dodged = moonlit ? H.TOTAL_POINTS : Math.max(0, H.TOTAL_POINTS - ctx.myPoints);
 		chips = dodged * baseX;
 		lines.push({

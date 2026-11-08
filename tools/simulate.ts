@@ -14,6 +14,7 @@ const opts: run_.RunOptions = {
 	bosses: process.env.BOSSES ? process.env.BOSSES === '1' : process.env.IPAD === '1',
 	moreRelics: process.env.MORE ? process.env.MORE === '1' : process.env.IPAD === '1',
 	moonAI: process.env.MOONAI ? process.env.MOONAI === '1' : process.env.IPAD === '1',
+	aiCurve: process.env.CURVE ? process.env.CURVE === '1' : process.env.IPAD === '1',
 	...(tableBase ? { tableBase } : {})
 };
 const prefix = process.argv[3] ?? 'SIM';

@@ -48,6 +48,8 @@ export function choosePass(hand: Hand, rng: RNG, skill = DEFAULT_SKILL): Card[] 
 export interface AIContext {
 	rng: RNG;
 	skill?: number;
+	/** Mistakes look like a person's (a plausible wrong card), not a random card. */
+	plausible?: boolean;
 	/** A seat to push points onto (bosses: the Shark, the Cartel). When it's
 	 *  winning the trick, a void seat dumps its worst card; when it isn't,
 	 *  points are held back for later. */
@@ -206,13 +208,42 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 	return lowest(legal);
 }
 
+/** A mistake a real player makes: a card that's off but defensible. Never
+ *  the queen of spades thrown away, never a heart led for no reason, never
+ *  winning a trick full of points when a lower card would duck it. */
+function plausibleMistake(state: HandState, seat: number, legal: Card[], ctx: AIContext): Card {
+	let pool = legal.filter((c) => !H.isQueenOfSpades(c));
+	if (state.trick.length === 0) {
+		const safe = pool.filter((c) => c.suit !== H.HEARTS);
+		if (safe.length) pool = safe;
+	} else {
+		const win = H.trickWinner(state.trick);
+		const pts = H.pointsIn(state.trick.map((p) => p.card), state.pts);
+		if (pts > 0 && legal[0].suit === state.ledSuit) {
+			const duck = pool.filter((c) => c.rank < win.card.rank);
+			if (duck.length) pool = duck;
+		}
+	}
+	if (pool.length === 0) pool = legal;
+	return pool[ctx.rng.int(1, pool.length) - 1];
+}
+
+/** Three cards to pass, with a person's kind of mistake: three of the six
+ *  most dangerous, not the best three. */
+export function choosePassPlausible(hand: Hand, rng: RNG, skill = DEFAULT_SKILL): Card[] {
+	const scored = hand.map((c) => ({ c, d: passDanger(c, hand) }));
+	luaSort(scored, (a, b) => (a.d !== b.d ? a.d > b.d : a.c.suit !== b.c.suit ? a.c.suit > b.c.suit : a.c.rank > b.c.rank));
+	if (!rng.chance(1 - skill)) return scored.slice(0, 3).map((x) => x.c);
+	return rng.sample(scored.slice(0, 6), 3).map((x) => x.c);
+}
+
 /** Choose a card for an AI seat. */
 export function chooseCard(state: HandState, seat: number, ctx: AIContext): Card {
 	const legal = H.legalPlays(state, seat);
 	if (legal.length === 1) return legal[0];
 	const skill = ctx.skill ?? DEFAULT_SKILL;
 	if (shooting(state, seat)) return chooseMoon(state, seat, legal);
-	if (ctx.rng.chance(1 - skill)) return legal[ctx.rng.int(1, legal.length) - 1];
+	if (ctx.rng.chance(1 - skill)) return ctx.plausible ? plausibleMistake(state, seat, legal, ctx) : legal[ctx.rng.int(1, legal.length) - 1];
 	if (state.trick.length === 0) return chooseLead(state, seat, legal);
 	return chooseFollow(state, seat, legal, ctx);
 }
