@@ -105,7 +105,11 @@ struct BoardWonPanel: View {
         if p.relics > 0 { rows.append(("Relics", p.relics)) }
         return Panel(edge: Theme.brass) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Board won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()
+                Text("\(v.boardName) won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()
+                Text(v.board == v.boardsPerTable
+                     ? (v.table >= v.tables ? "That was the last table." : "Table \(v.table) of \(v.tables) cleared. Next: table \(v.table + 1).")
+                     : "Table \(v.table) of \(v.tables) · next: \(v.board + 1 == v.boardsPerTable ? "the High Board" : "Board \(v.board + 1)")")
+                    .font(Theme.font(16)).foregroundStyle(Theme.brass)
                 Text("\(num(v.score)) scored against a target of \(num(v.target))").font(Theme.font(17)).foregroundStyle(Theme.inkDim)
                 VStack(spacing: 4) {
                     ForEach(rows, id: \.0) { row in

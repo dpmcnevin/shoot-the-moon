@@ -12,25 +12,24 @@ struct Sidebar: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("SHOOT THE MOON").font(Theme.font(19, .bold)).kerning(1).foregroundStyle(Theme.brass).inkShadow()
-                HStack {
-                    Text("Table \(min(v.table, v.tables)) of \(v.tables)").font(Theme.font(16))
-                    Spacer()
-                    Text(v.boardName).font(Theme.font(14)).foregroundStyle(Theme.inkDim)
-                }
+                RunProgress(v: v)
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .top) {
-                    stat("Target", num(v.target))
+                    stat("\(v.boardName) goal", num(v.target))
                     Spacer()
                     stat("Scored", num(shown), color: v.score >= v.target ? Theme.good : Theme.ink, trailing: true)
                 }
                 ProgressBar(fraction: Double(shown) / Double(max(1, v.target)), color: v.score >= v.target ? Theme.good : Theme.brass)
                 HStack(spacing: 6) {
-                    Text("Hands").font(Theme.font(12)).foregroundStyle(Theme.inkDim)
+                    Text("Hands left").font(Theme.font(13)).foregroundStyle(Theme.inkDim)
                     ForEach(0..<v.handsPerBoard, id: \.self) { i in
                         Rectangle().fill(i + 1 > v.handsLeft ? Theme.panelEdge : Theme.brass).frame(width: 12, height: 12)
                     }
+                    Spacer()
+                    Text("\(v.handsLeft) of \(v.handsPerBoard)").font(Theme.font(13))
+                        .foregroundStyle(v.handsLeft <= 1 && v.score < v.target ? Theme.bad : Theme.ink)
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
@@ -172,5 +171,46 @@ struct FlowRow: Layout {
             x += size.width + spacing
             row = max(row, size.height)
         }
+    }
+}
+
+/// Where the run stands: which of the eight tables, and which of this
+/// table's boards are won, current and to come.
+struct RunProgress: View {
+    let v: GameView
+
+    /// The current board is won once its payout shows (and in the club).
+    private var boardWon: Bool { v.phase == .boardWon || v.phase == .shop || v.phase == .victory }
+
+    var body: some View {
+        let table = min(v.table, v.tables)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("Table \(table) of \(v.tables)").font(Theme.font(16))
+                Spacer()
+                HStack(spacing: 3) {
+                    ForEach(1...v.tables, id: \.self) { t in
+                        let done = t < table || (t == table && boardWon && v.board == v.boardsPerTable)
+                        Rectangle()
+                            .fill(done ? Theme.brass : t == table ? Theme.ink : Theme.panelEdge)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+            }
+            HStack(spacing: 4) {
+                ForEach(1...v.boardsPerTable, id: \.self) { b in
+                    let done = b < v.board || (b == v.board && boardWon)
+                    let current = b == v.board && !done
+                    Text(b == v.boardsPerTable ? "High Board" : "Board \(b)")
+                        .font(Theme.font(12))
+                        .foregroundStyle(current ? Theme.bg : done ? Theme.good : Theme.inkFaint)
+                        .frame(maxWidth: .infinity).frame(height: 20)
+                        .background(PixelRect(radius: 4).fill(current ? Theme.brass : Theme.panel))
+                        .overlay(PixelRect(radius: 4).stroke(done ? Theme.good : .clear, lineWidth: 2))
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Table \(table) of \(v.tables), \(v.boardName)")
     }
 }

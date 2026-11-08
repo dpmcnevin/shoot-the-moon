@@ -166,6 +166,7 @@ struct GameView: Decodable {
     let tables: Int
     let board: Int
     let boardName: String
+    let boardsPerTable: Int
     let target: Int
     let score: Int
     let handsLeft: Int
