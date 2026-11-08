@@ -31,7 +31,9 @@ let opts: R.RunOptions | undefined;
 
 /** The ruleset new iPad runs use. The web game names its own; to share
  *  rules, both name the same one. */
-const IPAD_RULESET: R.RulesetName = 'v2';
+const IPAD_RULESET: R.RulesetName = 'v3';
+/** The collection page shows the rules new runs use. */
+const CATALOG_BALANCE = R.RULESETS[IPAD_RULESET].balance ?? 1;
 
 // ------------------------------------------------------------------ encoding
 
@@ -82,7 +84,7 @@ function shopView() {
 		const [ok, why] = R.canBuy(r, i);
 		const base = { slot: i, kind: it.kind, name: it.name, cost: it.cost, sold: !!it.sold, canBuy: ok, why: why ?? null };
 		if (it.kind === 'relic')
-			return { ...base, text: it.def.text, icon: it.def.icon, rarity: it.def.rarity, rarityName: relics.RARITY_NAME[it.def.rarity], edition: editionView(it.edition) };
+			return { ...base, text: relics.textAt(it.def, r.balance), icon: it.def.icon, rarity: it.def.rarity, rarityName: relics.RARITY_NAME[it.def.rarity], edition: editionView(it.edition) };
 		if (it.kind === 'upgrade') {
 			const lvl = r.levels[it.def.key];
 			const [c, m] = R.upgradeBonus(it.def.key, lvl + 1);
@@ -123,7 +125,7 @@ function view() {
 		handsPerBoard: r.handsThisBoard,
 		/** This table's boss (bosses on), and whether it's this board. */
 		boss: r.boss
-			? { key: r.boss, name: bosses.BOSSES[r.boss].name, text: bosses.BOSSES[r.boss].text, active: R.bossActive(r), sharkSeat: bosses.SHARK_SEAT }
+			? { key: r.boss, name: bosses.BOSSES[r.boss].name, text: bosses.bossAt(r.boss, r.balance).text, active: R.bossActive(r), sharkSeat: bosses.SHARK_SEAT }
 			: null,
 		/** The relic the Jinx has switched off this board. */
 		jinxed: R.bossActive(r) && r.boss === 'jinx' ? r.jinxed : null,
@@ -131,7 +133,7 @@ function view() {
 		tableBoards: Array.from({ length: R.BOARDS_PER_TABLE }, (_, i) => {
 			const b = i + 1;
 			const boss = r.bosses && b === R.BOARDS_PER_TABLE;
-			return { board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
+			return { board: b, name: b === R.BOARDS_PER_TABLE ? 'High Board' : `Board ${b}`, target: Math.round(R.targetFor(Math.min(r.table, R.TABLES), b, r.tableBase) * (boss && r.boss === 'shortchanger' && r.balance >= 3 ? 0.8 : 1)), reward: R.MONEY_PER_BOARD + (boss ? bosses.BOSS_BONUS : 0), hands: R.HANDS_PER_BOARD - (boss && r.boss === 'shortchanger' ? 1 : 0) };
 		}),
 		money: r.money,
 		interest: R.interest(r),
@@ -142,7 +144,7 @@ function view() {
 			const [c, m] = R.upgradeBonus(u.key, r.levels[u.key]);
 			return { key: u.key, name: u.name, text: u.text, icon: u.icon, level: r.levels[u.key], chips: c, mult: m };
 		}),
-		relics: r.relics.map((x) => ({ key: x.key, name: x.name, rarity: x.def.rarity, rarityName: relics.RARITY_NAME[x.def.rarity], icon: x.def.icon, text: relics.textFor(x), sell: Math.max(1, Math.floor(x.cost / 2)), edition: editionView(x.edition) })),
+		relics: r.relics.map((x) => ({ key: x.key, name: x.name, rarity: x.def.rarity, rarityName: relics.RARITY_NAME[x.def.rarity], icon: x.def.icon, text: relics.textFor(x, r.balance), sell: Math.max(1, Math.floor(x.cost / 2)), edition: editionView(x.edition) })),
 		seals: Object.entries(r.seals).map(([id, key]) => {
 			const c = r.pack.find((p) => String(p.id) === id);
 			return { cardId: Number(id), key, name: seals.SEALS[key].name, text: seals.SEALS[key].text, card: c ? cardView(c) : null };
@@ -226,7 +228,7 @@ const api = {
 	/** Everything in the game, for the collection page. */
 	catalog: () =>
 		JSON.stringify({
-			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: d.text, rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: d.cost, icon: d.icon })),
+			relics: relics.DEFS.map((d) => ({ key: d.key, name: d.name, text: relics.textAt(d, CATALOG_BALANCE), rarity: d.rarity, rarityName: relics.RARITY_NAME[d.rarity], cost: relics.costAt(d, CATALOG_BALANCE), icon: d.icon })),
 			editions: relics.EDITION_KEYS.map((k) => ({ key: k, name: relics.EDITIONS[k].name, text: relics.EDITIONS[k].text, cost: relics.EDITIONS[k].cost })),
 			seals: seals.SEAL_KEYS.map((k) => ({ key: k, name: seals.SEALS[k].name, text: seals.SEALS[k].text, cost: seals.SEALS[k].cost, color: seals.SEALS[k].color })),
 			packItems: [
@@ -234,7 +236,7 @@ const api = {
 				{ key: 'recolor', name: 'Recolor', text: 'Turn a card into another suit (the suit is on the item), same rank', cost: packs.recolorDef(1).cost, icon: packs.recolorDef(1).icon }
 			],
 			upgrades: Object.values(R.UPGRADES).map((u) => ({ key: u.key, name: u.name, text: u.text, icon: u.icon, chips: u.chips, mult: u.mult })),
-			bosses: bosses.BOSS_KEYS.map((k) => ({ key: k, name: bosses.BOSSES[k].name, text: bosses.BOSSES[k].text, tier: bosses.BOSSES[k].tier }))
+			bosses: bosses.BOSS_KEYS.map((k) => bosses.bossAt(k, CATALOG_BALANCE)).map((b) => ({ key: b.key, name: b.name, text: b.text, tier: b.tier }))
 		}),
 	/** Can a pack item be used on this card? */
 	canApply(slot: number, cardId: number): string {

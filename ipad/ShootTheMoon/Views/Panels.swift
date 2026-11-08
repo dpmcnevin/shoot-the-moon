@@ -104,6 +104,7 @@ struct BoardWonPanel: View {
         var rows: [(String, Int)] = [("Board", p.board), ("Unused hands", p.unused), ("Interest", p.interest)]
         if p.relics > 0 { rows.append(("Relics", p.relics)) }
         if let b = p.boss, b > 0 { rows.append(("Boss beaten", b)) }
+        if let o = p.overshoot, o > 0 { rows.append(("Beat the goal by \(o * 50)%+", o)) }
         return Panel(edge: Theme.brass) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("\(v.boardName) won").font(Theme.font(28, .bold)).foregroundStyle(Theme.good).inkShadow()

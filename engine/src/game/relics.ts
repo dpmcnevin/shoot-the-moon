@@ -64,6 +64,10 @@ export interface ScoreCtx {
 	passedPointsAway: number;
 	/** Voids the opponents revealed this hand. */
 	opponentVoids: number;
+	/** The run's balance version (RunOptions.balance): 1 = v2 and before, 3 = v3. */
+	balance: number;
+	/** Relics you hold. */
+	relicCount: number;
 }
 
 export interface Effect {
@@ -87,6 +91,7 @@ export interface RelicState {
 export interface BoardWinInfo {
 	boss: boolean;
 	seals: number;
+	balance: number;
 }
 
 export interface Relic {
@@ -150,7 +155,7 @@ export interface RelicDef {
 	/** Called after each hand is scored; scaling relics grow here. */
 	onHandEnd?: (ctx: ScoreCtx, relic: Relic) => void;
 	onBoardWin?: (relic: Relic, info: BoardWinInfo) => { money?: number } | void;
-	describe?: (relic: Relic) => string;
+	describe?: (relic: Relic, balance?: number) => string;
 	/** Rule-changing relics. */
 	halfMoon?: boolean;
 	moonX?: number;
@@ -173,6 +178,19 @@ export interface RelicDef {
 	cardCounter?: boolean;
 	/** Takes no relic slot and adds one. */
 	extraSlot?: boolean;
+	/** What changes under balance version 3 (ruleset v3): its text and price.
+	 *  The numbers themselves branch on ctx.balance in `score`. */
+	v3?: { text?: string; cost?: number };
+}
+
+/** A relic's text under a balance version. */
+export function textAt(def: RelicDef, balance = 1): string {
+	return balance >= 3 && def.v3?.text ? def.v3.text : def.text;
+}
+
+/** A relic's price under a balance version. */
+export function costAt(def: RelicDef, balance = 1): number {
+	return balance >= 3 && def.v3?.cost !== undefined ? def.v3.cost : def.cost;
 }
 
 const dodging = (ctx: ScoreCtx) => ctx.shooter === null;
@@ -194,7 +212,8 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'low_road', name: 'Low Road', rarity: 1, cost: 4, icon: 'shape_shifter',
 		text: '+4 chips for each trick you win with a seven or lower',
-		score: (ctx) => ({ chips: 4 * ctx.myTricks.filter((t) => t.winningCard.rank <= 7).length })
+		v3: { text: '+7 chips for each trick you win with a seven or lower' },
+		score: (ctx) => ({ chips: (ctx.balance >= 3 ? 7 : 4) * ctx.myTricks.filter((t) => t.winningCard.rank <= 7).length })
 	},
 	{
 		key: 'trickster', name: 'Trickster', rarity: 1, cost: 5, icon: 'psych',
@@ -219,9 +238,10 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'last_word', name: 'Last Word', rarity: 1, cost: 5, icon: 'endplay',
 		text: '+20 chips if you win the last trick',
+		v3: { text: '+30 chips if you win the last trick' },
 		score: (ctx) => {
 			const last = ctx.tricks[ctx.tricks.length - 1];
-			return last && last.winner === H.PLAYER ? { chips: 20 } : null;
+			return last && last.winner === H.PLAYER ? { chips: ctx.balance >= 3 ? 30 : 20 } : null;
 		}
 	},
 	{
@@ -268,7 +288,8 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'rainmaker', name: 'Rainmaker', rarity: 2, cost: 6, icon: 'rubber_baron',
 		text: 'Earn $4 extra each time you win a board',
-		onBoardWin: () => ({ money: 4 })
+		v3: { text: 'Earn $3 extra each time you win a board' },
+		onBoardWin: (_r, info) => ({ money: info.balance >= 3 ? 3 : 4 })
 	},
 
 	// ------------------------------------------------------------------ rare
@@ -285,7 +306,8 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'collector', name: 'Collector', rarity: 3, cost: 9, icon: 'ace_collector',
 		text: 'x1.1 for each point you take',
-		score: (ctx) => (ctx.myPoints > 0 && dodging(ctx) ? { xmult: 1.1 ** ctx.myPoints } : null)
+		v3: { text: 'x1.07 for each point you take' },
+		score: (ctx) => (ctx.myPoints > 0 && dodging(ctx) ? { xmult: (ctx.balance >= 3 ? 1.07 : 1.1) ** ctx.myPoints } : null)
 	},
 	{
 		key: 'queens_favor', name: "Queen's Favor", rarity: 3, cost: 8, icon: 'grand_design',
@@ -311,7 +333,8 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'full_moon', name: 'Full Moon', rarity: 4, cost: 13, icon: 'life_master',
 		text: 'x1.5, and x1.5 again for every board already won at this table',
-		score: (ctx) => ({ xmult: 1.5 ** (1 + ctx.boardsWonThisTable) })
+		v3: { text: 'x1.25, and x1.25 again for every board already won at this table' },
+		score: (ctx) => ({ xmult: (ctx.balance >= 3 ? 1.25 : 1.5) ** (1 + ctx.boardsWonThisTable) })
 	},
 
 	// ============================================================ expansion
@@ -368,9 +391,10 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'lucky_seven', name: 'Lucky Seven', rarity: 1, cost: 4, icon: 'lucky_seven', expansion: true,
 		text: '+7 chips for each seven you play',
+		v3: { text: '+14 chips for each seven you play' },
 		score: (ctx) => {
 			const n = ctx.tricks.filter((t) => myPlay(t).rank === 7).length;
-			return n > 0 ? { chips: 7 * n } : null;
+			return n > 0 ? { chips: (ctx.balance >= 3 ? 14 : 7) * n } : null;
 		}
 	},
 	{
@@ -432,7 +456,9 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'interest_rate', name: 'Interest Rate', rarity: 2, cost: 7, icon: 'interest_rate', expansion: true,
 		text: 'Interest can reach $8 instead of $5',
-		interestCap: 8
+		v3: { text: 'Interest can reach $8 instead of $5, and earn $1 more each board' },
+		interestCap: 8,
+		onBoardWin: (_r, info) => (info.balance >= 3 ? { money: 1 } : undefined)
 	},
 	{
 		key: 'bargain_bin', name: 'Bargain Bin', rarity: 2, cost: 6, icon: 'bargain_bin', expansion: true,
@@ -457,11 +483,16 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'clean_slate', name: 'Clean Slate', rarity: 3, cost: 8, icon: 'clean_slate', expansion: true,
 		text: 'x2 if you take no points two hands in a row',
-		describe: (r) => `x2 if you take no points two hands in a row${(r.state.streak ?? 0) > 0 ? ' (last hand was clean)' : ''}`,
+		v3: { text: 'x1.25 on a clean hand, x2 if the last hand was clean too' },
+		describe: (r, b = 1) => `${b >= 3 ? 'x1.25 on a clean hand, x2 if the last hand was clean too' : 'x2 if you take no points two hands in a row'}${(r.state.streak ?? 0) > 0 ? ' (last hand was clean)' : ''}`,
 		onHandEnd: (ctx, r) => {
 			r.state.streak = ctx.myPoints === 0 && dodging(ctx) ? (r.state.streak ?? 0) + 1 : 0;
 		},
-		score: (ctx, r) => (ctx.myPoints === 0 && dodging(ctx) && (r.state.streak ?? 0) >= 1 ? { xmult: 2 } : null)
+		score: (ctx, r) => {
+			if (ctx.myPoints !== 0 || !dodging(ctx)) return null;
+			if ((r.state.streak ?? 0) >= 1) return { xmult: 2 };
+			return ctx.balance >= 3 ? { xmult: 1.25 } : null;
+		}
 	},
 	{
 		key: 'comeback', name: 'Comeback', rarity: 3, cost: 8, icon: 'comeback', expansion: true,
@@ -529,7 +560,9 @@ export const DEFS: RelicDef[] = [
 	{
 		key: 'collectors_album', name: "The Collector's Album", rarity: 4, cost: 11, icon: 'collectors_album', expansion: true,
 		text: 'Takes no relic slot, and adds one',
-		extraSlot: true
+		v3: { text: 'Takes no relic slot, and adds one; +0.2 mult for each relic you hold' },
+		extraSlot: true,
+		score: (ctx) => (ctx.balance >= 3 && ctx.relicCount > 0 ? { mult: 0.2 * ctx.relicCount } : null)
 	}
 ];
 
@@ -540,13 +573,13 @@ export function get(key: string): RelicDef | undefined {
 	return BY_KEY[key];
 }
 
-export function instantiate(def: RelicDef, edition?: EditionKey): Relic {
-	const cost = def.cost + (edition ? EDITIONS[edition].cost : 0);
+export function instantiate(def: RelicDef, edition?: EditionKey, balance = 1): Relic {
+	const cost = costAt(def, balance) + (edition ? EDITIONS[edition].cost : 0);
 	return { key: def.key, def, name: def.name, cost, state: {}, ...(edition ? { edition } : {}) };
 }
 
-export function textFor(relic: Relic): string {
-	return relic.def.describe ? relic.def.describe(relic) : relic.def.text;
+export function textFor(relic: Relic, balance = 1): string {
+	return relic.def.describe ? relic.def.describe(relic, balance) : textAt(relic.def, balance);
 }
 
 /** Weighted rarity roll, never offering a relic you already own. */

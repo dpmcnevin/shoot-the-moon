@@ -49,6 +49,9 @@ export const TABLE_BASE = [34, 67, 120, 208, 360, 610, 1005, 1650];
  *  2 x 3000 runs): about 28% wins. TABLE_BASE gives about 14% on the
  *  plain rules. */
 export const GENTLE_TABLE_BASE = [22, 52, 106, 184, 308, 500, 820, 1320];
+/** Ruleset v3's targets: about 10% above v2's, because v3 pays for beating
+ *  a goal by a margin. Bot on v3, 2 x 3000 runs: about 28% wins. */
+export const V3_TABLE_BASE = [24, 57, 117, 203, 340, 550, 905, 1455];
 // Board 1, board 2, and the high board.
 export const BOARD_SCALE = [1.0, 1.3, 1.65];
 
@@ -153,7 +156,16 @@ export interface Payout {
 	relics: number;
 	/** Bonus for beating a boss (bosses on only). */
 	boss?: number;
+	/** Bonus for beating the goal by a margin (balance 3). */
+	overshoot?: number;
 	total: number;
+}
+
+/** Balance 3 pays for beating the goal by a margin: $1 per full 50% over,
+ *  up to $3. */
+export function overshootBonus(score: number, target: number): number {
+	if (target <= 0) return 0;
+	return Math.min(3, Math.max(0, Math.floor((score / target - 1) / 0.5)));
 }
 
 export interface Run {
@@ -206,6 +218,7 @@ export interface Run {
 	aiCurve: boolean;
 	/** The ruleset the run was started with (or 'classic'). */
 	ruleset: RulesetName;
+	balance: number;
 }
 
 export interface RunOptions {
@@ -223,6 +236,9 @@ export interface RunOptions {
 	/** Opponents' mistakes look like a person's, and they sharpen table by
 	 *  table (off by default). */
 	aiCurve?: boolean;
+	/** Balance version: 1 (default) or 3 (ruleset v3's relic, boss and
+	 *  economy numbers). */
+	balance?: number;
 }
 
 /** Opponent skill at a table, with aiCurve: looser early, sharper late. */
@@ -249,7 +265,7 @@ export function relicSlots(run: Run): number {
  * offers (the iPad app). A save records its ruleset, so changing what a
  * future ruleset means never changes a run in progress: add `v3` instead.
  */
-export type RulesetName = 'classic' | 'v2';
+export type RulesetName = 'classic' | 'v2' | 'v3';
 export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' | 'aiSkill'>> = {
 	classic: {},
 	v2: {
@@ -260,6 +276,16 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		moreRelics: true,
 		moonAI: true,
 		aiCurve: true
+	},
+	v3: {
+		editions: true,
+		noRepeats: true,
+		tableBase: V3_TABLE_BASE,
+		bosses: true,
+		moreRelics: true,
+		moonAI: true,
+		aiCurve: true,
+		balance: 3
 	}
 };
 
@@ -349,7 +375,8 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		moreRelics: opts.moreRelics ?? false,
 		moonAI: opts.moonAI ?? false,
 		aiCurve: opts.aiCurve ?? false,
-		ruleset: opts.ruleset ?? 'classic'
+		ruleset: opts.ruleset ?? 'classic',
+		balance: opts.balance ?? 1
 	} as Run;
 	startBoard(run);
 	return run;
@@ -358,12 +385,13 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 export function startBoard(run: Run) {
 	// A new table: choose its boss now, so the player sees it coming.
 	if (run.bosses && run.board === 1) {
-		run.boss = bosses.pickBoss(run.rng, run.table, run.bossesSeen);
+		run.boss = bosses.pickBoss(run.rng, run.table, run.bossesSeen, run.balance);
 		run.bossesSeen.push(run.boss);
 	}
 	run.jinxed = null;
 	if (bossIs(run, 'jinx') && run.relics.length > 0) run.jinxed = run.relics[run.rng.int(1, run.relics.length) - 1].key;
 	run.target = targetFor(run.table, run.board, run.tableBase);
+	if (bossIs(run, 'shortchanger') && run.balance >= 3) run.target = Math.round(run.target * 0.8);
 	run.score = 0;
 	run.handsThisBoard = HANDS_PER_BOARD - (bossIs(run, 'shortchanger') ? 1 : 0);
 	run.handsLeft = run.handsThisBoard;
@@ -411,6 +439,7 @@ function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
 	const base = (c: Card) => seals.cardPoints(run.seals, c);
 	let pts = base;
 	if (bossIs(run, 'widow')) pts = (c) => (H.isQueenOfSpades(c) ? base(c) * 2 : base(c));
+	if (bossIs(run, 'open_book') && run.balance >= 3) pts = (c) => (c.suit === H.HEARTS ? base(c) * 2 : base(c));
 	if (bossIs(run, 'diamond_jack')) pts = (c) => (c.suit === H.DIAMONDS && c.rank === 11 ? base(c) + 10 : base(c));
 	run.hand.state = H.newHand(run.hand.dealt, { kitty: run.hand.kitty, pts });
 	if (bossIs(run, 'open_book')) run.hand.state.heartsBroken = true;
@@ -540,7 +569,9 @@ function scoreContext(run: Run): ScoreCtx {
 		sealedTaken: mine.filter((c) => seals.sealOf(run.seals, c)).length,
 		editionCount: run.relics.filter((r) => r.edition).length,
 		passedPointsAway: hand.passed.filter((c) => st.pts(c) > 0 && [1, 2, 4].some((s) => st.taken[s].includes(c))).length,
-		opponentVoids: [1, 2, 4].reduce((n, s) => n + Object.values(st.voids[s]).filter(Boolean).length, 0)
+		opponentVoids: [1, 2, 4].reduce((n, s) => n + Object.values(st.voids[s]).filter(Boolean).length, 0),
+		balance: run.balance,
+		relicCount: run.relics.length
 	};
 }
 
@@ -575,7 +606,7 @@ export function scoreHand(run: Run): Breakdown {
 			lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
 		}
 		if (bossIs(run, 'taxman') && ctx.heartsTaken > 0) {
-			const tax = 5 * ctx.heartsTaken;
+			const tax = (run.balance >= 3 ? 3 : 5) * ctx.heartsTaken;
 			chips -= tax;
 			lines.push({ label: `The Taxman: ${ctx.heartsTaken} heart${ctx.heartsTaken === 1 ? '' : 's'}`, chips: -tax });
 		}
@@ -699,7 +730,7 @@ export function interest(run: Run): number {
 export function winBoard(run: Run): Payout {
 	let bonus = 0;
 	for (const r of run.relics) {
-		const out = r.def.onBoardWin?.(r, { boss: bossActive(run), seals: Object.keys(run.seals).length });
+		const out = r.def.onBoardWin?.(r, { boss: bossActive(run), seals: Object.keys(run.seals).length, balance: run.balance });
 		if (out && out.money) bonus += out.money;
 	}
 	const p: Payout = {
@@ -710,7 +741,11 @@ export function winBoard(run: Run): Payout {
 		total: 0
 	};
 	if (bossActive(run)) p.boss = bosses.BOSS_BONUS;
-	p.total = p.board + p.unused + p.interest + p.relics + (p.boss ?? 0);
+	if (run.balance >= 3) {
+		const o = overshootBonus(run.score, run.target);
+		if (o > 0) p.overshoot = o;
+	}
+	p.total = p.board + p.unused + p.interest + p.relics + (p.boss ?? 0) + (p.overshoot ?? 0);
 	run.money += p.total;
 	run.lastPayout = p;
 	run.boardsWonThisTable++;
@@ -763,8 +798,9 @@ function rollOffer(run: Run): ShopItem {
 	// Only roll when editions are on, so runs without them keep their
 	// exact sequence of shop offers.
 	const edition = run.editions ? relics.rollEdition(run.rng) : undefined;
-	if (!edition) return { kind: 'relic', def, name: def.name, cost: def.cost };
-	return { kind: 'relic', def, name: def.name, cost: def.cost + relics.EDITIONS[edition].cost, edition };
+	const price = relics.costAt(def, run.balance);
+	if (!edition) return { kind: 'relic', def, name: def.name, cost: price };
+	return { kind: 'relic', def, name: def.name, cost: price + relics.EDITIONS[edition].cost, edition };
 }
 
 export function canBuy(run: Run, i: number): [boolean, string?] {
@@ -787,7 +823,7 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 		if (!ok[0]) return ok;
 	}
 	run.money -= item.cost;
-	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def, item.edition));
+	if (item.kind === 'relic') run.relics.push(relics.instantiate(item.def, item.edition, run.balance));
 	else if (item.kind === 'upgrade') run.levels[item.def.key]++;
 	else if (item.kind === 'seal') run.seals[String(cardId)] = item.def.key;
 	else packs.apply(run, item.def, cardId!);

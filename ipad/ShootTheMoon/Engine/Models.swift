@@ -98,6 +98,8 @@ struct PayoutV: Decodable {
     let relics: Int
     /// For beating a boss.
     let boss: Int?
+    /// For beating the goal by a margin (ruleset v3).
+    let overshoot: Int?
     let total: Int
 }
 

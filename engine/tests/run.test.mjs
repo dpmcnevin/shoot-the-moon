@@ -720,3 +720,26 @@ test('old saves made with flags still replay', () => {
 	assert.ok(run.bosses && run.editions);
 	assert.equal(run.ruleset, 'classic');
 });
+
+test('v3 balance: its own relic, boss and money numbers; v2 runs keep theirs', () => {
+	const v2 = R.newRun('BAL', { ruleset: 'v2' });
+	const v3 = R.newRun('BAL', { ruleset: 'v3' });
+	assert.equal(v2.balance, 1);
+	assert.equal(v3.balance, 3);
+	const fm = relics.get('full_moon');
+	assert.equal(fm.score({ boardsWonThisTable: 0, balance: 1 }).xmult, 1.5);
+	assert.equal(fm.score({ boardsWonThisTable: 0, balance: 3 }).xmult, 1.25);
+	assert.match(relics.textAt(fm, 3), /1\.25/);
+	assert.equal(bosses.bossAt('taxman', 3).tier, 2);
+	assert.equal(bosses.bossAt('taxman', 1).tier, 1);
+	assert.equal(R.overshootBonus(150, 100), 1);
+	assert.equal(R.overshootBonus(149, 100), 0);
+	assert.equal(R.overshootBonus(1000, 100), 3);
+	for (const [run, board] of [[v2, 4], [v3, 4]]) {
+		finish(run);
+		run.score = run.target * 2;
+		R.continueAfterHand(run);
+		assert.equal(run.lastPayout.board, board);
+		assert.equal(run.lastPayout.overshoot, run.balance >= 3 ? 2 : undefined);
+	}
+});

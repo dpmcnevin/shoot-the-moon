@@ -66,7 +66,7 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const S = engine();
 	S.newRun('EDSAVE');
 	const save = JSON.parse(S.save());
-	assert.deepEqual(save.opts, { ruleset: 'v2' });
+	assert.deepEqual(save.opts, { ruleset: 'v3' });
 	const cat = JSON.parse(S.catalog());
 	assert.equal(cat.relics.length, 55); // 23 original + 32 expansion
 	assert.equal(cat.bosses.length, 13);
@@ -74,8 +74,8 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const view = JSON.parse(S.view());
 	assert.ok(view.boss && view.boss.name && view.boss.active === false);
 	assert.equal(view.tableBoards.length, 3);
-	assert.equal(view.tableBoards[0].target, 20);
-	assert.equal(JSON.parse(S.view()).target, 20, 'gentle first target');
+	assert.equal(view.tableBoards[0].target, 25); // v3's first goal
+	assert.equal(JSON.parse(S.view()).target, 25, 'v3 first target');
 	const S2 = engine();
 	S2.restore(JSON.stringify(save));
 	assert.deepEqual(JSON.parse(S2.save()).opts, save.opts);
