@@ -223,6 +223,14 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
  *  the queen of spades thrown away, never a heart led for no reason, never
  *  winning a trick full of points when a lower card would duck it. */
 function plausibleMistake(state: HandState, seat: number, legal: Card[], ctx: AIContext): Card {
+	// Nobody misses an obvious queen dump: under the ace or king of spades,
+	// or on someone else's trick when void.
+	const queen = legal.find(H.isQueenOfSpades);
+	if (queen && state.trick.length > 0) {
+		const win = H.trickWinner(state.trick);
+		const following = legal[0].suit === state.ledSuit;
+		if (!following || (state.ledSuit === H.SPADES && win.card.rank > 12)) return queen;
+	}
 	let pool = legal.filter((c) => !H.isQueenOfSpades(c));
 	if (state.trick.length === 0) {
 		const safe = pool.filter((c) => c.suit !== H.HEARTS);

@@ -733,8 +733,9 @@ test('aiCurve: plausible mistakes, and opponents sharpen table by table', () => 
 	run.table = 8;
 	assert.ok(R.tableSkill(run) > early);
 	assert.equal(R.tableSkill(R.newRun('CURVE')), ai.DEFAULT_SKILL, 'off by default');
-	// Always-a-mistake play stays plausible: no queen thrown when anything
-	// else will do, no heart led while other suits remain.
+	// Always-a-mistake play stays plausible: the obvious queen dump still
+	// happens, no queen thrown otherwise when anything else will do, no heart
+	// led while other suits remain.
 	const rng = newRng('MIST');
 	let checked = 0;
 	for (let i = 0; i < 200; i++) {
@@ -744,7 +745,10 @@ test('aiCurve: plausible mistakes, and opponents sharpen table by table', () => 
 		while (!st.complete) {
 			const seat = st.turn, legal = H.legalPlays(st, seat);
 			const card = ai.chooseCard(st, seat, { rng, skill: 0, plausible: true });
-			if (legal.length > 1 && legal.some((c) => !H.isQueenOfSpades(c))) assert.ok(!H.isQueenOfSpades(card), 'no queen thrown');
+			const win = st.trick.length ? H.trickWinner(st.trick) : null;
+			const obvious = win && legal.some(H.isQueenOfSpades) && (legal[0].suit !== st.ledSuit || (st.ledSuit === H.SPADES && win.card.rank > 12));
+			if (obvious) assert.ok(H.isQueenOfSpades(card), 'the queen goes under the ace or king, or onto a trick when void');
+			else if (legal.length > 1 && legal.some((c) => !H.isQueenOfSpades(c))) assert.ok(!H.isQueenOfSpades(card), 'no queen thrown');
 			if (st.trick.length === 0 && legal.some((c) => c.suit !== H.HEARTS && !H.isQueenOfSpades(c))) assert.notEqual(card.suit, H.HEARTS, 'no heart lead');
 			H.play(st, seat, card);
 			checked++;
