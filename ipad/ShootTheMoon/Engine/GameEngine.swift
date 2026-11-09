@@ -67,6 +67,9 @@ final class GameEngine {
 
     func view() throws -> GameView { try decode(try call("view")) }
 
+    /// A compact text log of this run, to send for analysis.
+    func gameLog() throws -> String { try call("gameLog") }
+
     /// The player's profile (stats and history), brought up to date with this run.
     func noteProfile(_ json: String, id: String) throws -> String { try call("noteProfile", [json, id]) }
 

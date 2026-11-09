@@ -14,6 +14,7 @@ import * as sound from '../audio/sound.ts';
 import * as tagsLib from '$engine/game/tags.ts';
 import * as ploysLib from '$engine/game/ploys.ts';
 import * as profileLib from '$engine/app/profile.ts';
+import { buildLog } from '$engine/app/gamelog.ts';
 import * as save from '$engine/app/save.ts';
 import * as packs from '$engine/game/pack.ts';
 import type { Action, Outcome } from '$engine/app/save.ts';
@@ -171,11 +172,34 @@ class Game {
 		return out;
 	}
 
+	/** The run as a save: its seed, options and every action. */
+	private currentSave(): save.Save | null {
+		const run = this._run;
+		if (!run) return null;
+		return { version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, id: this.runId, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset, ...(run.deck !== 'standard' ? { deck: run.deck } : {}) } } : {}) };
+	}
+
 	private persist() {
 		const run = this._run;
 		if (!run) return;
 		if (run.phase === PHASE.GAME_OVER || run.phase === PHASE.VICTORY) save.clear();
-		else save.store({ version: save.SAVE_VERSION, seed: run.seed, actions: this.actions, id: this.runId, ...(run.ruleset !== 'classic' ? { opts: { ruleset: run.ruleset, ...(run.deck !== 'standard' ? { deck: run.deck } : {}) } } : {}) });
+		else save.store(this.currentSave()!);
+	}
+
+	/** Download a compact text log of this run (gamelog.ts), to send for analysis. */
+	downloadLog() {
+		const s = this.currentSave();
+		if (!s) return;
+		const text = buildLog(s);
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `shoot-the-moon-${s.seed}-${new Date().toISOString().slice(0, 10)}.txt`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+		this.showToast('Game log downloaded', C.brass);
 	}
 
 	restore(): boolean {

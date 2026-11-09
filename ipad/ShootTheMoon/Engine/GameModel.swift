@@ -561,6 +561,24 @@ final class GameModel {
         }
     }
 
+    /// Share a text log of this run (a file named for its seed), from the
+    /// system share sheet: AirDrop, Files, Messages, Mail.
+    func shareLog() {
+        guard let v = view, let text = try? engine.gameLog(), !text.isEmpty else { return }
+        let day = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("shoot-the-moon-\(v.seed)-\(day).txt")
+        do { try text.write(to: url, atomically: true, encoding: .utf8) } catch { return }
+        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene,
+              var top = scene.keyWindow?.rootViewController else { return }
+        while let next = top.presentedViewController { top = next }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // On an iPad the sheet is a popover; anchor it to the middle of the screen.
+        sheet.popoverPresentationController?.sourceView = top.view
+        sheet.popoverPresentationController?.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY, width: 1, height: 1)
+        sheet.popoverPresentationController?.permittedArrowDirections = []
+        top.present(sheet, animated: true)
+    }
+
     /// Use the ploy in this slot.
     func usePloy(_ slot: Int) {
         guard let p = view?.ploys?.first(where: { $0.slot == slot }) else { return }

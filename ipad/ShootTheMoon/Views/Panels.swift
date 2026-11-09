@@ -223,6 +223,11 @@ struct EndingPanel: View {
                     ForEach(rows, id: \.0) { r in HStack { Text(r.0); Spacer(); Text(r.1).foregroundStyle(Theme.brass) } }
                 }
                 .font(Theme.font(17)).padding(.top, 10)
+                Button { model.shareLog() } label: {
+                    Text("Share the game log").underline().font(Theme.font(15)).foregroundStyle(Theme.inkDim)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 HStack {
                     GameButton("Main menu", style: .plain) { model.toMenu() }.frame(width: 170)
                     Spacer()

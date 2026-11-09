@@ -48,7 +48,7 @@ struct MenuView: View {
             ForEach(Array(fan.enumerated()), id: \.element.id) { i, f in
                 let c = f.card
                 let k = Double(i + 1) - 2.5
-                let home = CGPoint(x: L.W / 2 + k * 70, y: 108 + L.dy * 0.7 + k * k * 6)
+                let home = CGPoint(x: L.W / 2 + k * (L.dy < 20 ? 60 : 70), y: (L.dy < 20 ? 92 : 108) + L.dy * 0.7 + k * k * 6)
                 let at = moved[c.id] ?? home
                 CardView(card: c, faceUp: dealt && !faceDown.contains(c.id), lift: 6)
                     .modifier(EditionShine(edition: faceDown.contains(c.id) ? nil : f.edition))
@@ -61,7 +61,8 @@ struct MenuView: View {
                                 .offset(y: 12)
                         }
                     }
-                    .scaleEffect(1.1)
+                    // Smaller on a short stage (an iPhone), so the fan clears the title.
+                    .scaleEffect(L.dy < 20 ? 0.9 : 1.1)
                     .rotationEffect(.radians(moved[c.id] == nil ? k * 0.16 : 0))
                     .position(dealt ? at : CGPoint(x: L.W / 2, y: -150))
                     .animation(.spring(duration: 0.6, bounce: 0.25).delay(dealt ? 0.15 + Double(i) * 0.09 : 0), value: dealt)

@@ -258,7 +258,7 @@
 
 	<div class="foot">
 		{#if !portrait}<SpeedSlider width={L.sidebar.w - 36} />{/if}
-		<div class="hint">Seed {run.seed}</div>
+		<div class="hint">Seed {run.seed} · <button class="log-link" title="Download a game log of this run, to send for analysis" onclick={() => game.downloadLog()}>log</button></div>
 	</div>
 </aside>
 
@@ -410,6 +410,18 @@
 	}
 	.dot.used {
 		background: var(--panel-edge);
+	}
+	.log-link {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.log-link:hover {
+		color: var(--ink);
 	}
 	.deck-link {
 		display: block;

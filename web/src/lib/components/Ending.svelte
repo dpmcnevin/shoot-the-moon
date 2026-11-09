@@ -41,6 +41,7 @@
 			<div class="row"><span>{label}</span><span class="brass">{value}</span></div>
 		{/each}
 	</div>
+	<button class="log" title="A text log of the whole run, to send for analysis" onclick={() => game.downloadLog()}>Download the game log</button>
 	<div class="foot">
 		<Button variant="plain" onclick={() => game.toMenu()} style="width: 170px">Main menu</Button>
 		{#if victory && game.run?.endlessOn && !game.run?.endless}
@@ -58,6 +59,21 @@
 </div>
 
 <style>
+	.log {
+		display: block;
+		margin: 10px 0 0 auto;
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		font-size: 15px;
+		color: var(--ink-dim);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.log:hover {
+		color: var(--ink);
+	}
 	.ending {
 		width: 520px;
 		box-sizing: border-box;

@@ -150,6 +150,10 @@ struct Sidebar: View {
                 }
             }
 
+            // On a short stage (an iPhone) the rows are shorter, with any
+            // edition or jinx tag after the name.
+            let compact = model.layout.H < 800
+            let rowH: Double = compact ? 26 : 36
             VStack(alignment: .leading, spacing: 2) {
                 Text("Relics \(v.relicSlotsUsed)/\(v.relicSlots)").font(Theme.font(14)).foregroundStyle(Theme.inkDim)
                 ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
@@ -158,18 +162,27 @@ struct Sidebar: View {
                         let jinxed = v.jinxed == r.key
                         HStack(spacing: 6) {
                             Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key)).saturation(jinxed ? 0 : 1)
-                            PixelRect(radius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: 24)
-                            VStack(alignment: .leading, spacing: -1) {
-                                if jinxed {
-                                    Text("JINXED").font(Theme.font(10, .bold)).kerning(1).foregroundStyle(Theme.bad)
-                                } else if let e = r.edition { EditionTag(edition: e, size: 10) }
+                            PixelRect(radius: 1).fill(Theme.rarity[r.rarity]).frame(width: 3, height: rowH - 12)
+                            if compact {
                                 Text(r.name).font(Theme.font(14)).lineLimit(1)
                                     .foregroundStyle(jinxed ? Theme.inkFaint : Theme.ink)
                                     .strikethrough(jinxed, color: Theme.bad)
+                                if jinxed {
+                                    Text("JINXED").font(Theme.font(10, .bold)).kerning(1).foregroundStyle(Theme.bad)
+                                } else if let e = r.edition { EditionTag(edition: e, size: 10) }
+                            } else {
+                                VStack(alignment: .leading, spacing: -1) {
+                                    if jinxed {
+                                        Text("JINXED").font(Theme.font(10, .bold)).kerning(1).foregroundStyle(Theme.bad)
+                                    } else if let e = r.edition { EditionTag(edition: e, size: 10) }
+                                    Text(r.name).font(Theme.font(14)).lineLimit(1)
+                                        .foregroundStyle(jinxed ? Theme.inkFaint : Theme.ink)
+                                        .strikethrough(jinxed, color: Theme.bad)
+                                }
                             }
                             Spacer(minLength: 0)
                         }
-                        .frame(height: 36)
+                        .frame(height: rowH)
                         .background(PixelRect(radius: 5).fill(Theme.panel))
                         .padding(.horizontal, -4)
                         .contentShape(Rectangle())
@@ -184,13 +197,21 @@ struct Sidebar: View {
                         .accessibilityAddTraits(.isButton)
                         .accessibilityHint("Shows what it does")
                     } else {
-                        PixelRect(radius: 5).fill(Theme.bg).frame(height: 36).padding(.horizontal, -4)
+                        PixelRect(radius: 5).fill(Theme.bg).frame(height: rowH).padding(.horizontal, -4)
                     }
                 }
             }
-            Spacer(minLength: 0)
+            // The relics take what room is left, so the footer always shows.
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+            .clipped()
+            .layoutPriority(-1)
             SpeedSlider(width: model.layout.sidebar.width - 36)
-            Text("Seed \(v.seed)").font(Theme.font(12)).foregroundStyle(Theme.inkFaint)
+            HStack(spacing: 4) {
+                Text("Seed \(v.seed) ·").font(Theme.font(12)).foregroundStyle(Theme.inkFaint)
+                Button { model.shareLog() } label: { Text("log").underline().font(Theme.font(12)).foregroundStyle(Theme.inkDim) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Share a game log of this run")
+            }
         }
         .foregroundStyle(Theme.ink)
         .padding(.horizontal, 18).padding(.vertical, 14)

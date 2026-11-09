@@ -16,6 +16,7 @@ import * as bosses from '../src/game/bosses.ts';
 import * as seals from '../src/game/seals.ts';
 import * as cardEds from '../src/game/cardEditions.ts';
 import * as profileLib from '../src/app/profile.ts';
+import { buildLog } from '../src/app/gamelog.ts';
 import * as ploysLib from '../src/game/ploys.ts';
 import * as bundlesLib from '../src/game/bundles.ts';
 import * as tagsLib from '../src/game/tags.ts';
@@ -281,6 +282,11 @@ const api = {
 	save(): string {
 		if (!run) return '';
 		return JSON.stringify({ version: SAVE_VERSION, seed: run.seed, actions, ...(opts ? { opts } : {}) });
+	},
+	/** A compact text log of this run (gamelog.ts), to send for analysis. */
+	gameLog(): string {
+		if (!run) return '';
+		return buildLog({ version: SAVE_VERSION, seed: run.seed, actions, ...(opts ? { opts } : {}) });
 	},
 	act,
 	view: () => JSON.stringify(view()),

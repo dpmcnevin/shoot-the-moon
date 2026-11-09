@@ -1033,6 +1033,28 @@ test('v5: after winning, endless goes on to table 9 with higher goals', () => {
 	assert.equal(R.goEndless(R.newRun('E4', { ruleset: 'v4' }))[0], false);
 });
 
+// ------------------------------------------------------------------ game log
+
+import { buildLog } from '../src/app/gamelog.ts';
+
+test('the game log replays a save into compact text, ending with the save', () => {
+	const run = R.newRun('GLOG', { ruleset: 'v5' });
+	const actions = [];
+	const go = (a) => {
+		actions.push(a);
+		applyAction(run, a);
+	};
+	go({ t: 'pass', cards: run.hand.dealt[H.PLAYER].slice(0, 3).map((c) => c.id) });
+	go({ t: 'playOut' });
+	const save = { version: 3, seed: 'GLOG', actions, opts: { ruleset: 'v5' } };
+	const log = buildLog(save);
+	assert.ok(log.startsWith('SHOOT THE MOON log · seed GLOG · ruleset v5'));
+	assert.ok(log.includes('-- Hand 1 · pass left · dealt'));
+	assert.equal(log.split('\n').filter((l) => /^ {3}\d+\. /.test(l)).length, 13, 'thirteen tricks');
+	assert.ok(log.includes('   score: '));
+	assert.ok(log.trimEnd().endsWith(`save: ${JSON.stringify(save)}`));
+});
+
 // ------------------------------------------------------------------ rulesets
 
 test('a ruleset stands for its options; explicit options win; classic is the default', () => {
