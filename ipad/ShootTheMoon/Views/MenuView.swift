@@ -48,7 +48,7 @@ struct MenuView: View {
             ForEach(Array(fan.enumerated()), id: \.element.id) { i, f in
                 let c = f.card
                 let k = Double(i + 1) - 2.5
-                let home = CGPoint(x: L.W / 2 + k * 70, y: 120 + L.dy * 0.6 + k * k * 6)
+                let home = CGPoint(x: L.W / 2 + k * 70, y: 108 + L.dy * 0.7 + k * k * 6)
                 let at = moved[c.id] ?? home
                 CardView(card: c, faceUp: dealt && !faceDown.contains(c.id), lift: 6)
                     .modifier(EditionShine(edition: faceDown.contains(c.id) ? nil : f.edition))

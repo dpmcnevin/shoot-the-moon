@@ -59,7 +59,7 @@ targets:
       base:
         PRODUCT_NAME: Shoot the Moon
         PRODUCT_BUNDLE_IDENTIFIER: net.corrupt.shoot-the-moon
-        TARGETED_DEVICE_FAMILY: "2" # iPad only
+        TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad
         SUPPORTS_MACCATALYST: false
         SWIFT_VERSION: "6.0"
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

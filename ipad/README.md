@@ -2,7 +2,7 @@
 
 A native iPad version of [Shoot the Moon](https://corrupt.net/shoot-the-moon), the hearts roguelike. The UI is SwiftUI. The game rules are the shared TypeScript engine in `../engine`, bundled and run in JavaScriptCore, so a seed plays the same here as on the web under the same ruleset (the iPad uses `v2`).
 
-iPad only, landscape only.
+iPad and iPhone, landscape only. On an iPad the stage is 1280 points wide and as tall as the screen; on an iPhone (wider than 16:9) it is 720 tall and as wide as the screen, clear of the camera cutout.
 
 ## Building
 

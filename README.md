@@ -12,7 +12,7 @@ One repo, three parts:
 | --- | --- |
 | `engine/` | The shared core in TypeScript: rules, run logic, saves, pixel art and sound synthesis (`src/`), the bridge the iPad app runs in JavaScriptCore (`bridge/`), the balance bot and simulator (`tools/`), and the tests. |
 | `web/` | The browser game (SvelteKit). Imports the engine as `$engine/...`. |
-| `ipad/` | The iPad app (SwiftUI). Its build step bundles `engine/` into the app. |
+| `ipad/` | The iPad and iPhone app (SwiftUI). Its build step bundles `engine/` into the app. |
 
 Both games name the rules they use: the web game `classic` (`WEB_RULESET` in `web/src/lib/app/game.svelte.ts`), the iPad `v2` (`IPAD_RULESET` in `engine/bridge/entry.ts`). `v2` adds relic editions, bosses, 32 more relics, opponents who go for the moon and gentler targets. A save records its ruleset, so changing the rules later means adding a new one.
 
@@ -53,7 +53,7 @@ npm run simulate
 
 `npm test` runs the engine's tests; `npm run check` type-checks the engine and the web app; `npm run simulate` plays runs with the balance bot (`RULESET=v2` for the iPad's rules).
 
-The iPad app needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+The iPad and iPhone app needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
 ```bash
 cd ipad && xcodegen generate && open ShootTheMoon.xcodeproj

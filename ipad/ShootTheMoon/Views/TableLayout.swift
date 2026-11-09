@@ -23,8 +23,18 @@ struct TableLayout {
     let seats: [Int: SeatLayout]
     let trickOffset: [Int: (Double, Double)]
 
-    static func make(height: Double) -> TableLayout {
-        let W = 1280.0, H = min(1000, max(720, height.rounded())), side = 270.0
+    /// The stage for a screen of this size: 1280 points wide and as tall as
+    /// the screen's shape (an iPad); or, on a screen wider than 16:9 (an
+    /// iPhone), 720 tall and as wide as its shape, so there are no bars.
+    static func fit(_ size: CGSize) -> TableLayout {
+        guard size.width > 0, size.height > 0 else { return make(height: 720) }
+        let aspect = size.width / size.height
+        if 1280 / aspect >= 720 { return make(height: 1280 / aspect) }
+        return make(width: min(1800, (720 * aspect).rounded()), height: 720)
+    }
+
+    static func make(width: Double = 1280, height: Double) -> TableLayout {
+        let W = width, H = min(1000, max(720, height.rounded())), side = 270.0
         let extra = H - 720
         let cx = side + (W - side) / 2, cy = 318.0 + extra * 0.5
         let northY = 62 + extra * 0.18

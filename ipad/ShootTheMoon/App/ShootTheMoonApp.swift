@@ -37,7 +37,8 @@ private func lockWindow() {
     }
 }
 
-/// The 1280-point-wide stage, as tall as the screen's aspect, scaled to fit,
+/// The stage (1280 points wide on an iPad, wider on an iPhone, as tall as
+/// the screen's shape needs), scaled to fit,
 /// with the current screen, overlays, particles and screen shake.
 struct RootView: View {
     @Environment(GameModel.self) private var model
@@ -48,7 +49,7 @@ struct RootView: View {
             // Until the layout matches the screen's shape (the first frame
             // after launch), draw only the background rather than a
             // letterboxed stage.
-            if geo.size.width > 0 && Self.wantedHeight(geo.size) != model.layout.H {
+            if geo.size.width > 0 && !Self.fits(geo.size, model.layout) {
                 Theme.bg
             } else {
             TimelineView(.animation(paused: Date() > model.shakeUntil)) { tl in
@@ -65,21 +66,23 @@ struct RootView: View {
             }
             }
         }
-        .background(Theme.bg)
-        .ignoresSafeArea()
+        // Under the iPhone's camera housing (a side, in landscape) only the
+        // background shows; the stage stays clear of it.
+        .background(Felt().ignoresSafeArea())
+        .ignoresSafeArea(edges: .vertical)
     }
 
-    /// Match the stage's height to the screen's aspect, so there are no bars.
-    /// The stage height this screen size calls for (clamped as the layout is).
-    static func wantedHeight(_ size: CGSize) -> Double {
-        TableLayout.make(height: 1280 * size.height / size.width).H
+    /// Match the stage to the screen's shape, so there are no bars: taller
+    /// on an iPad, wider on an iPhone.
+    static func fits(_ size: CGSize, _ L: TableLayout) -> Bool {
+        let want = TableLayout.fit(size)
+        return want.W == L.W && want.H == L.H
     }
 
     private func fit(_ size: CGSize) {
         guard size.width > 0 else { return }
-        let h = 1280 * size.height / size.width
-        if Self.wantedHeight(size) != model.layout.H {
-            DispatchQueue.main.async { model.layout = .make(height: h) }
+        if !Self.fits(size, model.layout) {
+            DispatchQueue.main.async { model.layout = .fit(size) }
         }
     }
 
