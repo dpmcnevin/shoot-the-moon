@@ -37,8 +37,8 @@ function cached(key: string, build: () => string): string {
 let pixelScale = 4;
 export function setDeviceScale(cssPxPerStagePx: number) {
 	const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-	// x1.5: your hand is drawn up to 1.5x (layout handScale).
-	pixelScale = Math.max(1, Math.min(8, Math.ceil((CARD_W / pixelcards.W) * cssPxPerStagePx * dpr * 1.5)));
+	// x1.6: your hand is drawn up to 1.55x (layout handScale).
+	pixelScale = Math.max(1, Math.min(8, Math.ceil((CARD_W / pixelcards.W) * cssPxPerStagePx * dpr * 1.6)));
 }
 
 export function cardFace(card: Card, trump: boolean, pixel: boolean, fourColor: boolean): string {

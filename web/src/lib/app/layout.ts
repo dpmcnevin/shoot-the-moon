@@ -59,9 +59,9 @@ const LANDSCAPE: Layout = (() => {
 		H = 720,
 		sideW = 270;
 	const tableCX = sideW + (W - sideW) / 2;
-	const trickCY = 312;
-	const hs = 1.35,
-		ts = 1.2;
+	const trickCY = 296;
+	const hs = 1.55,
+		ts = 1.45;
 	return {
 		orientation: 'landscape',
 		W,
@@ -70,9 +70,9 @@ const LANDSCAPE: Layout = (() => {
 		table: { x: sideW, y: 0, w: W - sideW, h: H },
 		tableCX,
 		trickCY,
-		ovalRX: 270,
-		ovalRY: 170,
-		handY: H - CARD_H * hs - 28,
+		ovalRX: 300,
+		ovalRY: 190,
+		handY: H - CARD_H * hs - 26,
 		maxHandWidth: 900,
 		handScale: hs,
 		trickScale: ts,
@@ -82,13 +82,13 @@ const LANDSCAPE: Layout = (() => {
 			[cards.EAST]: { x: W - 64, y: trickCY, dx: 0, dy: 20, r: -Math.PI / 2, s: 0.62, labelX: W - 154, labelY: trickCY - 190, align: 'right' }
 		},
 		trickOffset: {
-			[cards.NORTH]: [0, -82 * ts],
-			[cards.SOUTH]: [0, 82 * ts],
+			[cards.NORTH]: [0, -98],
+			[cards.SOUTH]: [0, 98],
 			[cards.WEST]: [-112 * ts, 0],
 			[cards.EAST]: [112 * ts, 0]
 		},
-		playOut: { x: W - 300, y: 468, w: 160, h: 40 },
-		sortAt: { x: sideW + 120, y: 446 }
+		playOut: { x: W - 300, y: 428, w: 160, h: 40 },
+		sortAt: { x: sideW + 120, y: 428 }
 	};
 })();
 
@@ -98,7 +98,7 @@ const PORTRAIT: Layout = (() => {
 		sideH = 300;
 	const tableCX = W / 2;
 	const hs = 1.5,
-		ts = 1.25;
+		ts = 1.4;
 	const handY = H - CARD_H * hs - 40;
 	const trickCY = 760;
 	return {

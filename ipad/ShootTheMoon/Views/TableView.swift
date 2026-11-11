@@ -165,7 +165,7 @@ struct TableView: View {
                 let (x, y) = L.trickPoint(p.seat)
                 let won = p.seat == held.winner
                 out.append(Placement(id: key(p.card.id), card: p.card, faceUp: true, x: x, y: y, r: tossAngle(p.card),
-                                     s: won ? 1.08 : 1, z: 60 + Double(i), lift: won ? 10 : 2,
+                                     s: (won ? 1.08 : 1) * L.trickScale, z: 60 + Double(i), lift: won ? 10 : 2,
                                      highlight: won ? (held.points > 0 ? Theme.bad : Theme.brass) : nil,
                                      from: L.origin(p.seat), to: to))
             }
@@ -179,7 +179,7 @@ struct TableView: View {
                 let (x, y) = L.trickPoint(p.seat)
                 out.append(Placement(id: key(p.card.id), card: p.card, faceUp: !fog || i == 0 || p.seat == Seat.player,
                                      x: x, y: y, r: tossAngle(p.card),
-                                     s: 1, z: 60 + Double(i), lift: 2, from: L.origin(p.seat)))
+                                     s: L.trickScale, z: 60 + Double(i), lift: 2, from: L.origin(p.seat)))
             }
         }
         return out

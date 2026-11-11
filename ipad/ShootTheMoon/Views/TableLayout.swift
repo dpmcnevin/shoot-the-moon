@@ -17,6 +17,8 @@ struct TableLayout {
     let maxHandWidth: Double
     /// Your hand is drawn larger than the other cards when there's room.
     let handScale: Double
+    /// Cards in the trick are drawn larger too.
+    let trickScale: Double
     let dy: Double
 
     struct SeatLayout { let x, y, dx, dy, r, s, labelX, labelY: Double }
@@ -36,23 +38,25 @@ struct TableLayout {
     static func make(width: Double = 1280, height: Double) -> TableLayout {
         let W = width, H = min(1000, max(720, height.rounded())), side = 270.0
         let extra = H - 720
-        let cx = side + (W - side) / 2, cy = 318.0 + extra * 0.5
+        let cx = side + (W - side) / 2, cy = 290.0 + extra * 0.5
         let northY = 62 + extra * 0.18
-        // Up to 1.4x on a 4:3 iPad; the extra height pays for it.
-        let hs = 1 + min(0.4, extra / 400)
-        let handY = H - cardH * hs - 40
+        // 1.55x at 16:9, up to 1.8x on a 4:3 iPad; the extra height pays for it.
+        let hs = 1.55 + min(0.25, extra / 960)
+        let ts = 1.45 + min(0.2, extra / 1200)
+        let handY = H - cardH * hs - 26 - min(14, extra / 16)
+        let tv = 96 * ts / 1.45, th = 112 * ts
         return TableLayout(
             W: W, H: H,
             sidebar: CGRect(x: 0, y: 0, width: side, height: H),
             table: CGRect(x: side, y: 0, width: W - side, height: H),
-            tableCX: cx, trickCY: cy, ovalRX: 270 + extra * 0.1, ovalRY: 170 + extra * 0.2,
-            handY: handY, maxHandWidth: min(950, 780 * hs), handScale: hs, dy: extra / 2,
+            tableCX: cx, trickCY: cy, ovalRX: 300 + extra * 0.1, ovalRY: 190 + extra * 0.2,
+            handY: handY, maxHandWidth: min(950, 600 * hs), handScale: hs, trickScale: ts, dy: extra / 2,
             seats: [
                 Seat.north: SeatLayout(x: cx, y: northY, dx: 26, dy: 0, r: .pi, s: 0.62, labelX: cx, labelY: northY + 56),
                 Seat.west: SeatLayout(x: side + 64, y: cy, dx: 0, dy: 20, r: .pi / 2, s: 0.62, labelX: side + 64, labelY: cy - 195),
                 Seat.east: SeatLayout(x: W - 64, y: cy, dx: 0, dy: 20, r: -.pi / 2, s: 0.62, labelX: W - 64, labelY: cy - 195)
             ],
-            trickOffset: [Seat.north: (0, -82), Seat.south: (0, 82), Seat.west: (-112, 0), Seat.east: (112, 0)]
+            trickOffset: [Seat.north: (0, -tv), Seat.south: (0, tv), Seat.west: (-th, 0), Seat.east: (th, 0)]
         )
     }
 
