@@ -33,7 +33,12 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 			}
 			const i = run.shop!.items.findIndex((_, k) => R.canBuy(run, k)[0]);
 			if (i < 0) go({ t: 'leave' });
-			else go({ t: 'buy', slot: i, card: R.needsCard(run.shop!.items[i]) ? rng.pick(run.pack)!.id : undefined });
+			else {
+				const it = run.shop!.items[i];
+				const fits = it.kind === 'pack' ? run.pack.filter((c) => R.canApplyPack(run, it.def, c)[0]) : run.pack;
+				if (R.needsCard(it) && !fits.length) go({ t: 'leave' });
+				else go({ t: 'buy', slot: i, card: R.needsCard(it) ? rng.pick(fits)!.id : undefined });
+			}
 		}
 	}
 	return { run, save };

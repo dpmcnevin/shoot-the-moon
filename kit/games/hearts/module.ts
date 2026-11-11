@@ -21,6 +21,13 @@ export interface HeartsHand {
 	passed: Card[];
 	received: Card[];
 	state: HandState | null;
+	/** Ploys at work this hand: Spyglass (the trick it shows), Umbrella,
+	 *  Fall Guy (from which trick), Second Pass (another pass follows). */
+	spyTrick?: number;
+	umbrella?: boolean;
+	fallGuyFrom?: number;
+	extraPass?: boolean;
+	firstPass?: PassDir;
 }
 
 export type HeartsAction = { t: 'pass'; cards: string[] } | { t: 'play'; card: string } | { t: 'playOut' };
@@ -59,6 +66,27 @@ function flagX(run: Run, flag: 'moonX' | 'baseX'): number {
 	return run.relics.reduce((x, r) => x * (relicsLib.get(r.key)?.[flag] ?? 1), 1);
 }
 
+/** The direction after this one, skipping the hand with no passing. */
+export function nextPassDir(dir: PassDir): PassDir {
+	const order: PassDir[] = ['left', 'right', 'across'];
+	return order[(order.indexOf(dir) + 1) % order.length];
+}
+
+/** Fall Guy: the first trick you win from the trick it was played on goes,
+ *  cards and points, to the player on your left (West). */
+function applyFallGuy(run: Run<HeartsHand>) {
+	const h = run.hand;
+	const st = h.state!;
+	if (h.fallGuyFrom === undefined) return;
+	const t = st.tricks.slice(h.fallGuyFrom).find((x) => x.winner === H.PLAYER);
+	h.fallGuyFrom = undefined;
+	if (!t) return;
+	t.winner = H.WEST;
+	const won = t.plays.map((p) => p.card);
+	st.taken[H.PLAYER] = st.taken[H.PLAYER].filter((c) => !won.includes(c));
+	st.taken[H.WEST].push(...won);
+}
+
 function beginPlay(run: Run<HeartsHand>, stepwise = false) {
 	const h = run.hand;
 	h.state = H.newHand(h.dealt, { pts: (c) => cardPoints(run, c) });
@@ -87,7 +115,8 @@ function scoreCtx(run: Run<HeartsHand>): relicsLib.ScoreCtx {
 	const mine = st.taken[H.PLAYER];
 	const afterPass = st.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card);
 	return {
-		myPoints: pts[H.PLAYER],
+		// Umbrella: the queen counts nothing for you this hand.
+		myPoints: pts[H.PLAYER] - (h.umbrella && mine.some(H.isQueenOfSpades) ? st.pts(mine.find(H.isQueenOfSpades)!) : 0),
 		heartsTaken: mine.filter((c) => c.suit === H.HEARTS).length,
 		tookQueen: mine.some(H.isQueenOfSpades),
 		shooter: shooter(run, st, pts),
@@ -182,6 +211,13 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			const received = H.applyPasses(h.dealt, passes, h.passDir);
 			h.passed = chosen as Card[];
 			h.received = received[H.PLAYER];
+			// Second Pass: everyone passes again, the next way.
+			if (h.extraPass) {
+				h.extraPass = false;
+				h.firstPass = h.passDir;
+				h.passDir = nextPassDir(h.passDir);
+				return;
+			}
 			beginPlay(run, stepwise);
 		} else if (a.t === 'play') {
 			const st = h.state!;
@@ -202,6 +238,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 		return H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run))) ? 'trick' : 'card';
 	},
 	score(run) {
+		applyFallGuy(run);
 		const ctx = scoreCtx(run);
 		const lines: Line[] = [];
 		const levels: string[] = [];
@@ -236,6 +273,29 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	upgrades: UPGRADES,
 	ploys: [
 		{
+			key: 'spyglass', name: 'Spyglass', text: "See every opponent's cards for the rest of this trick", cost: 3, icon: 'ploy_spyglass',
+			when: [R.PHASE.PLAY],
+			use: (run) => (run.hand.spyTrick = run.hand.state!.tricks.length)
+		},
+		{
+			key: 'umbrella', name: 'Umbrella', text: 'If you take the queen of spades this hand, she counts 0 points for you', cost: 3, icon: 'ploy_umbrella',
+			when: [R.PHASE.PRE, R.PHASE.PLAY],
+			canUse: (run) => (run.hand.umbrella ? [false, 'already open'] : [true]),
+			use: (run) => (run.hand.umbrella = true)
+		},
+		{
+			key: 'fall_guy', name: 'Fall Guy', text: 'The next trick you win goes to the player on your left, points and all', cost: 3, icon: 'ploy_fall_guy',
+			when: [R.PHASE.PLAY],
+			canUse: (run) => (run.hand.fallGuyFrom !== undefined ? [false, 'already set up'] : [true]),
+			use: (run) => (run.hand.fallGuyFrom = run.hand.state!.tricks.length)
+		},
+		{
+			key: 'second_pass', name: 'Second Pass', text: 'After this pass, everyone passes three more, in the next direction', cost: 3, icon: 'ploy_second_pass',
+			when: [R.PHASE.PRE],
+			canUse: (run) => (run.hand.extraPass || run.hand.firstPass ? [false, 'one extra pass a hand'] : [true]),
+			use: (run) => (run.hand.extraPass = true)
+		},
+		{
 			key: 'stand_pat', name: 'Stand Pat', text: 'Nobody passes this hand: keep the cards you were dealt', cost: 3, icon: 'ploy_stand_pat',
 			when: [R.PHASE.PRE],
 			use: (run) => {
@@ -244,6 +304,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			}
 		}
 	],
+	packOps: { min: 36, max: 64 },
 	seals: [
 		{ key: 'ward', name: 'Ward Seal', glyph: 'W', color: '#3a7bd5', cost: 6, text: 'This card carries no points (put it on a heart, or the queen)' },
 		{

@@ -201,6 +201,9 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Card editions and seals change cards in the pack (off for a game
 	 *  whose pack must stay as dealt). Default on. */
 	cardMods?: boolean;
+	/** Pack items (burn, recolor, promote, copy) may change the pack, within
+	 *  these sizes. Off unless set: most games need their pack as it is. */
+	packOps?: { min: number; max: number };
 	/** The game's own tallies across a run (moons, slams), for the profile. */
 	counters?(run: Run<H>): Record<string, number>;
 	/** What those tallies are called, for the stats screen. */
@@ -231,7 +234,8 @@ export type ShopItem =
 	| { kind: 'ploy'; def: PloyDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'edition'; def: C.CardEditionDef; name: string; cost: number; sold?: boolean }
 	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'bundle'; def: C.BundleDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'bundle'; def: C.BundleDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'pack'; def: C.PackOpDef; name: string; cost: number; sold?: boolean };
 
 /** One of a bundle's three choices. */
 export type BundleChoice =
@@ -724,6 +728,10 @@ function rollItem(run: Run): ShopItem {
 		const def = C.rollCardEdition(run.rng);
 		return { kind: 'edition', def, name: `${def.name} card`, cost: def.cost };
 	}
+	if (m.packOps && roll >= 0.56 && roll < 0.64) {
+		const def = C.rollPackOp(run.rng);
+		return { kind: 'pack', def, name: def.name, cost: def.cost };
+	}
 	if (mods && roll >= 0.48 && roll < 0.56) {
 		const def = run.rng.pick(allSeals(m))!;
 		return { kind: 'seal', def, name: def.name, cost: def.cost };
@@ -740,7 +748,28 @@ export function relicSlotsUsed(run: Run): number {
 
 /** Does buying this item need a card from the pack (edition, seal)? */
 export function needsCard(it: ShopItem): boolean {
-	return it.kind === 'edition' || it.kind === 'seal';
+	return it.kind === 'edition' || it.kind === 'seal' || it.kind === 'pack';
+}
+
+/** Can this pack item go on that card? */
+export function canApplyPack(run: Run, def: C.PackOpDef, card: Card | undefined): [boolean, string?] {
+	const lim = run.module.packOps;
+	if (!lim) return [false, 'this game keeps its pack'];
+	if (!card) return [false, 'choose a card'];
+	if (def.key === 'burn' && run.pack.length <= lim.min) return [false, `the pack can't go below ${lim.min} cards`];
+	if (def.key === 'copy' && run.pack.length >= lim.max) return [false, `the pack can't go above ${lim.max} cards`];
+	if (def.key === 'promote' && card.rank >= 14) return [false, 'an ace is already the top rank'];
+	if (def.key === 'recolor' && card.suit === def.suit) return [false, 'that card is already that suit'];
+	return [true];
+}
+
+function applyPack(run: Run, def: C.PackOpDef, card: Card) {
+	const i = run.pack.indexOf(card);
+	if (def.key === 'burn') {
+		run.pack.splice(i, 1);
+		delete run.mods[C.modKey(card)];
+	} else if (def.key === 'copy') run.pack.push({ suit: card.suit, rank: card.rank, id: Math.max(...run.pack.map((c) => c.id ?? 0)) + 1 } as Card);
+	else run.pack[i] = { ...card, ...(def.key === 'promote' ? { rank: card.rank + 1 } : { suit: def.suit }) } as Card;
 }
 
 export function canBuy(run: Run, i: number): [boolean, string?] {
@@ -760,6 +789,10 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	const it = run.shop!.items[i];
 	const card = cardId !== undefined ? run.pack.find((c) => c.id === cardId) : undefined;
 	if (needsCard(it) && !card) return [false, 'choose a card'];
+	if (it.kind === 'pack') {
+		const ok = canApplyPack(run, it.def, card);
+		if (!ok[0]) return ok;
+	}
 	run.money -= it.cost;
 	it.sold = true;
 	if (it.kind === 'relic') run.relics.push(instantiate(it.def, it.edition));
@@ -767,6 +800,7 @@ export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	else if (it.kind === 'ploy') run.ploys.push(it.def.key);
 	else if (it.kind === 'edition') setMod(run, card!, { edition: it.def.key });
 	else if (it.kind === 'seal') setMod(run, card!, { seal: it.def.key });
+	else if (it.kind === 'pack') applyPack(run, it.def, card!);
 	else run.opening = { bundle: it.def.key, options: bundleOptions(run, it.def.key) };
 	return [true];
 }

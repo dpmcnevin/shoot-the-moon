@@ -21,14 +21,14 @@
 	let choosing = $state<number | null>(null);
 	const EDGE = ['', '#9fb3a8', '#4fbf7a', '#4a9fe0', '#d9a441'];
 	const edge = (it: R.ShopItem) =>
-		it.kind === 'relic' ? EDGE[it.def.rarity] : it.kind === 'ploy' || it.kind === 'bundle' ? '#8e6bd1' : it.kind === 'edition' ? editionColor(it.def.key) : it.kind === 'seal' ? it.def.color : '#d9a441';
-	const KIND: Record<R.ShopItem['kind'], string> = { relic: 'Relic', ploy: 'Ploy', upgrade: 'Upgrade', edition: 'Card edition', seal: 'Seal', bundle: 'Bundle' };
+		it.kind === 'relic' ? EDGE[it.def.rarity] : it.kind === 'ploy' || it.kind === 'bundle' ? '#8e6bd1' : it.kind === 'pack' ? '#4a9fe0' : it.kind === 'edition' ? editionColor(it.def.key) : it.kind === 'seal' ? it.def.color : '#d9a441';
+	const KIND: Record<R.ShopItem['kind'], string> = { relic: 'Relic', ploy: 'Ploy', upgrade: 'Upgrade', edition: 'Card edition', seal: 'Seal', bundle: 'Bundle', pack: 'Pack' };
 	const text = (it: R.ShopItem) =>
 		it.kind === 'upgrade'
 			? `${it.def.text}: +${it.def.chips} ${run.module.words.chips}, +${it.def.mult} mult a level (now Lv.${run.levels[it.def.key] ?? 1})`
 			: it.kind === 'relic' && it.edition
 				? `${it.def.text}. ${RELIC_EDITIONS[it.edition].name}: ${RELIC_EDITIONS[it.edition].text.toLowerCase()}`
-				: it.kind === 'edition' || it.kind === 'seal'
+				: it.kind === 'edition' || it.kind === 'seal' || it.kind === 'pack'
 					? `${it.def.text}. You choose the card.`
 					: it.def.text;
 	const SAMPLE = cards.card(3, 13);
@@ -86,7 +86,7 @@
 	</div>
 	{#if choosing !== null}
 		{@const it = run.shop!.items[choosing]}
-		<CardPicker {run} title={it.name} text={text(it)} cancel={() => (choosing = null)} choose={(c) => { const slot = choosing!; choosing = null; arcade.do({ t: 'buy', slot, card: c.id }); }} />
+		<CardPicker {run} title={it.name} text={text(it)} usable={it.kind === 'pack' ? (c) => R.canApplyPack(run, it.def, c) : undefined} cancel={() => (choosing = null)} choose={(c) => { const slot = choosing!; choosing = null; arcade.do({ t: 'buy', slot, card: c.id }); }} />
 	{/if}
 	{#if run.opening}<BundleOpen />{/if}
 	<div class="foot">

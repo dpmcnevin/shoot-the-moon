@@ -61,7 +61,7 @@
 			{:else if arcade.overlay === 'last'}<LastTrick />
 			{:else if arcade.overlay === 'deck'}<DeckView />{/if}
 		{/if}
-		{#if arcade.toast}<div class="toast">{arcade.toast}</div>{/if}
+		{#if arcade.toast}<div class="toast {arcade.toastTone ?? ''}">{arcade.toast}</div>{/if}
 		<Particles w={1280} h={720} {scale} />
 	</div>
 </div>
@@ -118,7 +118,22 @@
 		transform: translateX(-50%);
 		padding: 8px 16px;
 		background: var(--panel);
-		border: 2px solid var(--bad);
+		border: 2px solid var(--brass-dim);
+		font-size: 18px;
 		z-index: 200;
+		animation: toast-in 0.25s ease-out;
+	}
+	.toast.bad {
+		border-color: var(--bad);
+		color: #ffd3cc;
+	}
+	.toast.good {
+		border-color: var(--good);
+	}
+	@keyframes toast-in {
+		from {
+			transform: translate(-50%, -12px);
+			opacity: 0;
+		}
 	}
 </style>

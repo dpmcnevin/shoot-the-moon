@@ -132,6 +132,37 @@ export const TAGS: Record<TagKey, TagDef> = {
 };
 export const TAG_KEYS = Object.keys(TAGS) as TagKey[];
 
+// ------------------------------------------------------------------ pack items
+
+/** Club items that change a card in the pack for good (games whose pack
+ *  can change size and ranks opt in with GameModule.packOps). */
+export type PackOpKey = 'burn' | 'recolor' | 'promote' | 'copy';
+export interface PackOpDef {
+	key: PackOpKey;
+	name: string;
+	text: string;
+	cost: number;
+	icon: string;
+	/** The suit a Recolor turns a card into. */
+	suit?: number;
+}
+const SUIT_NAME: Record<number, [string, string]> = { 1: ['Clubs', 'club'], 2: ['Diamonds', 'diamond'], 3: ['Hearts', 'heart'], 4: ['Spades', 'spade'] };
+export const PACK_OPS: Record<Exclude<PackOpKey, 'recolor'>, PackOpDef> = {
+	burn: { key: 'burn', name: 'Burn', text: 'Remove a card from the pack for good', cost: 4, icon: 'redeal' },
+	promote: { key: 'promote', name: 'Promote', text: 'Raise a card one rank (a two becomes a three)', cost: 3, icon: 'promotion' },
+	copy: { key: 'copy', name: 'Copy', text: 'Add a duplicate of a card to the pack', cost: 4, icon: 'vanderbilt' }
+};
+export function recolorDef(suit: number): PackOpDef {
+	return { key: 'recolor', name: `Recolor: ${SUIT_NAME[suit][0]}`, text: `Turn a card into a ${SUIT_NAME[suit][1]} of the same rank`, cost: 3, suit, icon: 'transfer' };
+}
+export function rollPackOp(rng: RNG): PackOpDef {
+	const r = rng.next();
+	if (r < 0.35) return recolorDef(rng.int(1, 4));
+	if (r < 0.6) return PACK_OPS.burn;
+	if (r < 0.8) return PACK_OPS.promote;
+	return PACK_OPS.copy;
+}
+
 // ------------------------------------------------------------------ decks
 
 /** A starting deck: a choice on the menu that changes how a run begins. */

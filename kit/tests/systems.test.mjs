@@ -108,3 +108,32 @@ test('the profile and game log work for any game', () => {
 		assert.ok(log.split('\n').filter((l) => l.startsWith(`-- ${m.words.hand}`)).length === run.stats.hands, 'one entry per hand');
 	}
 });
+
+import { PACK_OPS, recolorDef } from '../src/run/content.ts';
+
+test('pack items change the pack, only in games that allow it', () => {
+	const run = R.newRun(hearts, 'PK', { money: 99 });
+	run.phase = 'won';
+	R.enterShop(run);
+	const two = run.pack.find((c) => c.rank === 2 && c.suit === 1);
+	run.shop.items[0] = { kind: 'pack', def: PACK_OPS.copy, name: 'Copy', cost: 4 };
+	assert.ok(R.buy(run, 0, two.id)[0]);
+	assert.equal(run.pack.length, 53);
+	run.shop.items[1] = { kind: 'pack', def: recolorDef(3), name: 'Recolor', cost: 3 };
+	assert.ok(R.buy(run, 1, two.id)[0]);
+	assert.equal(run.pack.find((c) => c.id === two.id).suit, 3);
+	assert.equal(R.canApplyPack(R.newRun(bridge, 'PK'), PACK_OPS.burn, two)[0], false, 'Bridge keeps its 52');
+});
+
+test('Hearts ploys: Umbrella, Fall Guy, Second Pass', () => {
+	const run = R.newRun(hearts, 'PL');
+	run.ploys = ['second_pass'];
+	assert.ok(R.usePloy(run, 0)[0]);
+	const dir = run.hand.passDir;
+	R.act(run, { t: 'pass', cards: run.hand.dealt[3].slice(0, 3).map((c) => `${'23456789TJQKA'[c.rank - 2]}${'CDHS'[c.suit - 1]}`.replace('T', '10')) });
+	assert.equal(run.phase, 'pre', 'a second pass');
+	assert.notEqual(run.hand.passDir, dir);
+	run.ploys = ['umbrella'];
+	assert.ok(R.usePloy(run, 0)[0]);
+	assert.ok(run.hand.umbrella);
+});

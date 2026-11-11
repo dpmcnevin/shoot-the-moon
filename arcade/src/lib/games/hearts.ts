@@ -14,7 +14,8 @@ function view(run: Run<HeartsHand>): TableView {
 		pos: POS[s],
 		name: s === H.PLAYER ? 'You' : H.SEAT_NAMES[s],
 		cards: st ? st.hands[s] : h.dealt[s],
-		faceUp: s === H.PLAYER,
+		// Spyglass shows the opponents' cards for the rest of its trick.
+		faceUp: s === H.PLAYER || (!!st && h.spyTrick === st.tricks.length),
 		tally: st ? `${pts[s]}` : undefined,
 		active: !!st && !st.complete && st.turn === s,
 		playable: s === H.PLAYER
@@ -37,6 +38,27 @@ export const heartsUI: GameUI = {
 	back: 'standard',
 	view: view as GameUI['view'],
 	Pre: HeartsPass,
+	cue(run, memo) {
+		const st = (run.hand as HeartsHand).state;
+		if (!st) return null;
+		const out: ReturnType<NonNullable<GameUI['cue']>> = {};
+		if (st.heartsBroken && !memo.broken) {
+			memo.broken = true;
+			Object.assign(out, { toast: 'Hearts are broken!', tone: 'bad', sound: 'hearts_broken' });
+		}
+		const queen = st.played.find((p) => H.isQueenOfSpades(p.card));
+		if (queen && !memo.queen) {
+			memo.queen = true;
+			Object.assign(out, { sound: 'queen_played', shake: 4 });
+		}
+		const t = st.tricks.find((x) => x.plays.some((p) => H.isQueenOfSpades(p.card)));
+		if (t && !memo.queenTaken) {
+			memo.queenTaken = true;
+			const you = t.winner === H.PLAYER;
+			return { toast: you ? 'You took the queen of spades!' : `${H.SEAT_NAMES[t.winner]} took the queen`, tone: you ? 'bad' : 'good', sound: you ? 'queen_taken' : 'queen_dodged', shake: you ? 9 : 0 };
+		}
+		return out.toast || out.sound ? out : null;
+	},
 	help: [
 		{ title: 'The hand', text: 'Pass three cards (left, right, across, then a hand with no passing). Follow suit if you can; the highest card of the led suit wins the trick. Hearts are 1 point each and the queen of spades 13; you can’t lead hearts until one has been played.' },
 		{ title: 'Scoring', text: 'Every hand scores the 26 points you dodged as chips, +10 for a clean hand (no points). Take all 26 and you shoot the moon: 78 chips, x2.' },

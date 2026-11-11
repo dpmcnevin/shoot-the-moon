@@ -109,7 +109,28 @@ class Arcade {
 		this.persist();
 		this.v++;
 		this.cue(a, before);
+		this.gameCue();
 		void this.pump();
+	}
+
+	/** The game's memo for cues, and the hand it belongs to. */
+	private memo: Record<string, any> = {};
+	private memoHand = -1;
+
+	/** The game's own moments (hearts broken, the queen taken). */
+	private gameCue() {
+		const run = this.run!,
+			ui = this.ui!;
+		if (!ui.cue) return;
+		if (this.memoHand !== run.stats.hands) {
+			this.memo = {};
+			this.memoHand = run.stats.hands;
+		}
+		const c = ui.cue(run, this.memo);
+		if (!c) return;
+		if (c.sound) sound.play(c.sound);
+		if (c.shake) fx.shake(c.shake);
+		if (c.toast) this.flash(c.toast, c.tone);
 	}
 
 	/** Sounds for what just happened. */
@@ -162,6 +183,7 @@ class Arcade {
 				const r = R.stepAI(run);
 				sound.play(r === 'trick' ? 'trick_win' : 'card_play', { jitter: 0.08, volume: r === 'trick' ? 0.6 : 1 });
 				this.v++;
+				this.gameCue();
 				if (run.phase !== before) this.phaseCue(run.phase);
 			}
 		} finally {
@@ -186,9 +208,11 @@ class Arcade {
 		else if (this.picked.length < max) this.picked = [...this.picked, key];
 	}
 
-	flash(text: string) {
+	toastTone = $state<'good' | 'bad' | undefined>(undefined);
+	flash(text: string, tone?: 'good' | 'bad') {
 		this.toast = text;
-		setTimeout(() => this.toast === text && (this.toast = ''), 1800);
+		this.toastTone = tone;
+		setTimeout(() => this.toast === text && (this.toast = ''), 2000);
 	}
 
 	/** This run's id in the profile (one per run, made when it starts). */

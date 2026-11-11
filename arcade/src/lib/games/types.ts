@@ -61,6 +61,9 @@ export interface GameUI {
 	view(run: Run): TableView;
 	/** The pre-play panel. */
 	Pre: Component<PreProps>;
+	/** The game's own moments after each move (hearts broken, the queen):
+	 *  `memo` keeps what it needs between calls (reset each hand). */
+	cue?(run: Run, memo: Record<string, any>): { toast?: string; tone?: 'good' | 'bad'; sound?: string; shake?: number } | null;
 	/** How to play this game: titled sections for the help screen. */
 	help: { title: string; text: string }[];
 	/** In the pre-play step, picking this many cards from your hand. */

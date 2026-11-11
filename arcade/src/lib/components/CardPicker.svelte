@@ -10,7 +10,14 @@
 	import SealBadge from './SealBadge.svelte';
 	import Button from './Button.svelte';
 
-	let { run, title, text, choose, cancel }: { run: Run; title: string; text: string; choose: (c: Card) => void; cancel: () => void } = $props();
+	let {
+		run,
+		title,
+		text,
+		choose,
+		cancel,
+		usable
+	}: { run: Run; title: string; text: string; choose: (c: Card) => void; cancel: () => void; usable?: (c: Card) => [boolean, string?] } = $props();
 	const rows = $derived([4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => b.rank - a.rank)).filter((r) => r.length));
 </script>
 
@@ -24,7 +31,8 @@
 				{#each row as c (c.id)}
 					{@const m = R.mod(run, c)}
 					{@const seal = R.sealOf(run, c)}
-					<button class="card" onclick={() => choose(c)} title={m.edition ? CARD_EDITIONS[m.edition].text : ''}>
+					{@const ok: [boolean, string?] = usable ? usable(c) : [true]}
+					<button class="card" class:no={!ok[0]} disabled={!ok[0]} onclick={() => choose(c)} title={!ok[0] ? ok[1] : m.edition ? CARD_EDITIONS[m.edition].text : ''}>
 						<img src={cardFace(c)} alt="" style:outline={m.edition ? `3px solid ${editionColor(m.edition)}` : ''} />
 						{#if seal}<span class="badge"><SealBadge {seal} size={18} /></span>{/if}
 					</button>
@@ -70,8 +78,12 @@
 		background: none;
 		cursor: pointer;
 	}
-	.card:hover {
+	.card:hover:not(:disabled) {
 		transform: translateY(-4px);
+	}
+	.card.no {
+		opacity: 0.3;
+		cursor: default;
 	}
 	.card img {
 		width: 54px;
