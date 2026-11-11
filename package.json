@@ -5,13 +5,15 @@
 	"type": "module",
 	"workspaces": [
 		"engine",
-		"web"
+		"web",
+		"kit"
 	],
 	"scripts": {
 		"test": "npm -w engine test",
 		"check": "npm -w engine run check && npm -w web run check",
 		"dev": "npm -w web run dev --",
 		"build": "npm -w web run build --",
-		"simulate": "npm -w engine run simulate --"
+		"simulate": "npm -w engine run simulate --",
+		"test:kit": "npm -w kit test"
 	}
 }
