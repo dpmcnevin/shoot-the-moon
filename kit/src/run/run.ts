@@ -212,6 +212,8 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Pack items (burn, recolor, promote, copy) may change the pack, within
 	 *  these sizes. Off unless set: most games need their pack as it is. */
 	packOps?: { min: number; max: number };
+	/** How much a relic helps (for the bot's shopping), if measured. */
+	relicValue?: Record<string, number>;
 	/** The game's own tallies across a run (moons, slams), for the profile. */
 	counters?(run: Run<H>): Record<string, number>;
 	/** What those tallies are called, for the stats screen. */

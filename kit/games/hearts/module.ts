@@ -10,6 +10,7 @@ import * as cards from '../../src/core/rules/cards.ts';
 import * as H from './rules/hearts.ts';
 import * as ai from './rules/ai.ts';
 import * as relicsLib from './relics.ts';
+import { RELIC_VALUE } from './relicValues.ts';
 import * as R from '../../src/run/run.ts';
 import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { HandState, PassDir } from './rules/hearts.ts';
@@ -299,6 +300,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	},
 	relics: RELICS,
 	upgrades: UPGRADES,
+	relicValue: RELIC_VALUE,
 	ploys: [
 		{
 			key: 'spyglass', name: 'Spyglass', text: "See every opponent's cards for the rest of this trick", cost: 3, icon: 'ploy_spyglass',
