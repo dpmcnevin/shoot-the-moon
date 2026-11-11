@@ -3,7 +3,7 @@
      a card glides from a hand into the trick. -->
 <script lang="ts">
 	import { arcade } from '../app.svelte.ts';
-	import { cardFace, cardBack } from '../ui/images.ts';
+	import { cardFace, cardBack, artPixels, snap } from '../ui/images.ts';
 	import * as cards from '$kit/src/core/rules/cards.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
@@ -105,13 +105,13 @@
 			class="card"
 			class:click={!!sp.click}
 			class:dim={sp.dim}
-			src={sp.up ? cardFace(sp.card, view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit) : cardBack(back)}
+			src={sp.up ? cardFace(sp.card, view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit, artPixels(sp.s)) : cardBack(back, artPixels(sp.s))}
 			alt=""
 			draggable="false"
-			style:left="{sp.x - (CW * sp.s) / 2}px"
-			style:top="{sp.y - (CH * sp.s) / 2 - (sp.lift ? 26 : 0)}px"
-			style:width="{CW * sp.s}px"
-			style:height="{CH * sp.s}px"
+			style:left="{Math.round(sp.x - (CW * snap(sp.s)) / 2)}px"
+			style:top="{Math.round(sp.y - (CH * snap(sp.s)) / 2 - (sp.lift ? 26 : 0))}px"
+			style:width="{CW * snap(sp.s)}px"
+			style:height="{CH * snap(sp.s)}px"
 			style:z-index={sp.z}
 			style:--glow={sp.up && R.mod(arcade.run!, sp.card).edition ? editionColor(R.mod(arcade.run!, sp.card).edition) : 'transparent'}
 			class:ed={sp.up && !!R.mod(arcade.run!, sp.card).edition}
@@ -139,11 +139,14 @@
 			width 0.28s ease,
 			height 0.28s ease,
 			filter 0.15s;
-		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+		border-radius: 4px;
 	}
 	/* A card edition: a glow in the edition's color. */
 	.card.ed {
-		filter: drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 3px var(--glow)) drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+		box-shadow:
+			0 0 0 3px var(--glow),
+			0 4px 0 3px rgba(0, 0, 0, 0.35);
 	}
 	.seal {
 		position: absolute;
@@ -159,7 +162,7 @@
 		transform: translateY(-10px);
 	}
 	.card.dim {
-		filter: brightness(0.55) drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+		filter: brightness(0.55);
 	}
 	.label {
 		position: absolute;

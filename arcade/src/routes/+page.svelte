@@ -9,10 +9,13 @@
 	import Panels from '$lib/components/Panels.svelte';
 	import Shop from '$lib/components/Shop.svelte';
 	import * as sound from '$lib/audio/sound.ts';
+	import { setDeviceScale } from '$lib/ui/images.ts';
 
 	let w = $state(1280),
 		h = $state(720);
 	const scale = $derived(Math.min(w / 1280, h / 720));
+	// Rasterise card art for the real screen size, before anything draws it.
+	$effect.pre(() => setDeviceScale(scale * (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)));
 	// The run is mutated in place; `arcade.v` is what changes.
 	const run = $derived((void arcade.v, arcade.run));
 	const phase = $derived((void arcade.v, arcade.run?.phase));

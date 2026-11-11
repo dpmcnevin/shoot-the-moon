@@ -8,7 +8,23 @@ import { toCanvas } from '$kit/src/core/ui/pixel.ts';
 import { sealBitmap } from '$kit/src/core/ui/sealart.ts';
 
 const cache = new Map<string, string>();
+
+/** Device pixels per stage pixel. Card art (40x56) is rasterised at a
+ *  whole multiple, and each card is drawn at a size where that multiple
+ *  lands on whole device pixels: every art pixel the same size, crisp. */
+let K = 1;
 const SCALE = 6;
+export function setDeviceScale(stageToDevice: number) {
+	K = stageToDevice;
+}
+/** Whole device pixels per art pixel for a card drawn at `s` (x80px). */
+export function artPixels(s: number): number {
+	return Math.max(1, Math.round(2 * s * K));
+}
+/** The card size scale that `artPixels(s)` lands exactly on. */
+export function snap(s: number): number {
+	return artPixels(s) / (2 * K);
+}
 
 function cached(key: string, build: () => string): string {
 	let u = cache.get(key);
@@ -16,12 +32,12 @@ function cached(key: string, build: () => string): string {
 	return u;
 }
 
-export function cardFace(card: Card, trump = false): string {
-	return cached(`${cards.code(card)}|${trump}`, () => toCanvas(pixelcards.faceBitmap(card, trump, false), SCALE).toDataURL());
+export function cardFace(card: Card, trump = false, px = SCALE): string {
+	return cached(`${cards.code(card)}|${trump}|${px}`, () => toCanvas(pixelcards.faceBitmap(card, trump, false), px).toDataURL());
 }
 
-export function cardBack(deck = 'standard'): string {
-	return cached(`back|${deck}`, () => toCanvas(pixelcards.backBitmap(deck), SCALE).toDataURL());
+export function cardBack(deck = 'standard', px = SCALE): string {
+	return cached(`back|${deck}|${px}`, () => toCanvas(pixelcards.backBitmap(deck), px).toDataURL());
 }
 
 export function icon(key: string): string {
