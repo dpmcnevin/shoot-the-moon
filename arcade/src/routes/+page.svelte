@@ -11,6 +11,7 @@
 	import * as sound from '$lib/audio/sound.ts';
 	import { setDeviceScale } from '$lib/ui/images.ts';
 	import Particles from '$lib/components/Particles.svelte';
+	import TableOverview from '$lib/components/TableOverview.svelte';
 	import { fx } from '$lib/fx.svelte.ts';
 
 	let w = $state(1280),
@@ -21,6 +22,9 @@
 	// The run is mutated in place; `arcade.v` is what changes.
 	const run = $derived((void arcade.v, arcade.run));
 	const phase = $derived((void arcade.v, arcade.run?.phase));
+	// Each board opens with the table ahead, until you start it.
+	const boardKey = $derived((void arcade.v, run ? `${run.table}.${run.board}` : ''));
+	const fresh = $derived((void arcade.v, !!run && (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY) && run.handsLeft === run.handsThisBoard && run.score === 0));
 	const ui = $derived(arcade.ui);
 </script>
 
@@ -44,6 +48,9 @@
 					<div class="out"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
 				{/if}
 				<Panels />
+				{#if fresh && arcade.seen !== boardKey}
+					<TableOverview close={() => (arcade.seen = boardKey)} />
+				{/if}
 			{/if}
 		{/if}
 		{#if arcade.toast}<div class="toast">{arcade.toast}</div>{/if}

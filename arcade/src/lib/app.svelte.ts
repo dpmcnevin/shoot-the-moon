@@ -166,6 +166,9 @@ class Arcade {
 		}
 	}
 
+	/** The board whose overview was last dismissed ("table.board"). */
+	seen = $state('');
+
 	/** Holding the last trick of a hand: the score panel waits. */
 	hold = $state(false);
 
