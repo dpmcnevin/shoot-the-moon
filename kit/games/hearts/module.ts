@@ -108,16 +108,16 @@ function scoreCtx(run: Run<HeartsHand>): relicsLib.ScoreCtx {
 		firstHandOfBoard: run.handsLeft === run.module.handsPerBoard,
 		lastHandOfBoard: run.handsLeft === 1,
 		behindGoal: run.score < run.target,
-		bossBoard: false,
+		bossBoard: R.bossActive(run),
 		cardsBurned: 0,
-		sealedTaken: 0,
-		editionCount: 0,
+		sealedTaken: mine.filter((c) => !!R.mod(run, c).seal).length,
+		editionCount: run.relics.filter((r) => r.edition).length,
 		passedPointsAway: h.passed.filter((c) => st.pts(c) > 0 && [1, 2, 4].some((s) => st.taken[s].includes(c))).length,
 		opponentVoids: [1, 2, 4].reduce((n, s) => n + Object.values(st.voids[s]).filter(Boolean).length, 0),
 		balance: 4,
 		relicCount: run.relics.length,
 		commonRelics: run.relics.filter((r) => r.def.rarity === 1).length,
-		editionsPlayed: 0
+		editionsPlayed: afterPass.filter((c) => !!R.mod(run, c).edition).length
 	};
 }
 
