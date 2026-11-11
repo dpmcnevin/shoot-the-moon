@@ -98,14 +98,14 @@
 					});
 				});
 			} else if (seat.pos === 'N') {
-				const s = seat.faceUp ? 0.95 : 0.55,
+				const s = seat.faceUp ? 0.9 : 0.55,
 					gap = seat.faceUp ? 40 : 22;
 				const x0 = CX - (gap * (n - 1)) / 2;
 				seat.cards.forEach((c, i) => {
 					const k = key(c);
 					const legal = view.legal.has(k) && seat.playable;
 					out.push({
-						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 100 : 72, s, z: 5 + i, order: n0 + i,
+						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 86 : 72, s, z: 5 + i, order: n0 + i,
 						dim: seat.playable && view.legal.size > 0 && !legal,
 						click: legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
