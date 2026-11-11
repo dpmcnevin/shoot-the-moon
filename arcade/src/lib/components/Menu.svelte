@@ -1,7 +1,9 @@
-<!-- The arcade's front door: pick a game. -->
+<!-- The front door: every game (the arcade), or one game on its own page. -->
 <script lang="ts">
+	import { base } from '$app/paths';
+	let { only }: { only?: string } = $props();
 	import { arcade } from '../app.svelte.ts';
-	import { GAMES } from '../games/index.ts';
+	import { GAMES as ALL } from '../games/index.ts';
 	import { cardBack, cardFace } from '../ui/images.ts';
 	import Shine from './Shine.svelte';
 	import * as sound from '../audio/sound.ts';
@@ -51,6 +53,8 @@
 	import { settings } from '../settings.svelte.ts';
 	import type { GameUI } from '../games/types.ts';
 	let showing = $state<GameUI | null>(null);
+	const GAMES = $derived(only ? ALL.filter((g) => g.module.id === only) : ALL);
+	const solo = $derived(only ? GAMES[0] : null);
 	const deckOf = (id: string, m: R.GameModule) => R.allDecks(m).find((d) => d.key === (arcade.decks[id] ?? 'standard')) ?? R.allDecks(m)[0];
 	function cycle(id: string, m: R.GameModule, step: number) {
 		const all = R.allDecks(m);
@@ -67,19 +71,23 @@
 			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : -14 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
 				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
 			</span>{/each}</div>
-		<h1>CARD ARCADE</h1>
+		<h1>{solo ? solo.module.title.toUpperCase() : 'CARD ARCADE'}</h1>
 		<div class="fan right">{#each FAN.slice(2) as f, i}{@const k = i + 2}<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : 4 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
 				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
 			</span>{/each}</div>
 	</div>
-	<div class="dim">cardkit prototype: one engine, a module per game</div>
+	{#if solo}
+		<div class="dim">{solo.module.tagline} · <a href="{base}/">more games</a></div>
+	{:else}
+		<div class="dim">one engine, a game per page</div>
+	{/if}
 	<div class="games">
 		{#each GAMES as g (g.module.id)}
 			{@const deck = deckOf(g.module.id, g.module)}
 			<div class="game">
 				<img src={cardBack(deck.key === 'standard' ? g.back : deck.back)} alt="" />
-				<h2>{g.module.title}</h2>
+				<h2>{#if solo}{g.module.title}{:else}<a class="title" href="{base}/{g.module.id}/">{g.module.title}</a>{/if}</h2>
 				<div class="tag">{g.module.tagline}</div>
 				<p>{g.blurb}</p>
 				<div class="deck">
@@ -187,6 +195,16 @@
 		width: 60px;
 		height: 84px;
 		image-rendering: pixelated;
+	}
+	a {
+		color: var(--ink-dim);
+	}
+	a.title {
+		color: inherit;
+		text-decoration: none;
+	}
+	a.title:hover {
+		text-decoration: underline;
 	}
 	h2 {
 		margin: 0;
