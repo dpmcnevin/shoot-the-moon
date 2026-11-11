@@ -35,8 +35,8 @@ arcade/         a web shell that plays every module (game picker, sidebar,
    (seats, the trick, legal cards, trumps, a banner) and the pre-play panel
    component. Add it to `games/index.ts`.
 
-Euchre took one module (~280 lines of rules, AI and content) and one adapter
-(~100 lines); everything else came from the kit.
+Euchre took about 460 lines of rules, AI and module (content included) and a
+170-line arcade adapter; everything else came from the kit.
 
 ## Not in the kit yet
 
