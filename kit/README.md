@@ -36,7 +36,7 @@ arcade/         a web shell that plays every module (game picker, sidebar,
    component. Add it to `games/index.ts`.
 
 Euchre took about 460 lines of rules, AI and module (content included) and a
-170-line arcade adapter; everything else came from the kit.
+120-line arcade adapter; everything else came from the kit.
 
 ## Not in the kit yet
 
