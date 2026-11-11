@@ -247,6 +247,8 @@ struct StatsV: Decodable {
 struct GameView: Decodable {
     let hasRun: Bool
     let seed: String
+    /// The run's starting deck, for its card back.
+    let deck: String?
     let phase: Phase
     let table: Int
     let tables: Int

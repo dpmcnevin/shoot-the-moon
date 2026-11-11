@@ -201,35 +201,88 @@ export function faceBitmap(card: Card, trump: boolean, fourColor: boolean): Bitm
 	return b;
 }
 
-/** Build the bitmap for a card back. */
-export function backBitmap(): Bitmap {
+/** The look of each deck's back: field colors, trim, pattern and emblem. */
+export interface BackStyle {
+	deep: Color;
+	field: Color;
+	light: Color;
+	trim: Color;
+	trimLight: Color;
+	trimDeep: Color;
+	/** The card's outer edge, if not the field color. */
+	edge?: Color;
+	pattern: 'sunburst' | 'lattice' | 'stripes' | 'rings' | 'dots';
+	emblem: string[];
+}
+
+const FLAME = ['..#..', '..##.', '.###.', '.####', '#####', '#####', '.###.'];
+const DOLLAR = ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'];
+const CROWN = ['#.#.#', '#####', '#####', '.###.'];
+const KEY = ['.##..', '#..#.', '.##..', '..#..', '..##.', '..#..', '..##.'];
+
+const BACKS: Record<string, BackStyle> = {
+	standard: { edge: P.wine, deep: P.wineDeep, field: P.wineDeep, light: P.wineLight, trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'sunburst', emblem: S.V },
+	burned: { deep: hex('#1a1314'), field: hex('#241b1c'), light: hex('#3a2a29'), trim: hex('#d9771f'), trimLight: hex('#f2b45a'), trimDeep: hex('#7a3510'), pattern: 'sunburst', emblem: FLAME },
+	gilded: { deep: hex('#5c4416'), field: P.goldDeep, light: hex('#a8822f'), trim: P.goldLight, trimLight: P.cream, trimDeep: hex('#5c4416'), pattern: 'lattice', emblem: DOLLAR },
+	royal: { deep: hex('#141d4a'), field: hex('#1d2a66'), light: hex('#2c3f8c'), trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'stripes', emblem: CROWN },
+	schemer: { deep: hex('#1e1533'), field: hex('#2b1f4a'), light: hex('#45326f'), trim: hex('#c2adf0'), trimLight: hex('#efe8ff'), trimDeep: hex('#6b54a3'), pattern: 'rings', emblem: S.SUIT7[1] },
+	collector: { deep: hex('#0d2b25'), field: hex('#123b33'), light: hex('#1f5e50'), trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'dots', emblem: KEY }
+};
+
+/** A deck's back colors, for the smooth card style too. */
+export function backStyle(deck = 'standard'): BackStyle {
+	return BACKS[deck] ?? BACKS.standard;
+}
+
+/** Build the bitmap for a card back: each starting deck has its own. */
+export function backBitmap(deck = 'standard'): Bitmap {
+	const st = BACKS[deck] ?? BACKS.standard;
 	const b = newBitmap(W, H);
-	body(b, P.wine);
-	b.fillRect(4, 4, W - 8, H - 8, P.wineDeep);
+	body(b, st.edge ?? st.field);
+	b.fillRect(4, 4, W - 8, H - 8, st.field);
 	const cx = 20,
 		cy = 28;
 	const x0 = 4,
 		y0 = 4,
 		x1 = W - 5,
 		y1 = H - 5;
-	const edge = (a: number): [number, number] => {
-		const c = Math.cos(a),
-			s = Math.sin(a);
-		const tx = c !== 0 ? ((c > 0 ? x1 + 1 : x0) - cx) / c : Infinity;
-		const ty = s !== 0 ? ((s > 0 ? y1 + 1 : y0) - cy) / s : Infinity;
-		const t = Math.min(Math.abs(tx), Math.abs(ty));
-		return [cx + c * t, cy + s * t];
-	};
-	const n = 20;
-	for (let i = 0; i < n; i += 2) {
-		const [ax, ay] = edge((i / n) * Math.PI * 2);
-		const [bx, by] = edge(((i + 1) / n) * Math.PI * 2);
-		b.fillPoly([cx, cy, ax, ay, bx, by], P.wineLight);
+	if (st.pattern === 'sunburst') {
+		const edge = (a: number): [number, number] => {
+			const c = Math.cos(a),
+				s = Math.sin(a);
+			const tx = c !== 0 ? ((c > 0 ? x1 + 1 : x0) - cx) / c : Infinity;
+			const ty = s !== 0 ? ((s > 0 ? y1 + 1 : y0) - cy) / s : Infinity;
+			const t = Math.min(Math.abs(tx), Math.abs(ty));
+			return [cx + c * t, cy + s * t];
+		};
+		const n = 20;
+		for (let i = 0; i < n; i += 2) {
+			const [ax, ay] = edge((i / n) * Math.PI * 2);
+			const [bx, by] = edge(((i + 1) / n) * Math.PI * 2);
+			b.fillPoly([cx, cy, ax, ay, bx, by], st.light);
+		}
+	} else {
+		for (let y = y0; y <= y1; y++)
+			for (let x = x0; x <= x1; x++) {
+				const dx = x - cx,
+					dy = y - cy;
+				const on =
+					st.pattern === 'lattice'
+						? (x + y) % 6 === 0 || (x - y + 60) % 6 === 0
+						: st.pattern === 'stripes'
+							? x % 4 < 2
+							: st.pattern === 'rings'
+								? Math.floor((Math.abs(dx) + Math.abs(dy)) / 3) % 2 === 0
+								: x % 4 === 1 && y % 4 === 1;
+				if (on) b.set(x, y, st.light);
+			}
 	}
-	b.rect(2, 2, W - 4, H - 4, P.gold);
-	b.rect(4, 4, W - 8, H - 8, P.goldDeep);
-	b.fillPoly([cx, cy - 12, cx + 9, cy, cx, cy + 12, cx - 9, cy], P.gold);
-	b.fillPoly([cx, cy - 10, cx + 7, cy, cx, cy + 10, cx - 7, cy], P.wineDeep);
-	b.sprite(S.V, S.solid(P.goldLight), cx - 3, cy - 2);
+	b.rect(2, 2, W - 4, H - 4, st.trim);
+	b.rect(4, 4, W - 8, H - 8, st.trimDeep);
+	b.fillPoly([cx, cy - 12, cx + 9, cy, cx, cy + 12, cx - 9, cy], st.trim);
+	b.fillPoly([cx, cy - 10, cx + 7, cy, cx, cy + 10, cx - 7, cy], st.deep);
+	const ew = st.emblem[0].length,
+		eh = st.emblem.length;
+	b.sprite(st.emblem, S.solid(st.trimLight), cx - Math.ceil(ew / 2), cy - Math.floor(eh / 2));
 	return b;
 }

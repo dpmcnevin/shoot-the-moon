@@ -116,6 +116,10 @@ export interface Hand {
 	spyTrick?: number;
 	umbrella?: boolean;
 	fallGuyFrom?: number;
+	/** Second Pass: another pass follows this one. */
+	extraPass?: boolean;
+	/** After a Second Pass: the first pass's direction and cards, for the log. */
+	firstPass?: { dir: PassDir; passed: Card[]; received: Card[] };
 }
 
 export interface Stats {
@@ -227,6 +231,8 @@ export interface Run {
 	v4Relics: boolean;
 	/** Ploys and bundles in the club (ruleset v5). */
 	ploysOn: boolean;
+	/** The passing ploys (Stand Pat, Second Pass) can turn up (ruleset v6). */
+	passPloys: boolean;
 	/** The ploys you hold (at most ploys.PLOY_SLOTS). */
 	ploys: PloyKey[];
 	/** Spotlight: your next hand scores x2 mult. */
@@ -301,6 +307,8 @@ export interface RunOptions {
 	v4Relics?: boolean;
 	/** Ploys and bundles in the club (off by default). */
 	ploys?: boolean;
+	/** The passing ploys too, Stand Pat and Second Pass (ruleset v6). */
+	passPloys?: boolean;
 	/** Boards can be skipped for tags (off by default). */
 	tags?: boolean;
 	/** The starting deck (decks.ts; 'standard' by default). */
@@ -345,7 +353,7 @@ export function relicSlots(run: Run): number {
  * offers (the iPad app). A save records its ruleset, so changing what a
  * future ruleset means never changes a run in progress: add `v3` instead.
  */
-export type RulesetName = 'classic' | 'v2' | 'v3' | 'v4' | 'v5';
+export type RulesetName = 'classic' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6';
 export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' | 'aiSkill'>> = {
 	classic: {},
 	v2: {
@@ -387,6 +395,23 @@ export const RULESETS: Record<RulesetName, Omit<RunOptions, 'ruleset' | 'money' 
 		packEditions: true,
 		v4Relics: true,
 		ploys: true,
+		tags: true,
+		endless: true,
+		noRepeats: true,
+		tableBase: V5_TABLE_BASE,
+		bosses: true,
+		moreRelics: true,
+		moonAI: true,
+		aiCurve: true,
+		balance: 4
+	},
+	/** v5 plus the passing ploys: Stand Pat and Second Pass. */
+	v6: {
+		editions: true,
+		packEditions: true,
+		v4Relics: true,
+		ploys: true,
+		passPloys: true,
 		tags: true,
 		endless: true,
 		noRepeats: true,
@@ -465,6 +490,7 @@ export function newRun(seed?: string | number, options: RunOptions = {}): Run {
 		packEditions: opts.packEditions ?? false,
 		v4Relics: opts.v4Relics ?? false,
 		ploysOn: opts.ploys ?? false,
+		passPloys: opts.passPloys ?? false,
 		ploys: [],
 		spotlight: false,
 		opening: null,
@@ -516,7 +542,7 @@ function applyDeck(run: Run) {
 		const ace = spade(14);
 		if (ace) run.cardEditions[String(ace.id)] = 'etched';
 	} else if (run.deck === 'schemer') {
-		while (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng).key);
+		while (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng, run.passPloys).key);
 	} else if (run.deck === 'collector') {
 		const commons = relics.DEFS.filter((d) => d.rarity === 1 && (run.moreRelics || !d.expansion) && (run.v4Relics || !d.v4Only) && (run.ploysOn || !d.v5Only));
 		run.relics.push(relics.instantiate(commons[run.rng.int(1, commons.length) - 1], undefined, run.balance));
@@ -578,8 +604,22 @@ export function commitPass(run: Run, chosen: Card[], opts?: { stepwise?: boolean
 	hand.passed = chosen.slice();
 	hand.received = received[H.PLAYER];
 	const from = H.passSource(H.PLAYER, hand.passDir);
+	hand.receivedFrom.clear();
 	for (const c of hand.received) hand.receivedFrom.set(c, from);
+	// Second Pass: everyone passes again, in the next direction.
+	if (hand.extraPass) {
+		hand.extraPass = false;
+		hand.firstPass = { dir: hand.passDir, passed: hand.passed, received: hand.received };
+		hand.passDir = nextPassDir(hand.passDir);
+		return;
+	}
 	beginPlay(run, opts);
+}
+
+/** The direction after this one, skipping the no-pass hand. */
+export function nextPassDir(dir: H.PassDir): H.PassDir {
+	const order: H.PassDir[] = ['left', 'right', 'across'];
+	return order[(order.indexOf(dir) + 1) % order.length];
 }
 
 function beginPlay(run: Run, opts?: { stepwise?: boolean }) {
@@ -1044,7 +1084,7 @@ function rollOffer(run: Run): ShopItem {
 	const edLo = v5 ? 0.38 : 0.42,
 		edHi = v5 ? 0.48 : 0.54;
 	if (v5 && roll >= 0.48 && roll < 0.56) {
-		const def = ploys.rollPloy(run.rng);
+		const def = ploys.rollPloy(run.rng, run.passPloys);
 		return { kind: 'ploy', def, name: def.name, cost: def.cost };
 	}
 	if (v5 && roll >= 0.56 && roll < 0.64) {
@@ -1124,7 +1164,7 @@ function bundleOptions(run: Run, key: BundleKey): BundleChoice[] {
 	} else if (key === 'ploy') {
 		const seen = new Set<string>();
 		for (let tries = 0; out.length < bundles.BUNDLE_SIZE && tries < 30; tries++) {
-			const def = ploys.rollPloy(run.rng);
+			const def = ploys.rollPloy(run.rng, run.passPloys);
 			if (seen.has(def.key)) continue;
 			seen.add(def.key);
 			out.push({ kind: 'ploy', def });
@@ -1172,6 +1212,8 @@ export function canUsePloy(run: Run, slot: number): [boolean, string?] {
 	if (key === 'spotlight' && run.spotlight) return [false, 'already in the spotlight'];
 	if (key === 'umbrella' && run.hand.umbrella) return [false, 'already open'];
 	if (key === 'fall_guy' && run.hand.fallGuyFrom !== undefined) return [false, 'already set up'];
+	if (key === 'second_pass' && (run.hand.extraPass || run.hand.firstPass)) return [false, 'one extra pass a hand'];
+	if (key === 'stand_pat' && run.hand.firstPass) return [false, 'the cards have already moved'];
 	return [true];
 }
 
@@ -1186,7 +1228,13 @@ export function usePloy(run: Run, slot: number): [boolean, string?] {
 	else if (key === 'fall_guy') run.hand.fallGuyFrom = st!.tricks.length;
 	else if (key === 'encore') run.handsLeft++;
 	else if (key === 'spotlight') run.spotlight = true;
-	else run.money += 5;
+	else if (key === 'second_pass') run.hand.extraPass = true;
+	else if (key === 'stand_pat') {
+		run.ploys.splice(slot, 1);
+		run.hand.passDir = 'hold';
+		beginPlay(run);
+		return [true];
+	} else run.money += 5;
 	run.ploys.splice(slot, 1);
 	return [true];
 }
@@ -1196,7 +1244,7 @@ export function usePloy(run: Run, slot: number): [boolean, string?] {
 export function skipTag(run: Run): TagKey | null {
 	if (!run.tagsOn || run.board >= BOARDS_PER_TABLE) return null;
 	// Before anything happens: while passing, or on a no-pass hand before the first card.
-	const fresh = run.phase === PHASE.PASS || (run.phase === PHASE.PLAY && (run.hand.state?.played.length ?? 1) === 0);
+	const fresh = (run.phase === PHASE.PASS && !run.hand.firstPass) || (run.phase === PHASE.PLAY && run.hand.passDir === 'hold' && !run.hand.firstPass && (run.hand.state?.played.length ?? 1) === 0);
 	if (!fresh) return null;
 	if (run.handsLeft !== run.handsThisBoard || run.score > 0) return null;
 	return run.tagOffers[run.board - 1] ?? null;
@@ -1208,7 +1256,7 @@ export function skipBoard(run: Run): [boolean, string?] {
 	const tag = skipTag(run);
 	if (!tag) return [false, "this board can't be skipped"];
 	if (tag === 'ploy') {
-		if (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng).key);
+		if (run.ploys.length < ploys.PLOY_SLOTS) run.ploys.push(ploys.rollPloy(run.rng, run.passPloys).key);
 		else run.money += 3;
 	} else if (tag === 'edition') {
 		const free = run.pack.filter((c) => !run.cardEditions[String(c.id)]);

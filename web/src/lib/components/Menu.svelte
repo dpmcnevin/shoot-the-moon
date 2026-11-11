@@ -132,6 +132,8 @@
 	function cycleDeck(step: number) {
 		const keys = decksLib.DECK_KEYS;
 		settings.setDeck(keys[(keys.indexOf(settings.deck) + step + keys.length) % keys.length]);
+		// Show the new deck's back: the end card of the fan turns over.
+		faceUp = faceUp.map((f, i) => (i === 3 ? false : f));
 	}
 
 	function onSeed(e: Event) {

@@ -7,7 +7,7 @@
 
 import * as cards from '../rules/cards.ts';
 import type { Card } from '../rules/cards.ts';
-import { LAYOUTS, P, suitColor } from './pixelcards.ts';
+import { LAYOUTS, P, suitColor, backStyle } from './pixelcards.ts';
 import { CARD_H, CARD_W, css, type Color } from './theme.ts';
 
 type G = CanvasRenderingContext2D;
@@ -255,14 +255,18 @@ function rectEdge(a: number, w: number, h: number): [number, number] {
 	return [c * t, s * t];
 }
 
-/** Draw a face-down card centred on the origin. */
-export function back(g: G) {
+/** The glyph in the middle of each deck's back (smooth style). */
+const BACK_GLYPH: Record<string, string> = { standard: 'V', burned: '✦', gilded: '$', royal: '♛', schemer: '♠', collector: '♦' };
+
+/** Draw a face-down card centred on the origin, in its deck's colors. */
+export function back(g: G, deck = 'standard') {
+	const st = backStyle(deck);
 	const w = CARD_W,
 		h = CARD_H;
-	cardBody(g, w, h, P.wine, P.ink);
+	cardBody(g, w, h, st.edge ?? st.field, P.ink);
 	const iw = w - 16,
 		ih = h - 16;
-	set(g, P.wineDeep);
+	set(g, st.field);
 	roundRect(g, -iw / 2, -ih / 2, iw, ih, 3);
 	g.fill();
 	g.save();
@@ -272,25 +276,25 @@ export function back(g: G) {
 	for (let i = 0; i < n; i += 2) {
 		const [x0, y0] = rectEdge((i / n) * Math.PI * 2, iw, ih);
 		const [x1, y1] = rectEdge(((i + 1) / n) * Math.PI * 2, iw, ih);
-		set(g, P.wineLight);
+		set(g, st.light);
 		poly(g, [0, 0, x0, y0, x1, y1]);
 	}
 	g.restore();
-	set(g, P.gold);
+	set(g, st.trim);
 	g.lineWidth = 1.5;
 	roundRect(g, -w / 2 + 5, -h / 2 + 5, w - 10, h - 10, 4);
 	g.stroke();
 	roundRect(g, -iw / 2, -ih / 2, iw, ih, 3);
 	g.stroke();
 	const d = w * 0.22;
-	set(g, P.wineDeep);
+	set(g, st.deep);
 	poly(g, [0, -d * 1.3, d, 0, 0, d * 1.3, -d, 0]);
-	set(g, P.gold);
+	set(g, st.trim);
 	g.lineWidth = 2;
 	poly(g, [0, -d * 1.3, d, 0, 0, d * 1.3, -d, 0], false);
-	set(g, P.goldLight);
+	set(g, st.trimLight);
 	g.font = `bold 20px ${FONT}`;
 	g.textAlign = 'center';
 	g.textBaseline = 'middle';
-	g.fillText('V', 0, 1);
+	g.fillText(BACK_GLYPH[deck] ?? 'V', 0, 1);
 }

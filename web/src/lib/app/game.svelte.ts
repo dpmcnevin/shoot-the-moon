@@ -27,7 +27,7 @@ import { getLayout, seatOrigin, trickXY, type Layout, type Orientation } from '.
 /** Where the profile (stats and history) is kept. */
 const PROFILE_KEY = 'shoot-the-moon.profile';
 
-export const WEB_RULESET: R.RulesetName = 'v5';
+export const WEB_RULESET: R.RulesetName = 'v6';
 import { C, hex, type Color } from '$engine/ui/theme.ts';
 
 const hexHeart = hex('#f08a8a');
@@ -270,6 +270,8 @@ class Game {
 		this.passPick = [];
 		this.aiTimer = AI_DELAY * 1.6;
 		sound.play('reroll', { volume: 0.7 });
+		// Second Pass: still passing, the next way.
+		if (run.phase === PHASE.PASS) this.showToast(`Second pass: ${run.hand.passDir}`, C.ploy);
 		this.bump();
 	}
 
@@ -413,6 +415,10 @@ class Game {
 			return;
 		}
 		this.act({ t: 'ploy', slot });
+		if (key === 'stand_pat') {
+			this.passPick = [];
+			this.aiTimer = AI_DELAY * 1.6;
+		}
 		sound.play(key === 'windfall' ? 'coin' : 'select', { pitch: 1.1 });
 		this.showToast(`${ploysLib.PLOYS[key].name}!`, C.ploy);
 		this.bump();

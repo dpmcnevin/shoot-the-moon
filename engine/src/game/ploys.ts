@@ -4,7 +4,7 @@
 
 import type { RNG } from '../rules/rng.ts';
 
-export type PloyKey = 'spyglass' | 'umbrella' | 'fall_guy' | 'encore' | 'spotlight' | 'windfall';
+export type PloyKey = 'spyglass' | 'umbrella' | 'fall_guy' | 'encore' | 'spotlight' | 'windfall' | 'stand_pat' | 'second_pass';
 
 /** When a ploy can be used: while passing, while playing, on the score panel, in the club. */
 export type PloyWhen = 'pass' | 'play' | 'hand_scored' | 'shop';
@@ -18,6 +18,8 @@ export interface PloyDef {
 	when: PloyWhen[];
 	/** Relative chance in the club. */
 	weight: number;
+	/** Only in runs with the passing ploys (ruleset v6). */
+	passing?: boolean;
 }
 
 export const PLOYS: Record<PloyKey, PloyDef> = {
@@ -26,6 +28,8 @@ export const PLOYS: Record<PloyKey, PloyDef> = {
 	fall_guy: { key: 'fall_guy', name: 'Fall Guy', text: 'The next trick you win goes to the player on your left, points and all (you still lead)', cost: 3, icon: 'ploy_fall_guy', when: ['play'], weight: 0.2 },
 	encore: { key: 'encore', name: 'Encore', text: '+1 hand on this board, even after the last one', cost: 5, icon: 'ploy_encore', when: ['pass', 'play', 'hand_scored'], weight: 0.12 },
 	spotlight: { key: 'spotlight', name: 'Spotlight', text: 'Your next hand scores x2 mult', cost: 4, icon: 'ploy_spotlight', when: ['pass', 'play'], weight: 0.16 },
+	stand_pat: { key: 'stand_pat', name: 'Stand Pat', text: 'Nobody passes this hand: keep the cards you were dealt', cost: 3, icon: 'ploy_stand_pat', when: ['pass'], weight: 0.12, passing: true },
+	second_pass: { key: 'second_pass', name: 'Second Pass', text: 'After this pass, everyone passes three more, in the next direction', cost: 3, icon: 'ploy_second_pass', when: ['pass'], weight: 0.12, passing: true },
 	windfall: { key: 'windfall', name: 'Windfall', text: 'Gain $5', cost: 2, icon: 'ploy_windfall', when: ['pass', 'play', 'hand_scored', 'shop'], weight: 0.12 }
 };
 export const PLOY_KEYS = Object.keys(PLOYS) as PloyKey[];
@@ -33,9 +37,11 @@ export const PLOY_KEYS = Object.keys(PLOYS) as PloyKey[];
 /** Ploys you can hold at once. */
 export const PLOY_SLOTS = 2;
 
-export function rollPloy(rng: RNG): PloyDef {
-	let roll = rng.next();
-	for (const k of PLOY_KEYS) {
+export function rollPloy(rng: RNG, passing = false): PloyDef {
+	const keys = PLOY_KEYS.filter((k) => passing || !PLOYS[k].passing);
+	// The v5 weights add up to 1; with the passing ploys, scale to their total.
+	let roll = passing ? rng.next() * keys.reduce((t, k) => t + PLOYS[k].weight, 0) : rng.next();
+	for (const k of keys) {
 		roll -= PLOYS[k].weight;
 		if (roll < 0) return PLOYS[k];
 	}

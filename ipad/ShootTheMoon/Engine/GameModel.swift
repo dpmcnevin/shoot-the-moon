@@ -269,6 +269,8 @@ final class GameModel {
         passPick = []
         act(.pass(ids))
         audio.play("reroll", volume: 0.7)
+        // Second Pass: still passing, the next way.
+        if let v = view, v.phase == .pass { showToast("Second pass: \(v.hand.passDir)", Theme.ploy) }
     }
 
     func isLegal(_ id: Int) -> Bool {
@@ -602,6 +604,7 @@ final class GameModel {
     func usePloy(_ slot: Int) {
         guard let p = view?.ploys?.first(where: { $0.slot == slot }) else { return }
         guard p.canUse else { showToast("Can't: \(p.why ?? "not now")", Theme.bad); return }
+        if p.key == "stand_pat" { passPick = [] }
         if act(.ploy(slot))?.ok == true {
             audio.play(p.key == "windfall" ? "coin" : "select", pitch: 1.1)
             showToast("\(p.name)!", Theme.ploy)

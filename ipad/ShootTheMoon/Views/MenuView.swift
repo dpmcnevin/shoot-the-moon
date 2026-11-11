@@ -40,6 +40,11 @@ struct MenuView: View {
         }
     }
 
+    /// Show the new deck's back: the end card of the fan turns over.
+    private func showBack() {
+        if let last = fan.last { faceDown.insert(last.id) }
+    }
+
     var body: some View {
         let L = model.layout
         @Bindable var model = model
@@ -96,10 +101,10 @@ struct MenuView: View {
                     let i = decks.firstIndex(where: { $0.key == model.deck }) ?? 0
                     VStack(spacing: 2) {
                         HStack(spacing: 6) {
-                            GameButton("◀", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + decks.count - 1) % decks.count].key }
+                            GameButton("◀", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + decks.count - 1) % decks.count].key; showBack() }
                                 .frame(width: 40)
                             Text(decks[i].name).font(Theme.font(17)).foregroundStyle(Theme.brass).frame(maxWidth: .infinity)
-                            GameButton("▶", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + 1) % decks.count].key }
+                            GameButton("▶", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + 1) % decks.count].key; showBack() }
                                 .frame(width: 40)
                         }
                         .frame(width: 260)

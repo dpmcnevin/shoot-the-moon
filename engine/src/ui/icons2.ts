@@ -86,6 +86,18 @@ export const EXPANSION_ICONS: Record<string, string[]> = {
 		'...kyyygyyyyk...', '..kyyyykkyyyyk..', '..kyyykk.kkyyk..', '.kyykk....kkyyk.',
 		'.kkk........kkk.', '................', '................', '................',
 	],
+	ploy_stand_pat: [
+		'................', '.....kkkkkk.....', '....kSSSSSSk....', '...kSkkkkkkSk...',
+		'...kSk....kSk...', '...kSk....kSk...', '..kkkkkkkkkkkk..', '..kGYGGGGGGGgk..',
+		'..kGGGGkkGGGgk..', '..kGGGkkkkGGgk..', '..kGGGGkkGGGgk..', '..kGGGGkkGGGgk..',
+		'..kggggggggggk..', '..kkkkkkkkkkkk..', '................', '................',
+	],
+	ploy_second_pass: [
+		'................', '.........k......', '.........kk.....', '..kkkkkkkkbk....',
+		'..kbbbbbbbbbk...', '..kkkkkkkkbk....', '.........kk.....', '.........k......',
+		'................', '.........k......', '.........kk.....', '..kkkkkkkkBk....',
+		'..kBBBBBBBBBk...', '..kkkkkkkkBk....', '.........kk.....', '.........k......',
+	],
 	ploy_windfall: [
 		'................', '.....kkkkkk.....', '....kGGGGGGk....', '...kGYYggGGgk...',
 		'...kGYgkkgGgk...', '...kGgkGGGGgk...', '...kGgkkkgGgk...', '...kGgGGGkGgk...',

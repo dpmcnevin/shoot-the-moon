@@ -7,6 +7,7 @@ import * as H from '../src/rules/hearts.ts';
 import * as ai from '../src/rules/ai.ts';
 import * as R from '../src/game/run.ts';
 import * as relics from '../src/game/relics.ts';
+import * as ploys from '../src/game/ploys.ts';
 import { applyAction, replay } from '../src/app/save.ts';
 import { newRng } from '../src/rules/rng.ts';
 import { playRun } from '../tools/bot.ts';
@@ -941,6 +942,37 @@ test('v5: ploys are offered and used when they may be', () => {
 	const v5 = kinds('v5'), v4 = kinds('v4');
 	assert.ok(v5.has('ploy') && v5.has('bundle'));
 	assert.ok(!v4.has('ploy') && !v4.has('bundle'));
+});
+
+test('v6: Stand Pat skips the pass; Second Pass passes again, the next way', () => {
+	const pat = R.newRun('PAT', { ruleset: 'v6' });
+	assert.equal(pat.phase, R.PHASE.PASS);
+	const dealt = pat.hand.dealt[H.PLAYER].map((c) => c.id).sort();
+	pat.ploys = ['stand_pat'];
+	assert.ok(R.usePloy(pat, 0)[0]);
+	assert.equal(pat.phase, R.PHASE.PLAY);
+	assert.equal(pat.hand.passDir, 'hold');
+	assert.deepEqual(pat.hand.state.hands[H.PLAYER].map((c) => c.id).concat(pat.hand.state.played.filter((p) => p.seat === H.PLAYER).map((p) => p.card.id)).sort(), dealt);
+
+	const two = R.newRun('TWO', { ruleset: 'v6' });
+	const dir = two.hand.passDir;
+	two.ploys = ['second_pass', 'second_pass'];
+	assert.ok(R.usePloy(two, 0)[0]);
+	assert.equal(R.canUsePloy(two, 0)[0], false, 'one extra pass a hand');
+	R.commitPass(two, two.hand.dealt[H.PLAYER].slice(0, 3));
+	assert.equal(two.phase, R.PHASE.PASS, 'a second pass');
+	assert.equal(two.hand.passDir, R.nextPassDir(dir));
+	assert.notEqual(two.hand.passDir, dir);
+	assert.equal(two.hand.dealt[H.PLAYER].length, 13);
+	R.commitPass(two, two.hand.dealt[H.PLAYER].slice(-3));
+	assert.equal(two.phase, R.PHASE.PLAY);
+	assert.equal(two.hand.firstPass.dir, dir);
+
+	// Only from v6's club; v5 runs roll ploys as before.
+	const seen = new Set();
+	for (let i = 0; i < 400; i++) seen.add(ploys.rollPloy(newRng('P' + i), true).key);
+	assert.ok(seen.has('stand_pat') && seen.has('second_pass') && seen.has('windfall'));
+	for (let i = 0; i < 400; i++) assert.ok(!ploys.PLOYS[ploys.rollPloy(newRng('P' + i)).key].passing);
 });
 
 test('Umbrella takes the queen off your points; Fall Guy hands a trick to the left', () => {

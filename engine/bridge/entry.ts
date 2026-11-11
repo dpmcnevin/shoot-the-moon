@@ -38,7 +38,7 @@ let opts: R.RunOptions | undefined;
 
 /** The ruleset new iPad runs use. The web game names its own; to share
  *  rules, both name the same one. */
-const IPAD_RULESET: R.RulesetName = 'v5';
+const IPAD_RULESET: R.RulesetName = 'v6';
 /** The collection page shows the rules new runs use. */
 const CATALOG_BALANCE = R.RULESETS[IPAD_RULESET].balance ?? 1;
 
@@ -120,6 +120,8 @@ function view() {
 	return {
 		hasRun: true,
 		seed: String(r.seed),
+		/** The starting deck, for its card back. */
+		deck: r.deck,
 		phase: r.phase,
 		table: r.table,
 		tables: R.TABLES,
@@ -321,7 +323,7 @@ const api = {
 	},
 	cardImage: (suit: number, rank: number, trump: boolean, fourColor: boolean) =>
 		image(faceBitmap({ suit, rank }, trump, fourColor)),
-	backImage: () => image(backBitmap()),
+	backImage: (deck?: string) => image(backBitmap(deck)),
 	iconImage: (key: string) => image(iconBitmap(key)),
 	sealImage: (key: string) => image(sealBitmap(key as seals.SealKey))
 };

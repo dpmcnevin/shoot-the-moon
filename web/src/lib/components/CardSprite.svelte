@@ -7,6 +7,7 @@
 	import type { Placement } from './placement.ts';
 	import { cardBack, cardFace } from '../ui/images.ts';
 	import { settings } from '../ui/settings.svelte.ts';
+	import { game } from '../app/game.svelte.ts';
 	import { CARD_H, CARD_W } from '$engine/ui/theme.ts';
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
@@ -58,7 +59,8 @@
 	});
 
 	const front = $derived(cardFace(p.card, !!p.trump, settings.pixelCards, settings.fourColor));
-	const back = $derived(cardBack(settings.pixelCards));
+	// The run's deck at the table; on the menu, the deck you've picked.
+	const back = $derived(cardBack(settings.pixelCards, game.screen === 'run' && game.run ? game.run.deck : settings.deck));
 	const lift = $derived(p.lift ?? 0);
 	const shadowOff = $derived(3 + lift * 0.35);
 	const shadowA = $derived(0.32 - Math.min(0.12, lift * 0.004));

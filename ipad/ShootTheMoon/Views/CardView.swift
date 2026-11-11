@@ -34,7 +34,11 @@ struct CardView: View {
         )
     }
 
-    private var back: AnyView { AnyView(PixelImage(image: model.art.back())) }
+    /// The run's deck at the table; on the menu, the deck you've picked.
+    private var back: AnyView {
+        let deck = model.screen == .run ? (model.view?.deck ?? "standard") : model.deck
+        return AnyView(PixelImage(image: model.art.back(deck)))
+    }
 }
 
 struct FlipModifier: ViewModifier, Animatable {

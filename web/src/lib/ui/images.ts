@@ -49,9 +49,10 @@ export function cardFace(card: Card, trump: boolean, pixel: boolean, fourColor: 
 	});
 }
 
-export function cardBack(pixel: boolean): string {
-	return cached(`back|${pixel ? 'p' + pixelScale : 's'}`, () =>
-		pixel ? url(toCanvas(pixelcards.backBitmap(), pixelScale)) : smooth((g) => cardart.back(g))
+/** A card back; each starting deck has its own. */
+export function cardBack(pixel: boolean, deck = 'standard'): string {
+	return cached(`back|${deck}|${pixel ? 'p' + pixelScale : 's'}`, () =>
+		pixel ? url(toCanvas(pixelcards.backBitmap(deck), pixelScale)) : smooth((g) => cardart.back(g, deck))
 	);
 }
 

@@ -66,7 +66,7 @@ test('the bridge turns editions on for new runs and keeps them through a save', 
 	const S = engine();
 	S.newRun('EDSAVE');
 	const save = JSON.parse(S.save());
-	assert.deepEqual(save.opts, { ruleset: 'v5' });
+	assert.deepEqual(save.opts, { ruleset: 'v6' });
 	const cat = JSON.parse(S.catalog());
 	assert.equal(cat.relics.length, 67); // 23 original + 32 expansion + 6 v4 + 6 v5
 	assert.equal(cat.bosses.length, 13);
