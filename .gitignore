@@ -7,5 +7,3 @@ vite.config.ts.timestamp-*
 
 # The engine bundle for the iPad app, built by `npm run build:bridge` for the tests
 engine/.bridge/
-arcade/.svelte-kit
-arcade/build

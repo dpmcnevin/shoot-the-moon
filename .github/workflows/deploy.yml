@@ -1,10 +1,8 @@
 name: Deploy to GitHub Pages
 
-# Tests the engine and the kit, builds the web game (web/) and the arcade
-# (arcade/), and publishes them with GitHub Pages, the same way isle-wars is
-# published. With the account's custom domain the game is served at
-# https://corrupt.net/shoot-the-moon/ and the arcade under /arcade/, with a
-# page per game: /arcade/hearts/, /arcade/bridge/, /arcade/euchre/.
+# Tests the engine, builds the web game (web/) and publishes it with GitHub Pages, the
+# same way isle-wars is published. With the account's custom domain, the
+# repo "vulnerable" is served at https://corrupt.net/vulnerable/.
 
 on:
   push:
@@ -32,16 +30,10 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run test:kit
       # The base path follows the repository name, so a rename just works.
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}
-      # The arcade, built into the same site under /arcade/.
-      - run: npm -w arcade run build
-        env:
-          BASE_PATH: /${{ github.event.repository.name }}/arcade
-      - run: cp -r arcade/build web/build/arcade
       - name: Add .nojekyll to bypass GitHub Pages Jekyll processing
         run: touch web/build/.nojekyll
       - uses: actions/upload-pages-artifact@v3

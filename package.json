@@ -5,17 +5,13 @@
 	"type": "module",
 	"workspaces": [
 		"engine",
-		"web",
-		"kit",
-		"arcade"
+		"web"
 	],
 	"scripts": {
 		"test": "npm -w engine test",
 		"check": "npm -w engine run check && npm -w web run check",
 		"dev": "npm -w web run dev --",
 		"build": "npm -w web run build --",
-		"simulate": "npm -w engine run simulate --",
-		"test:kit": "npm -w kit test",
-		"arcade": "npm -w arcade run dev --"
+		"simulate": "npm -w engine run simulate --"
 	}
 }
