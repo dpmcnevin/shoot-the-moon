@@ -4,7 +4,42 @@
 	import { GAMES } from '../games/index.ts';
 	import { cardBack, cardFace } from '../ui/images.ts';
 	import Shine from './Shine.svelte';
+	import * as sound from '../audio/sound.ts';
 	import * as cards from '$kit/src/core/rules/cards.ts';
+	// The fan's cards can be picked up and dropped anywhere; a tap flips one.
+	let moved = $state([0, 1, 2, 3].map(() => ({ x: 0, y: 0 })));
+	let up = $state([true, true, true, true]);
+	let drag = $state<{ k: number; sx: number; sy: number; ox: number; oy: number; went: boolean } | null>(null);
+	const scale = () => {
+		const r = document.querySelector('.stage')?.getBoundingClientRect();
+		return r ? r.width / (document.querySelector('.stage') as HTMLElement).offsetWidth : 1;
+	};
+	function grab(e: PointerEvent, k: number) {
+		e.preventDefault();
+		drag = { k, sx: e.clientX, sy: e.clientY, ox: moved[k].x, oy: moved[k].y, went: false };
+	}
+	function move(e: PointerEvent) {
+		if (!drag) return;
+		const k = scale();
+		const dx = (e.clientX - drag.sx) / k,
+			dy = (e.clientY - drag.sy) / k;
+		if (!drag.went && Math.hypot(dx, dy) < 5) return;
+		drag.went = true;
+		moved[drag.k] = { x: drag.ox + dx, y: drag.oy + dy };
+	}
+	function drop() {
+		if (!drag) return;
+		if (!drag.went) {
+			up[drag.k] = !up[drag.k];
+			sound.play('flip', { jitter: 0.08 });
+		} else sound.play('card_play', { jitter: 0.08, volume: 0.7 });
+		drag = null;
+	}
+	const scattered = $derived(moved.some((m) => m.x || m.y) || up.some((u) => !u));
+	function tidy() {
+		moved = [0, 1, 2, 3].map(() => ({ x: 0, y: 0 }));
+		up = [true, true, true, true];
+	}
 	// Four random cards around the title, some with an edition's shine.
 	const FAN = (() => {
 		const deck = cards.newDeck().sort(() => Math.random() - 0.5).slice(0, 4);
@@ -24,11 +59,19 @@
 	}
 </script>
 
+<svelte:window onpointermove={move} onpointerup={drop} />
+
 <div class="menu">
 	<div class="titlerow">
-		<div class="fan left">{#each FAN.slice(0, 2) as f, i}<span class="fc" style:transform="rotate({-14 + i * 10}deg)"><Shine edition={f.edition}><img src={cardFace(f.card)} alt="" /></Shine></span>{/each}</div>
+		<div class="fan left">{#each FAN.slice(0, 2) as f, i}{@const k = i + 0}<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : -14 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
+				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
+			</span>{/each}</div>
 		<h1>CARD ARCADE</h1>
-		<div class="fan right">{#each FAN.slice(2) as f, i}<span class="fc" style:transform="rotate({4 + i * 10}deg)"><Shine edition={f.edition}><img src={cardFace(f.card)} alt="" /></Shine></span>{/each}</div>
+		<div class="fan right">{#each FAN.slice(2) as f, i}{@const k = i + 2}<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : 4 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
+				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
+			</span>{/each}</div>
 	</div>
 	<div class="dim">cardkit prototype: one engine, a module per game</div>
 	<div class="games">
@@ -56,6 +99,7 @@
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 120px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('pixel')} style="width: 120px">{settings.pixel ? 'Pixel' : 'Smooth'}</Button>
 	</div>
+	{#if scattered}<div class="tidy"><Button variant="plain" size="sm" onclick={tidy}>Tidy the cards</Button></div>{/if}
 	{#if showing}<Collection ui={showing} close={() => (showing = null)} />{/if}
 </div>
 
@@ -70,8 +114,12 @@
 	}
 	/* The card turns as a whole, so the shine's clipping can't cut it off. */
 	.fc {
+		position: relative;
 		display: inline-flex;
 		margin: 0 -8px;
+		cursor: grab;
+		touch-action: none;
+		transition: transform 0.12s;
 		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
 	}
 	.fc img {
@@ -79,6 +127,16 @@
 		height: 78px;
 		display: block;
 		image-rendering: pixelated;
+	}
+	.fc.held {
+		cursor: grabbing;
+		z-index: 50;
+		transition: none;
+	}
+	.tidy {
+		position: absolute;
+		right: 24px;
+		bottom: 18px;
 	}
 	.settings {
 		display: flex;
