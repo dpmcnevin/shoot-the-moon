@@ -23,6 +23,7 @@ function view(run: Run<HeartsHand>): TableView {
 	return {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
 		legal: new Set(st && !st.complete && st.turn === H.PLAYER ? H.legalPlays(st, H.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
 		banner: !st ? `Pass ${h.passDir}` : h.passDir === 'hold' ? 'No passing this hand' : undefined
 	};

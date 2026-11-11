@@ -31,6 +31,8 @@ export interface TableView {
 	trump?: number;
 	/** A line over the table (the contract, the pass). */
 	banner?: string;
+	/** The trick shown is a finished one (no card led to the next yet). */
+	trickDone?: boolean;
 }
 
 export interface PreProps {

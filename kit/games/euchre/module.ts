@@ -53,7 +53,7 @@ const round10 = (n: number) => Math.round(n / 10) * 10;
 const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
 /** Let the AI seats call until it's your call or trump is made. */
-function runCalls(run: Run<EuchreHand>) {
+function runCalls(run: Run<EuchreHand>, stepwise = false) {
 	const h = run.hand;
 	let guard = 0;
 	while (h.trump === null && h.turn !== E.PLAYER) {
@@ -64,7 +64,7 @@ function runCalls(run: Run<EuchreHand>) {
 	}
 	if (h.trump !== null) {
 		run.phase = R.PHASE.PLAY;
-		runPlay(run);
+		if (!stepwise) runPlay(run);
 	}
 }
 
@@ -152,8 +152,9 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 		runCalls(run);
 		return { hand: run.hand, phase: run.hand.trump === null ? 'pre' : 'play' };
 	},
-	act(run, a) {
+	act(run, a, opts) {
 		const h = run.hand;
+		const stepwise = !!opts?.stepwise;
 		if (a.t === 'call' || a.t === 'pass') {
 			if (run.phase !== R.PHASE.PRE || h.turn !== E.PLAYER) throw new Error('euchre: not your call');
 			if (a.t === 'pass') E.pass(h, E.PLAYER);
@@ -161,18 +162,20 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 				if (h.round === 1 ? a.suit !== h.upcard.suit : a.suit === h.upcard.suit) throw new Error('euchre: you can’t name that suit now');
 				E.makeTrump(h, E.PLAYER, a.suit, !!a.alone, ai.discard);
 			}
-			runCalls(run);
+			runCalls(run, stepwise);
 		} else if (a.t === 'play') {
 			if (h.turn !== E.PLAYER) throw new Error('euchre: not your turn');
 			const card = findCard(h.hands[E.PLAYER], a.card);
 			if (!card) throw new Error('euchre: not your card');
 			E.play(h, E.PLAYER, card);
-			runPlay(run);
+			if (!stepwise) runPlay(run);
 		} else {
 			while (!h.complete) E.play(h, h.turn, ai.chooseCard(h, h.turn));
 		}
 	},
 	handOver: (run) => run.hand.complete,
+	aiToMove: (run) => run.hand.trump !== null && !run.hand.complete && run.hand.turn !== E.PLAYER,
+	stepAI: (run) => (E.play(run.hand, run.hand.turn, ai.chooseCard(run.hand, run.hand.turn)) ? 'trick' : 'card'),
 	score(run) {
 		const c = ctx(run);
 		const name = cards.SUITS[c.trump].name.toLowerCase();

@@ -5,6 +5,8 @@
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
+	import * as sound from '../audio/sound.ts';
+	import { settings } from '../settings.svelte.ts';
 
 	const run = $derived((void arcade.v, arcade.run!));
 	const m = $derived(run.module);
@@ -45,6 +47,10 @@
 		{/each}
 	</div>
 
+	<div class="toggles">
+		<Button variant="plain" size="sm" onclick={() => sound.toggleSfx()} style="width: 100%">Sound {settings.sfx ? 'on' : 'off'}</Button>
+		<Button variant="plain" size="sm" onclick={() => sound.toggleMusic()} style="width: 100%">Music {settings.music ? 'on' : 'off'}</Button>
+	</div>
 	<div class="foot">
 		<span class="dim">Seed {run.seed}</span>
 		<Button variant="plain" size="sm" onclick={() => arcade.toMenu()}>Menu</Button>
@@ -139,8 +145,13 @@
 		padding: 3px;
 		background: var(--panel);
 	}
-	.foot {
+	.toggles {
 		margin-top: auto;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 6px;
+	}
+	.foot {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;

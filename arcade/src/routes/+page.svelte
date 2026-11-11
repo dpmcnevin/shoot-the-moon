@@ -8,6 +8,7 @@
 	import Table from '$lib/components/Table.svelte';
 	import Panels from '$lib/components/Panels.svelte';
 	import Shop from '$lib/components/Shop.svelte';
+	import * as sound from '$lib/audio/sound.ts';
 
 	let w = $state(1280),
 		h = $state(720);
@@ -18,7 +19,8 @@
 	const ui = $derived(arcade.ui);
 </script>
 
-<svelte:window bind:innerWidth={w} bind:innerHeight={h} />
+<!-- Browsers allow sound only after a gesture. -->
+<svelte:window bind:innerWidth={w} bind:innerHeight={h} onpointerdown={() => sound.unlock()} onkeydown={() => sound.unlock()} />
 
 <div class="wrap">
 	<div class="stage" style:transform="scale({scale})">
@@ -33,7 +35,7 @@
 				<Table />
 				{#if phase === R.PHASE.PRE}
 					<div class="pre"><ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} /></div>
-				{:else if phase === R.PHASE.PLAY && (void arcade.v, ui.view(run).legal.size)}
+				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
 					<div class="out"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
 				{/if}
 				<Panels />

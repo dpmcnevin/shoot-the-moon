@@ -13,7 +13,7 @@
 
 <!-- The run is mutated in place: redraw when it changes. -->
 {#key arcade.v}
-{#if run.phase === R.PHASE.SCORED && b}
+{#if run.phase === R.PHASE.SCORED && b && !arcade.hold}
 	<div class="panel" class:bad={!b.made}>
 		<h2>{b.title}</h2>
 		{#each b.lines as l}

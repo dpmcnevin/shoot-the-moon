@@ -51,8 +51,8 @@
 					out.push({
 						k, card: c, up: true, x: x0 + i * gap, y: 720 - (CH * s) / 2 - 22, s, z: 10 + i,
 						lift: arcade.picked.includes(k),
-						dim: !pre && view.legal.size > 0 && seat.playable && !legal,
-						click: picking ? () => arcade.togglePick(k) : legal ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
+						dim: !pre && !arcade.busy && view.legal.size > 0 && seat.playable && !legal,
+						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
 				});
 			} else if (seat.pos === 'N') {
@@ -65,7 +65,7 @@
 					out.push({
 						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 100 : 72, s, z: 5 + i,
 						dim: seat.playable && view.legal.size > 0 && !legal,
-						click: legal ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
+						click: legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
 				});
 			} else {
@@ -91,6 +91,11 @@
 		</div>
 	{/each}
 	{#if view.banner}<div class="banner" style:left="{CX}px">{view.banner}</div>{/if}
+	{#if view.trump}
+		<div class="trump" class:red={cards.SUITS[view.trump].red} title="Trump: {cards.SUITS[view.trump].name}">
+			<span class="tl">Trump</span><span class="tg">{cards.SUITS[view.trump].glyph + '\uFE0E'}</span>
+		</div>
+	{/if}
 	{#each sprites as sp (sp.k)}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 		<img
@@ -151,6 +156,35 @@
 		padding: 0 6px;
 		background: var(--panel);
 		color: var(--ink);
+	}
+	/* Any game with a trump suit shows it in the table's corner. */
+	.trump {
+		position: absolute;
+		left: 290px;
+		top: 16px;
+		width: 84px;
+		padding: 6px 0 4px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		background: #f3ead6;
+		border: 3px solid var(--brass);
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+		color: #1b1d26;
+		z-index: 70;
+	}
+	.trump.red {
+		color: #c8323c;
+	}
+	.tl {
+		font-size: 13px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: #6b5a3a;
+	}
+	.tg {
+		font-size: 44px;
+		line-height: 1;
 	}
 	.banner {
 		position: absolute;

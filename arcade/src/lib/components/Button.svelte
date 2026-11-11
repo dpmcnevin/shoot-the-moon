@@ -2,7 +2,7 @@
      it's the obvious next step, and a click sound. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	const sound = { play: (_k: string, _o?: unknown) => {} }; // the arcade prototype is silent
+	import * as sound from '../audio/sound.ts';
 
 	let {
 		onclick,

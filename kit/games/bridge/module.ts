@@ -206,8 +206,9 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		};
 		return { hand, phase: 'pre' };
 	},
-	act(run, a) {
+	act(run, a, opts) {
 		const d = run.hand;
+		const stepwise = !!opts?.stepwise;
 		if (a.t === 'bid') {
 			if (run.phase !== R.PHASE.PRE) throw new Error('bridge: not bidding');
 			const c: Contract = { level: a.level, strain: a.strain, doubled: 0 };
@@ -215,7 +216,7 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 			d.contract = c;
 			d.state = play.newPlay(d.hands, c.strain, cards.nextSeat(d.declarer));
 			run.phase = R.PHASE.PLAY;
-			advanceAI(run);
+			if (!stepwise) advanceAI(run);
 		} else if (a.t === 'play') {
 			const st = d.state!;
 			if (!isPlayerTurn(run)) throw new Error('bridge: not your turn');
@@ -223,13 +224,21 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 			if (!card || !play.isLegal(st, st.turn, card)) throw new Error('bridge: illegal card');
 			play.play(st, st.turn, card);
 			d.dummyVisible = true;
-			advanceAI(run);
+			if (!stepwise) advanceAI(run);
 		} else {
 			ai.playOut(d.state!, aiCtx(run));
 			d.dummyVisible = true;
 		}
 	},
 	handOver: (run) => !!run.hand.state?.complete,
+	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && !isPlayerTurn(run),
+	stepAI(run) {
+		const d = run.hand;
+		const st = d.state!;
+		const t = play.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run)));
+		d.dummyVisible = true;
+		return t ? 'trick' : 'card';
+	},
 	score(run) {
 		const d = run.hand;
 		const st = d.state!;

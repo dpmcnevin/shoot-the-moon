@@ -145,8 +145,13 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Deal a new hand. Return 'pre' to ask for the pre-play step first. */
 	deal(run: Run<H>): { hand: H; phase: 'pre' | 'play' };
 	/** Apply one of the game's own actions; throw if it's illegal. The module
-	 *  runs the AI seats after it until it's the player's turn again. */
-	act(run: Run<H>, action: A): void;
+	 *  runs the AI seats after it until it's the player's turn again, unless
+	 *  `stepwise`: then the UI plays them one at a time with stepAI. */
+	act(run: Run<H>, action: A, opts?: { stepwise?: boolean }): void;
+	/** Stepwise play: an AI seat is due to play. */
+	aiToMove?(run: Run<H>): boolean;
+	/** Play one AI card: 'trick' if it finished a trick, 'card' if not. */
+	stepAI?(run: Run<H>): 'trick' | 'card' | null;
 	/** The hand has been played out. */
 	handOver(run: Run<H>): boolean;
 	/** The game's part of the score. */
@@ -317,10 +322,24 @@ function startHand(run: Run) {
 }
 
 /** One of the game's own actions: pass, bid, play a card, play it out. */
-export function act(run: Run, action: unknown) {
+export function act(run: Run, action: unknown, opts?: { stepwise?: boolean }) {
 	assert(run.phase === PHASE.PRE || run.phase === PHASE.PLAY, 'act: not at the table');
-	run.module.act(run, action);
+	run.module.act(run, action, opts);
 	afterGameStep(run);
+}
+
+/** Stepwise play (a UI pacing the AI): is an AI seat due? */
+export function aiToMove(run: Run): boolean {
+	return run.phase === PHASE.PLAY && !!run.module.aiToMove?.(run);
+}
+
+/** Stepwise play: one AI card. Same draws as the module's own loop, so a
+ *  save (which records only the player's actions) replays the same. */
+export function stepAI(run: Run): 'trick' | 'card' | null {
+	if (!aiToMove(run)) return null;
+	const r = run.module.stepAI!(run);
+	afterGameStep(run);
+	return r;
 }
 
 /** Moves the module made can leave the phase at PRE or PLAY; we look at

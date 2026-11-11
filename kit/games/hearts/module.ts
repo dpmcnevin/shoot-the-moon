@@ -45,13 +45,13 @@ function advanceAI(run: Run<HeartsHand>) {
 	}
 }
 
-function beginPlay(run: Run<HeartsHand>) {
+function beginPlay(run: Run<HeartsHand>, stepwise = false) {
 	const h = run.hand;
 	h.state = H.newHand(h.dealt);
 	const seats = [1, 2, 4].filter((s) => ai.moonWorthy(h.state!.hands[s]) && run.rng.chance(0.7));
 	if (seats.length) h.state.moonSeats = seats;
 	run.phase = R.PHASE.PLAY;
-	advanceAI(run);
+	if (!stepwise) advanceAI(run);
 }
 
 function scoreCtx(run: Run<HeartsHand>): relicsLib.ScoreCtx {
@@ -140,8 +140,9 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 		}
 		return { hand: run.hand, phase: 'pre' };
 	},
-	act(run, a) {
+	act(run, a, opts) {
 		const h = run.hand;
+		const stepwise = !!opts?.stepwise;
 		if (a.t === 'pass') {
 			if (run.phase !== R.PHASE.PRE) throw new Error('hearts: not passing');
 			const mine = h.dealt[H.PLAYER];
@@ -152,19 +153,24 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			const received = H.applyPasses(h.dealt, passes, h.passDir);
 			h.passed = chosen as Card[];
 			h.received = received[H.PLAYER];
-			beginPlay(run);
+			beginPlay(run, stepwise);
 		} else if (a.t === 'play') {
 			const st = h.state!;
 			if (st.turn !== H.PLAYER) throw new Error('hearts: not your turn');
 			const card = findCard(st.hands[H.PLAYER], a.card);
 			if (!card || !H.isLegal(st, H.PLAYER, card)) throw new Error('hearts: illegal card');
 			H.play(st, H.PLAYER, card);
-			advanceAI(run);
+			if (!stepwise) advanceAI(run);
 		} else {
 			ai.playOut(h.state!, aiCtx(run));
 		}
 	},
 	handOver: (run) => !!run.hand.state?.complete,
+	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && run.hand.state.turn !== H.PLAYER,
+	stepAI(run) {
+		const st = run.hand.state!;
+		return H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run))) ? 'trick' : 'card';
+	},
 	score(run) {
 		const ctx = scoreCtx(run);
 		const lines: Line[] = [];

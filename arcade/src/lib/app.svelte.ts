@@ -5,6 +5,7 @@ import * as R from '$kit/src/run/run.ts';
 import { apply, replay, type Action, type Save } from '$kit/src/run/save.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import { byId } from './games/index.ts';
+import * as sound from './audio/sound.ts';
 import type { GameUI } from './games/types.ts';
 
 const KEY = (id: string) => `cardkit-arcade-${id}`;
@@ -17,6 +18,8 @@ class Arcade {
 	v = $state(0);
 	picked = $state<string[]>([]);
 	toast = $state('');
+	/** The AI seats are playing (paced); the player waits. */
+	busy = $state(false);
 	private save: Save | null = null;
 
 	saved(id: string): boolean {
@@ -47,14 +50,19 @@ class Arcade {
 		this.ui = ui;
 		this.picked = [];
 		this.screen = 'run';
+		this.busy = false;
 		this.persist();
 		this.v++;
+		void this.pump();
 	}
 
 	do(a: Action) {
 		const run = this.run!;
+		if (this.busy) return;
+		const before = run.phase;
 		try {
-			const out = apply(run, a);
+			// Game moves leave the AI to us, so it can be paced and seen.
+			const out = a.t === 'game' ? R.act(run, a.a, { stepwise: true }) : apply(run, a);
 			if (Array.isArray(out) && out[0] === false) return this.flash(`Can't: ${out[1]}`);
 		} catch (e) {
 			return this.flash((e as Error).message);
@@ -63,7 +71,67 @@ class Arcade {
 		this.picked = [];
 		this.persist();
 		this.v++;
+		this.cue(a, before);
+		void this.pump();
 	}
+
+	/** Sounds for what just happened. */
+	private cue(a: Action, before: R.Phase) {
+		const run = this.run!;
+		if (a.t === 'game') sound.play('card_play', { jitter: 0.08 });
+		else if (a.t === 'buy') sound.play('coin');
+		else if (a.t === 'sell') sound.play('sell');
+		else if (a.t === 'reroll') sound.play('reroll');
+		else if (a.t === 'ploy') sound.play('ploy');
+		else if (a.t === 'shop') sound.play('coin');
+		else if (a.t === 'next' || a.t === 'leave') sound.play('deal', { volume: 0.7 });
+		if (run.phase !== before) this.phaseCue(run.phase);
+	}
+
+	private phaseCue(phase: R.Phase) {
+		const run = this.run!;
+		if (phase === R.PHASE.SCORED) setTimeout(() => sound.play(run.result?.made ? 'made' : 'down'), 0);
+		else if (phase === R.PHASE.WON) sound.play('board_won');
+		else if (phase === R.PHASE.VICTORY) sound.play('board_won');
+		else if (phase === R.PHASE.OVER) sound.play('game_over');
+	}
+
+	/** Play the AI seats' cards one at a time, holding each finished trick
+	 *  long enough to see who took it (the last one too, before the score). */
+	private async pump() {
+		const run = this.run!,
+			ui = this.ui!;
+		const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+		this.busy = true;
+		try {
+			for (let guard = 0; guard < 80; guard++) {
+				const done = ui.view(run).trickDone;
+				if (run.phase !== R.PHASE.PLAY) {
+					if (done && run.phase === R.PHASE.SCORED) {
+						this.hold = true;
+						this.v++;
+						await sleep(1100);
+						this.hold = false;
+					}
+					break;
+				}
+				if (!R.aiToMove(run)) break;
+				await sleep(done ? 1000 : 430);
+				if (this.run !== run) return;
+				const before = run.phase;
+				const r = R.stepAI(run);
+				sound.play(r === 'trick' ? 'trick_win' : 'card_play', { jitter: 0.08, volume: r === 'trick' ? 0.6 : 1 });
+				this.v++;
+				if (run.phase !== before) this.phaseCue(run.phase);
+			}
+		} finally {
+			this.busy = false;
+			this.v++;
+		}
+	}
+
+	/** Holding the last trick of a hand: the score panel waits. */
+	hold = $state(false);
 
 	game(a: unknown) {
 		this.do({ t: 'game', a });

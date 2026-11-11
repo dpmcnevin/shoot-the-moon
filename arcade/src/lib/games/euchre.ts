@@ -26,6 +26,7 @@ function view(run: Run<EuchreHand>): TableView {
 	return {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		trickDone: !h.trick.length && h.tricks.length > 0,
 		legal: new Set(yourTurn ? E.legalPlays(h, E.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
 		trump: h.trump ?? undefined,
 		banner: h.trump !== null ? maker : undefined

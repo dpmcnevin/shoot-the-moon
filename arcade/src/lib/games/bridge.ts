@@ -24,6 +24,7 @@ function view(run: Run<Deal>): TableView {
 	return {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
 		legal: new Set(st && isPlayerTurn(run) ? play.legalPlays(st, st.turn).map((x) => `${x.suit}-${x.rank}`) : []),
 		trump: c && c.strain !== cards.NOTRUMP ? c.strain : undefined,
 		banner: c ? `${cards.contractName(c)}${c.doubled ? ' doubled' : ''} · need ${6 + c.level} tricks` : undefined
