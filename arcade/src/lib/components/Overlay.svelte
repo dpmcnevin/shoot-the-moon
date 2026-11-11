@@ -5,14 +5,14 @@
 	import { fade, fly } from 'svelte/transition';
 	import Button from './Button.svelte';
 
-	let { title, close, width = 760, children }: { title: string; close: () => void; width?: number; children: Snippet } = $props();
+	let { title, close, width = 760, height, children }: { title: string; close: () => void; width?: number; height?: number; children: Snippet } = $props();
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="veil" onclick={close} transition:fade={{ duration: 120 }}>
-	<div class="panel" style:width="{width}px" onclick={(e) => e.stopPropagation()} in:fly={{ y: 20, duration: 200 }}>
+	<div class="panel" style:width="{width}px" style:height={height ? `${height}px` : undefined} onclick={(e) => e.stopPropagation()} in:fly={{ y: 20, duration: 200 }}>
 		<div class="head"><h2>{title}</h2><Button variant="plain" size="sm" onclick={close}>Close</Button></div>
 		<div class="body">{@render children()}</div>
 	</div>
@@ -47,6 +47,8 @@
 		font-size: 28px;
 	}
 	.body {
+		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
 		padding: 0 20px 18px;
 	}

@@ -23,7 +23,8 @@
 	const fmtDate = (t: number) => new Date(t).toLocaleDateString();
 </script>
 
-<Overlay title="{m.title}: collection" {close} width={900}>
+<!-- One height for every tab, so switching tabs doesn't resize it. -->
+<Overlay title="{m.title}: collection" {close} width={900} height={620}>
 	<div class="tabs">
 		{#each tabs as t}<button class:on={tab === t} onclick={() => (tab = t)}>{t}</button>{/each}
 	</div>
