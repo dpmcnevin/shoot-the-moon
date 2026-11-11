@@ -58,7 +58,7 @@
 					<div class="out" style:top="{L.outAt[1]}px"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
 				{/if}
 				<Panels />
-				{#if fresh && arcade.seen !== boardKey}
+				{#if fresh && arcade.seen !== boardKey && arcade.overlay !== 'table'}
 					<TableOverview close={() => (arcade.seen = boardKey)} />
 				{/if}
 			{/if}
@@ -66,7 +66,8 @@
 		{#if arcade.screen === 'run' && run && ui}
 			{#if arcade.overlay === 'help'}<Help />
 			{:else if arcade.overlay === 'last'}<LastTrick />
-			{:else if arcade.overlay === 'deck'}<DeckView />{/if}
+			{:else if arcade.overlay === 'deck'}<DeckView />
+			{:else if arcade.overlay === 'table'}<TableOverview close={() => ((arcade.overlay = null), (arcade.seen = boardKey))} />{/if}
 		{/if}
 		{#if arcade.toast}<div class="toast {arcade.toastTone ?? ''}">{arcade.toast}</div>{/if}
 		<Particles w={L.W} h={L.H} {scale} />

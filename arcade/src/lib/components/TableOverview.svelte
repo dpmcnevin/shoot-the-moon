@@ -16,6 +16,8 @@
 	const boards = Array.from({ length: m.boardsPerTable }, (_, i) => i + 1);
 	const name = (b: number) => m.boardName?.({ ...run, board: b }) ?? `Board ${b}`;
 	const tag = R.skipTag(run);
+	// Opened from the sidebar mid-board, it's a look, not a start.
+	const started = run.score > 0 || run.handsLeft < run.handsThisBoard || run.phase === R.PHASE.SCORED;
 </script>
 
 <div class="veil" transition:fade={{ duration: 150 }}>
@@ -32,6 +34,7 @@
 					<div class="bh"><b>{name(b)}</b><span>{b < run.board ? 'done' : b === run.board ? 'now' : 'up next'}</span></div>
 					<div class="goal">{R.goalFor(m, run.table, b).toLocaleString()}</div>
 					<div class="dim">{(boss?.hands ?? m.handsPerBoard)} {m.words.hands} · pays ${R.MONEY_PER_BOARD}{boss ? `+${R.BOSS_BONUS}` : ''}</div>
+					{#if b === run.board && started}<div class="prog">Scored {run.score.toLocaleString()} · {run.handsLeft} {m.words.hands} left</div>{/if}
 					{#if boss}
 						<div class="bossname">Boss: {boss.name}</div>
 						<div class="dim">{boss.text}</div>
@@ -46,7 +49,7 @@
 			{#if tag}
 				<Button variant="ploy" onclick={() => { close(); arcade.do({ t: 'skip' }); }} style="width: 240px">Skip for {TAGS[tag].name}</Button>
 			{/if}
-			<Button pulse onclick={close} style="width: 220px">Play {name(run.board)}</Button>
+			<Button pulse onclick={close} style="width: 220px">{started ? 'Back to the table' : `Play ${name(run.board)}`}</Button>
 		</div>
 	</div>
 </div>
@@ -137,6 +140,10 @@
 	.goal {
 		font-size: 34px;
 		font-weight: 700;
+	}
+	.prog {
+		color: var(--good);
+		font-size: 14px;
 	}
 	.bossname {
 		color: var(--bad);

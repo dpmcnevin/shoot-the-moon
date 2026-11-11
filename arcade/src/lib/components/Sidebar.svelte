@@ -23,8 +23,10 @@
 <aside>
 	<div class="title">{m.title.toUpperCase()}</div>
 	<div class="row"><span>{m.words.table} {run.table} of {m.tables}</span><span class="tables">{#each Array(m.tables) as _, i}<span class:done={i + 1 < run.table} class:now={i + 1 === run.table}></span>{/each}</span></div>
-	<div class="row dim"><span>{R.boardName(run)}</span><span>Board {run.board} of {m.boardsPerTable}</span></div>
-	<div class="goal">
+	<!-- The board, the goal and the boss open the table overview. -->
+	<button class="row dim open" onclick={() => (arcade.overlay = 'table')}><span>{R.boardName(run)}</span><span>{run.board} of {m.boardsPerTable} · details</span></button>
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div class="goal open" onclick={() => (arcade.overlay = 'table')}>
 		<div class="row dim"><span>Goal</span><span>Scored</span></div>
 		<div class="row big"><span>{run.target}</span><span class:good={run.score >= run.target}>{run.score}</span></div>
 		<div class="bar"><div style:width="{Math.min(100, (100 * run.score) / Math.max(1, run.target))}%"></div></div>
@@ -36,7 +38,8 @@
 	</div>
 	<div class="row"><span class="dim">Money</span><span class="money">${run.money}</span></div>
 	{#if run.boss}
-		<div class="boss" class:on={R.bossActive(run)} title={run.boss.text}>
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<div class="boss open" class:on={R.bossActive(run)} title={run.boss.text} onclick={() => (arcade.overlay = 'table')}>
 			<span class="bl">{R.bossActive(run) ? 'Boss now' : `${m.boardName?.({ ...run, board: m.boardsPerTable }) ?? 'Last board'} boss`}</span>
 			<span class="bn">{run.boss.name}</span>
 			<span class="bt">{run.boss.text}</span>
@@ -132,6 +135,22 @@
 	}
 	.dim {
 		color: var(--ink-dim);
+	}
+	.open {
+		cursor: pointer;
+	}
+	button.open {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: none;
+		padding: 0;
+		text-align: left;
+	}
+	button.open:hover span:last-child,
+	.goal.open:hover,
+	.boss.open:hover {
+		filter: brightness(1.2);
 	}
 	.goal {
 		padding: 8px 10px;

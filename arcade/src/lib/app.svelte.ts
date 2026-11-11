@@ -266,7 +266,7 @@ class Arcade {
 	}
 
 	/** Overlays: help, the collection, the last trick, the deck. */
-	overlay = $state<'help' | 'collection' | 'last' | 'deck' | null>(null);
+	overlay = $state<'help' | 'collection' | 'last' | 'deck' | 'table' | null>(null);
 
 	toMenu() {
 		this.screen = 'menu';

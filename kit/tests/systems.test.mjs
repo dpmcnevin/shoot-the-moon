@@ -179,3 +179,16 @@ test('Undo takes back your last card, the other seats’ cards with it', () => {
 	assert.equal(again.hand.hands[3].length, before, 'the card is back in your hand');
 	assert.equal(again.stats.ploysUsed, 1);
 });
+
+test('the club never offers the same thing twice', () => {
+	for (const m of [hearts, bridge, euchre]) {
+		for (let i = 0; i < 60; i++) {
+			const run = R.newRun(m, 'DUP' + i, { money: 99 });
+			run.phase = 'won';
+			R.enterShop(run);
+			R.reroll(run);
+			const keys = run.shop.items.map((it) => `${it.kind}:${it.def.key}${it.def.suit ?? ''}`);
+			assert.equal(new Set(keys).size, keys.length, keys.join(', '));
+		}
+	}
+});

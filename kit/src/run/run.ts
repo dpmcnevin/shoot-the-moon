@@ -710,7 +710,7 @@ export function enterShop(run: Run) {
 	run.rerollCost = bargain ? 0 : BASE_REROLL;
 	run.freeRerolls = false;
 	run.shop = { items: [] };
-	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items.push(rollItem(run));
+	stock(run);
 	// Tags paid at the club.
 	for (const t of run.pendingTags.splice(0)) {
 		if (t === 'bundle') run.shop.items.push({ kind: 'bundle', def: C.BUNDLES.relic, name: C.BUNDLES.relic.name, cost: 0 });
@@ -718,6 +718,21 @@ export function enterShop(run: Run) {
 			run.freeRerolls = true;
 			run.rerollCost = 0;
 		}
+	}
+}
+
+/** What makes two offers the same (a Recolor is per suit). */
+function offerKey(it: ShopItem): string {
+	return `${it.kind}:${it.def.key}${it.kind === 'pack' && it.def.suit ? it.def.suit : ''}`;
+}
+
+/** Fill the club with different offers: a repeat is rolled again. */
+function stock(run: Run) {
+	const items = run.shop!.items;
+	while (items.length < SHOP_SIZE) {
+		let it = rollItem(run);
+		for (let tries = 0; tries < 12 && items.some((x) => offerKey(x) === offerKey(it)); tries++) it = rollItem(run);
+		items.push(it);
 	}
 }
 
@@ -883,7 +898,8 @@ export function reroll(run: Run): boolean {
 	if (run.money < run.rerollCost || run.opening) return false;
 	run.money -= run.rerollCost;
 	if (!run.freeRerolls) run.rerollCost = run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL - 1, run.rerollCost + 1) : run.rerollCost + 1;
-	run.shop!.items = Array.from({ length: SHOP_SIZE }, () => rollItem(run));
+	run.shop!.items = [];
+	stock(run);
 	return true;
 }
 
