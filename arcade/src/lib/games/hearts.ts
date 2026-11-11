@@ -2,6 +2,7 @@ import * as H from '$kit/games/hearts/rules/hearts.ts';
 import { hearts } from '$kit/games/hearts/module.ts';
 import type { HeartsHand } from '$kit/games/hearts/module.ts';
 import type { Run } from '$kit/src/run/run.ts';
+import * as R from '$kit/src/run/run.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
 import HeartsPass from './HeartsPass.svelte';
@@ -15,8 +16,10 @@ function view(run: Run<HeartsHand>): TableView {
 		name: s === H.PLAYER ? 'You' : H.SEAT_NAMES[s],
 		cards: st ? st.hands[s] : h.dealt[s],
 		// Spyglass shows the opponents' cards for the rest of its trick.
-		faceUp: s === H.PLAYER || (!!st && h.spyTrick === st.tricks.length),
-		tally: st ? `${pts[s]}` : undefined,
+		// Blindfold: you pass without seeing your hand.
+		faceUp: (s === H.PLAYER && !(!st && R.bossIs(run, 'blindfold'))) || (!!st && h.spyTrick === st.tricks.length),
+		// Card Counter: the suits each opponent has shown they're out of.
+		tally: st ? `${pts[s]}${s !== H.PLAYER && R.hasRule(run, 'cardCounter') ? ' ' + [1, 2, 3, 4].filter((x) => st.voids[s][x]).map((x) => '♣♦♥♠'[x - 1]).join('') : ''}` : undefined,
 		active: !!st && !st.complete && st.turn === s,
 		playable: s === H.PLAYER
 	}));
@@ -24,6 +27,8 @@ function view(run: Run<HeartsHand>): TableView {
 	return {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		// The Fog: cards after the lead stay face down until the trick is done.
+		hidden: R.bossIs(run, 'fog') && st && st.trick.length ? new Set(st.trick.slice(1).filter((p) => p.seat !== H.PLAYER).map((p) => `${p.card.suit}-${p.card.rank}`)) : undefined,
 		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
 		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
 		played: st ? st.played.map((p) => p.card) : [],

@@ -75,7 +75,7 @@
 			</div>
 		{/each}
 	</div>
-	<h3 class="sub">Your relics {run.relics.length}/{R.RELIC_SLOTS}</h3>
+	<h3 class="sub">Your relics {R.relicSlotsUsed(run)}/{R.relicSlots(run)}</h3>
 	<div class="owned">
 		{#each run.relics as r, i}
 			<div class="relic" title={r.def.describe?.(r) ?? r.def.text} style:border-color={r.edition ? editionColor(r.edition) : ''}>

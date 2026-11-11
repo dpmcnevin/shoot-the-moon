@@ -54,10 +54,10 @@
 		{/each}
 	</div>
 
-	<div class="sub">Relics {run.relics.length}/{R.RELIC_SLOTS}</div>
+	<div class="sub">Relics {R.relicSlotsUsed(run)}/{R.relicSlots(run)}</div>
 	<div class="relics">
 		{#each run.relics as r}
-			<div class="relic" title="{r.name}: {r.def.describe?.(r) ?? r.def.text}"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine></div>
+			<div class="relic" class:jinxed={R.bossActive(run) && run.jinxed === r.key} title="{r.name}: {r.def.describe?.(r) ?? r.def.text}{R.bossActive(run) && run.jinxed === r.key ? ' (jinxed this board)' : ''}"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine></div>
 		{/each}
 	</div>
 
@@ -185,6 +185,10 @@
 	.relic {
 		padding: 3px;
 		background: var(--panel);
+	}
+	.relic.jinxed {
+		opacity: 0.3;
+		outline: 2px solid var(--bad);
 	}
 	.link {
 		font: inherit;

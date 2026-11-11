@@ -119,7 +119,7 @@
 		}
 		view.trick.forEach((t, i) => {
 			const [dx, dy] = TRICK[t.pos];
-			out.push({ k: key(t.card), card: t.card, up: true, x: CX + dx, y: CY + dy, s: 1.15, z: 50 + i, order: 0 });
+			out.push({ k: key(t.card), card: t.card, up: !view.hidden?.has(key(t.card)), x: CX + dx, y: CY + dy, s: 1.15, z: 50 + i, order: 0 });
 		});
 		return out;
 	});

@@ -35,6 +35,8 @@ export interface TableView {
 	isTrump?: (c: Card) => boolean;
 	/** A line over the table (the contract, the pass). */
 	banner?: string;
+	/** Trick cards to keep face down (the Fog). */
+	hidden?: Set<string>;
 	/** The trick shown is a finished one (no card led to the next yet). */
 	trickDone?: boolean;
 	/** The last finished trick and who won it (the Last trick viewer). */

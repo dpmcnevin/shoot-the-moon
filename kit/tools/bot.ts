@@ -27,7 +27,7 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 		else if (p === R.PHASE.WON) go({ t: 'shop' });
 		else if (p === R.PHASE.SHOP) {
 			if (run.opening) {
-				const ok = run.opening.options.findIndex((o) => (o.kind === 'relic' ? R.relicSlotsUsed(run) < R.RELIC_SLOTS : o.kind === 'ploy' ? run.ploys.length < R.PLOY_SLOTS : true));
+				const ok = run.opening.options.findIndex((o) => (o.kind === 'relic' ? R.relicSlotsUsed(run) < R.relicSlots(run) : o.kind === 'ploy' ? run.ploys.length < R.PLOY_SLOTS : true));
 				go({ t: 'pick', index: ok });
 				continue;
 			}

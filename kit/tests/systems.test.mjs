@@ -137,3 +137,24 @@ test('Hearts ploys: Umbrella, Fall Guy, Second Pass', () => {
 	assert.ok(R.usePloy(run, 0)[0]);
 	assert.ok(run.hand.umbrella);
 });
+
+test('relic flags: interest cap, bargain rerolls, extra slot; the Jinx', () => {
+	const run = R.newRun(hearts, 'FL', { money: 60 });
+	const def = (k) => hearts.relics.find((d) => d.key === k);
+	run.relics.push(R.instantiate(def('interest_rate')), R.instantiate(def('collectors_album')), R.instantiate(def('bargain_bin')));
+	assert.equal(R.interest(run), 8);
+	assert.equal(R.relicSlots(run), 6);
+	assert.equal(R.relicSlotsUsed(run), 2);
+	run.phase = 'won';
+	R.enterShop(run);
+	assert.equal(run.rerollCost, 0, 'first reroll free');
+	R.reroll(run);
+	assert.equal(run.rerollCost, 4);
+	const j = R.newRun(hearts, 'JX');
+	j.relics.push(R.instantiate(def('interest_rate')));
+	j.boss = hearts.bosses.find((b) => b.key === 'jinx');
+	R.skipBoard(j);
+	R.skipBoard(j);
+	assert.equal(j.jinxed, 'interest_rate');
+	assert.equal(R.activeRelics(j).length, 0);
+});

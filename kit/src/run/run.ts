@@ -105,6 +105,12 @@ export interface RelicDef<S = unknown> {
 	onBoardWin?: (relic: Relic<S>, run: Run) => { money?: number } | void;
 	/** A rule the game reads with hasRule (a relic that bends the rules). */
 	rule?: string;
+	/** Interest can reach this much (instead of MAX_INTEREST). */
+	interestCap?: number;
+	/** Rerolls cost $1 less, and the first in each club is free. */
+	bargain?: boolean;
+	/** Takes no relic slot, and adds one. */
+	extraSlot?: boolean;
 }
 
 /** A permanent level for one kind of hand: each level past the first adds
@@ -142,6 +148,8 @@ export interface BossDef<S = unknown> {
 	icon?: string;
 	score?: (ctx: S, run: Run) => Line | null | void;
 	hands?: number;
+	/** One of your relics, at random, does nothing on its board. */
+	jinx?: boolean;
 	/** Bosses come in tiers; later tables draw from higher ones. */
 	tier?: number;
 }
@@ -301,6 +309,8 @@ export interface Run<H = any> {
 	endless: boolean;
 	/** Spotlight: the next hand scores x2. */
 	spotlight?: boolean;
+	/** The relic a Jinx boss switched off this board. */
+	jinxed?: string;
 	lastPayout?: Payout;
 	stats: Stats;
 	/** The game's own run state (a pass rotation, a dealer...). */
@@ -430,9 +440,17 @@ export function bossActive(run: Run): boolean {
 export function bossIs(run: Run, key: string): boolean {
 	return bossActive(run) && run.boss!.key === key;
 }
+/** Relics that count right now (a Jinx switches one off). */
+export function activeRelics(run: Run): Relic[] {
+	return run.jinxed && bossActive(run) ? run.relics.filter((r) => r.key !== run.jinxed) : run.relics;
+}
 /** A held relic bends the rules this way. */
 export function hasRule(run: Run, rule: string): boolean {
-	return run.relics.some((r) => r.def.rule === rule);
+	return activeRelics(run).some((r) => r.def.rule === rule);
+}
+/** Relic slots: five, plus one for each relic that adds one. */
+export function relicSlots(run: Run): number {
+	return RELIC_SLOTS + run.relics.filter((r) => r.def.extraSlot).length;
 }
 
 // ------------------------------------------------------------------ new run
@@ -504,6 +522,7 @@ function startBoard(run: Run) {
 	run.score = 0;
 	run.handsThisBoard = (bossActive(run) && run.boss!.hands) || run.module.handsPerBoard;
 	run.handsLeft = run.handsThisBoard;
+	run.jinxed = bossActive(run) && run.boss!.jinx && run.relics.length ? run.rng.pick(run.relics)!.key : undefined;
 	run.module.startBoard?.(run);
 	startHand(run);
 }
@@ -565,7 +584,7 @@ export function pipeline<S>(run: Run, base: BaseScore<S>): Breakdown {
 		if (!u || lvl <= 1) continue;
 		add(`${u.name} level ${lvl}`, { chips: (lvl - 1) * u.chips, mult: (lvl - 1) * u.mult });
 	}
-	for (const relic of run.relics) {
+	for (const relic of activeRelics(run)) {
 		add(relic.name, relic.def.score?.(base.ctx as never, relic as never));
 		const ed = relic.edition && C.RELIC_EDITIONS[relic.edition];
 		if (ed?.effect) add(`${ed.name} ${relic.name}`, ed.effect, ed.key);
@@ -612,7 +631,8 @@ export function next(run: Run) {
 }
 
 export function interest(run: Run): number {
-	return Math.min(MAX_INTEREST, Math.floor(run.money / INTEREST_PER));
+	const cap = Math.max(MAX_INTEREST, ...run.relics.map((r) => r.def.interestCap ?? 0));
+	return Math.min(cap, Math.floor(run.money / INTEREST_PER));
 }
 
 function winBoard(run: Run) {
@@ -675,7 +695,8 @@ function giveRandomEdition(run: Run) {
 export function enterShop(run: Run) {
 	assert(run.phase === PHASE.WON, 'enterShop: no board won');
 	run.phase = PHASE.SHOP;
-	run.rerollCost = BASE_REROLL;
+	const bargain = run.relics.some((r) => r.def.bargain);
+	run.rerollCost = bargain ? 0 : BASE_REROLL;
 	run.freeRerolls = false;
 	run.shop = { items: [] };
 	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items.push(rollItem(run));
@@ -743,7 +764,7 @@ function rollItem(run: Run): ShopItem {
 
 /** Relic slots: Phantom relics take none. */
 export function relicSlotsUsed(run: Run): number {
-	return run.relics.filter((r) => r.edition !== 'phantom').length;
+	return run.relics.filter((r) => r.edition !== 'phantom' && !r.def.extraSlot).length;
 }
 
 /** Does buying this item need a card from the pack (edition, seal)? */
@@ -777,7 +798,7 @@ export function canBuy(run: Run, i: number): [boolean, string?] {
 	if (!it || it.sold) return [false, 'sold'];
 	if (run.opening) return [false, 'open your bundle first'];
 	if (run.money < it.cost) return [false, 'too expensive'];
-	if (it.kind === 'relic' && it.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slot'];
+	if (it.kind === 'relic' && it.edition !== 'phantom' && !it.def.extraSlot && relicSlotsUsed(run) >= relicSlots(run)) return [false, 'no relic slot'];
 	if (it.kind === 'ploy' && run.ploys.length >= PLOY_SLOTS) return [false, 'no ploy slot'];
 	return [true];
 }
@@ -830,7 +851,7 @@ export function pick(run: Run, i: number): [boolean, string?] {
 	const o = run.opening;
 	if (!o) return [false, 'no bundle open'];
 	const c = o.options[i];
-	if (c?.kind === 'relic' && c.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slot'];
+	if (c?.kind === 'relic' && c.edition !== 'phantom' && !c.def.extraSlot && relicSlotsUsed(run) >= relicSlots(run)) return [false, 'no relic slot'];
 	if (c?.kind === 'ploy' && run.ploys.length >= PLOY_SLOTS) return [false, 'no ploy slot'];
 	if (c?.kind === 'relic') run.relics.push(instantiate(c.def, c.edition));
 	else if (c?.kind === 'ploy') run.ploys.push(c.def.key);
@@ -850,7 +871,7 @@ export function sellRelic(run: Run, i: number): boolean {
 export function reroll(run: Run): boolean {
 	if (run.money < run.rerollCost || run.opening) return false;
 	run.money -= run.rerollCost;
-	if (!run.freeRerolls) run.rerollCost++;
+	if (!run.freeRerolls) run.rerollCost = run.relics.some((r) => r.def.bargain) ? Math.max(BASE_REROLL - 1, run.rerollCost + 1) : run.rerollCost + 1;
 	run.shop!.items = Array.from({ length: SHOP_SIZE }, () => rollItem(run));
 	return true;
 }

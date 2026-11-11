@@ -39,7 +39,9 @@ const CLEAN_BONUS = 10;
 const round5 = (n: number) => (n < 100 ? Math.round(n / 5) * 5 : Math.round(n / 10) * 10);
 const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
-function aiCtx(run: Run, rng = run.rng): ai.AIContext {
+function aiCtx(run: Run, rng = run.rng, seat = 0): ai.AIContext {
+	// The Cartel: every opponent pushes points onto you; the Shark: North does, sharply.
+	if (R.bossIs(run, 'cartel') || (R.bossIs(run, 'shark') && seat === H.NORTH)) return { rng, skill: 1, plausible: false, target: H.PLAYER };
 	return { rng, skill: 0.85 + 0.015 * run.table, plausible: true };
 }
 
@@ -48,7 +50,7 @@ function advanceAI(run: Run<HeartsHand>) {
 	let guard = 0;
 	while (!st.complete && st.turn !== H.PLAYER) {
 		if (++guard > 200) throw new Error('hearts: AI stuck');
-		H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run)));
+		H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run, run.rng, st.turn)));
 	}
 }
 
@@ -58,6 +60,7 @@ function cardPoints(run: Run, c: Card): number {
 	if (seal === 'ward') return 0;
 	let p = H.points(c) + (seal === 'thorn' ? 3 : 0);
 	if (R.bossIs(run, 'widow') && H.isQueenOfSpades(c)) p *= 2;
+	if (R.bossIs(run, 'diamond_jack') && c.suit === H.DIAMONDS && c.rank === 11) p += 10;
 	return p;
 }
 
@@ -87,10 +90,27 @@ function applyFallGuy(run: Run<HeartsHand>) {
 	st.taken[H.WEST].push(...won);
 }
 
+/** The Fixer: the first heart you took goes to the opponent with the most points. */
+function applyFixer(run: Run<HeartsHand>) {
+	if (!R.hasRule(run, 'fixer')) return;
+	const st = run.hand.state!;
+	const heart = st.taken[H.PLAYER].find((c) => c.suit === H.HEARTS);
+	if (!heart || H.moonShooter(st) !== null) return;
+	const pts = H.pointsTaken(st);
+	const to = [1, 2, 4].reduce((a, b) => (pts[b] > pts[a] ? b : a));
+	st.taken[H.PLAYER].splice(st.taken[H.PLAYER].indexOf(heart), 1);
+	st.taken[to].push(heart);
+}
+
 function beginPlay(run: Run<HeartsHand>, stepwise = false) {
 	const h = run.hand;
 	h.state = H.newHand(h.dealt, { pts: (c) => cardPoints(run, c) });
 	if (R.bossIs(run, 'open_book')) h.state.heartsBroken = true;
+	// Wildcard: your first three cards may ignore follow-suit.
+	if (R.hasRule(run, 'wildcard')) {
+		h.state.wildSeat = H.PLAYER;
+		h.state.wildLeft = 3;
+	}
 	const seats = [1, 2, 4].filter((s) => ai.moonWorthy(h.state!.hands[s]) && run.rng.chance(0.7));
 	if (seats.length) h.state.moonSeats = seats;
 	run.phase = R.PHASE.PLAY;
@@ -152,10 +172,13 @@ function scoreCtx(run: Run<HeartsHand>): relicsLib.ScoreCtx {
 
 // Relics that only add to the score; the rule-changers wait for kit hooks.
 // The rule flags this module reads (with R.hasRule, or flagX for multipliers).
-const SUPPORTED = ['halfMoon', 'shadowMoon', 'moonlighter', 'moonX', 'baseX'] as const;
-const UNSUPPORTED = ['fixer', 'wildcard', 'cardCounter', 'extraSlot', 'seeDeck', 'interestCap', 'bargain'] as const;
+const SUPPORTED = ['halfMoon', 'shadowMoon', 'moonlighter', 'moonX', 'baseX', 'fixer', 'wildcard', 'cardCounter', 'seeDeck', 'extraSlot', 'interestCap', 'bargain'] as const;
+const UNSUPPORTED = [] as const;
 const RELICS: RelicDef<relicsLib.ScoreCtx>[] = relicsLib.DEFS.filter((d) => (d.score || d.onHandEnd || d.onBoardWin || SUPPORTED.some((f) => d[f])) && !UNSUPPORTED.some((f) => d[f])).map((d) => ({
-	rule: SUPPORTED.find((f) => d[f] && f !== 'moonX' && f !== 'baseX'),
+	rule: SUPPORTED.find((f) => d[f] && ['halfMoon', 'shadowMoon', 'moonlighter', 'fixer', 'wildcard', 'cardCounter', 'seeDeck'].includes(f)),
+	interestCap: d.interestCap,
+	bargain: d.bargain,
+	extraSlot: d.extraSlot,
 	key: d.key,
 	name: d.name,
 	rarity: d.rarity,
@@ -208,6 +231,10 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			if (chosen.length !== 3 || chosen.some((c) => !c)) throw new Error('hearts: pass three of your cards');
 			const passes: Card[][] = [[], [], [], [], []];
 			for (let s = 1; s <= 4; s++) passes[s] = s === H.PLAYER ? (chosen as Card[]) : ai.choosePassPlausible(h.dealt[s], run.rng);
+			if (R.bossIs(run, 'pickpocket')) {
+				const from = H.passSource(H.PLAYER, h.passDir);
+				passes[from] = ai.mostDangerous(h.dealt[from], 3);
+			}
 			const received = H.applyPasses(h.dealt, passes, h.passDir);
 			h.passed = chosen as Card[];
 			h.received = received[H.PLAYER];
@@ -227,7 +254,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			H.play(st, H.PLAYER, card);
 			if (!stepwise) advanceAI(run);
 		} else {
-			ai.playOut(h.state!, aiCtx(run));
+			ai.playOut(h.state!, (seat) => aiCtx(run, run.rng, seat));
 		}
 	},
 	handOver: (run) => !!run.hand.state?.complete,
@@ -235,10 +262,11 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && run.hand.state.turn !== H.PLAYER,
 	stepAI(run) {
 		const st = run.hand.state!;
-		return H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run))) ? 'trick' : 'card';
+		return H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run, run.rng, st.turn))) ? 'trick' : 'card';
 	},
 	score(run) {
 		applyFallGuy(run);
+		applyFixer(run);
 		const ctx = scoreCtx(run);
 		const lines: Line[] = [];
 		const levels: string[] = [];
@@ -323,6 +351,13 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			score: (c) => (c.heartsTaken && c.shooter !== H.PLAYER ? { label: `The Taxman: ${c.heartsTaken} heart${c.heartsTaken === 1 ? '' : 's'}`, chips: -5 * c.heartsTaken } : null)
 		},
 		{ key: 'moon_thief', name: 'The Moon Thief', text: 'Your moon doesn’t count', tier: 2 },
+		{ key: 'diamond_jack', name: 'The Diamond Jack', text: 'The jack of diamonds is worth 10 points', tier: 1 },
+		{ key: 'blindfold', name: 'The Blindfold', text: 'You choose your pass before you see your hand', tier: 1 },
+		{ key: 'pickpocket', name: 'The Pickpocket', text: 'The cards passed to you are always the most dangerous ones', tier: 2 },
+		{ key: 'fog', name: 'The Fog', text: 'Cards played after the lead stay face down until the trick is over', tier: 2 },
+		{ key: 'jinx', name: 'The Jinx', text: 'One of your relics, chosen at random, does nothing this board', tier: 2, jinx: true },
+		{ key: 'shark', name: 'The Shark', text: 'North plays sharp and tries to dump points on you', tier: 3 },
+		{ key: 'cartel', name: 'The Cartel', text: 'All three opponents work together to push points onto you', tier: 3 },
 		{ key: 'widow', name: 'The Widow', text: 'The queen of spades counts double, and the hand you take her scores half', tier: 2, score: (c) => (c.tookQueen && c.shooter !== H.PLAYER ? { label: 'The Widow: you took her queen', xmult: 0.5 } : null) },
 		{ key: 'shortchanger', name: 'The Shortchanger', text: 'Only two hands on this board', tier: 3, hands: 2 }
 	],
