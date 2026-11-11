@@ -224,6 +224,25 @@ final class GameModel {
         showOverview = true
     }
 
+    #if DEBUG
+    /// Debug builds only: STM_TO_SHOP=1 in the environment plays a new run
+    /// straight through to the first club, for checking its layout.
+    func debugToShop() {
+        newRun()
+        showOverview = false
+        for _ in 0..<60 {
+            guard let v = view else { return }
+            switch v.phase {
+            case .pass: act(.pass(Array(v.hand.mine.prefix(3).map(\.id))))
+            case .play: act(.playOut)
+            case .handScored: revealDone = true; act(.continue)
+            case .boardWon: act(.shop)
+            default: return
+            }
+        }
+    }
+    #endif
+
     func continueRun() {
         screen = .run
         pump()

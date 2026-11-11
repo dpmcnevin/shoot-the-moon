@@ -1,19 +1,21 @@
 import SwiftUI
 
-/// The club: four items (relics, upgrades, seals, pack items), your relics
-/// to sell, a reroll and the way on.
+/// The club: the wares laid out on the baize as cards, each with its price
+/// coin (tap one to read it and buy), your relics to sell, a reroll and the
+/// way to the next board.
 struct ShopView: View {
     @Environment(GameModel.self) private var model
+    @State private var picked: Int?
 
     var body: some View {
         let v = model.view!
         let L = model.layout
         let next = v.board == 3 && v.table == v.tables ? "Claim victory" : v.board == 3 ? "Next table" : "Next board"
-        VStack(alignment: .leading, spacing: 14 + L.dy * 0.15) {
+        VStack(alignment: .leading, spacing: 16 + L.dy * 0.15) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
                     Text("The Club").font(Theme.font(44, .bold)).foregroundStyle(Theme.brass).inkShadow(4)
-                    Text("Spend your winnings before the next board.").font(Theme.font(17)).foregroundStyle(Theme.inkDim)
+                    Text("Spend your winnings before the next board. Tap a card to read it.").font(Theme.font(17)).foregroundStyle(Theme.inkDim)
                 }
                 Spacer()
                 Text("$\(num(v.money))").font(Theme.font(44, .bold)).monospacedDigit().foregroundStyle(Theme.brass).inkShadow(4)
@@ -21,43 +23,40 @@ struct ShopView: View {
                     .padding(.trailing, 100) // clear of the Menu button
                     .padding(.top, 30)
             }
-            HStack(spacing: 18) {
-                ForEach(v.shop ?? []) { item in ShopItemCard(item: item) }
+            HStack(spacing: 30) {
+                ForEach(v.shop ?? []) { item in
+                    Ware(item: item, selected: picked == item.slot) {
+                        picked = picked == item.slot ? nil : item.slot
+                    } buy: {
+                        picked = nil
+                        model.buy(item)
+                    }
+                    .zIndex(picked == item.slot ? 1 : 0)
+                }
             }
-            .frame(height: 290 + L.dy * 0.5)
+            .frame(maxWidth: .infinity)
+            .frame(height: 270 + L.dy * 0.4)
+            .background(Rectangle().fill(RadialGradient(colors: [Theme.feltLight, Theme.feltEdge], center: .center, startRadius: 0, endRadius: 520))
+                .overlay(Rectangle().stroke(Theme.brassDim, lineWidth: 3))
+                .shadow(color: .black.opacity(0.35), radius: 0, x: 0, y: 6))
+            .zIndex(2)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Your relics \(v.relicSlotsUsed)/\(v.relicSlots)").font(Theme.font(20, .bold))
                 HStack(spacing: 12) {
                     ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
-                        if i < v.relics.count {
-                            let r = v.relics[i]
-                            VStack(alignment: .leading) {
-                                HStack(spacing: 8) {
-                                    Icon(key: r.icon).modifier(EditionShine(edition: r.edition?.key))
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        if let e = r.edition { EditionTag(edition: e, size: 11) }
-                                        Text(r.name).font(Theme.font(15)).lineLimit(2)
-                                    }
-                                }
-                                Spacer()
-                                GameButton("Sell $\(r.sell)", style: .plain, size: .small, sound: "sell") { model.sellRelic(i) }
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(PixelRect(radius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
-                            .overlay(PixelRect(radius: 10).stroke(Theme.rarity[r.rarity], lineWidth: 2))
-                        } else {
+                        if i < v.relics.count { OwnedRelic(relic: v.relics[i], index: i) }
+                        else {
                             Text("empty").font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(PixelRect(radius: 10).fill(Theme.bg))
                         }
                     }
                 }
-                .frame(height: 110 + L.dy * 0.4)
+                .frame(height: 110 + L.dy * 0.3)
             }
             Spacer()
             HStack {
-                GameButton("Reroll $\(v.rerollCost)", style: .plain, enabled: v.money >= v.rerollCost, sound: "reroll") { model.reroll() }
+                GameButton("Reroll $\(v.rerollCost)", style: .plain, enabled: v.money >= v.rerollCost, sound: "reroll") { picked = nil; model.reroll() }
                     .frame(width: 190)
                 Spacer()
                 GameButton(next, pulse: true) { model.leaveShop() }.frame(width: 210)
@@ -66,15 +65,114 @@ struct ShopView: View {
         .foregroundStyle(Theme.ink)
         .padding(.horizontal, 30).padding(.top, 18).padding(.bottom, 26)
         .frame(width: L.table.width, height: L.table.height)
+        .contentShape(Rectangle())
+        .onTapGesture { picked = nil }
         .animation(.spring(duration: 0.35), value: v.money)
+        .animation(.spring(duration: 0.25), value: picked)
     }
 }
 
-struct ShopItemCard: View {
+/// A relic you own, along the top, with its sell button.
+struct OwnedRelic: View {
+    @Environment(GameModel.self) private var model
+    let relic: RelicV
+    let index: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Icon(key: relic.icon).modifier(EditionShine(edition: relic.edition?.key))
+                VStack(alignment: .leading, spacing: 0) {
+                    if let e = relic.edition { EditionTag(edition: e, size: 11) }
+                    Text(relic.name).font(Theme.font(14)).lineLimit(2).minimumScaleFactor(0.8)
+                }
+            }
+            Spacer(minLength: 0)
+            GameButton("Sell $\(relic.sell)", style: .plain, size: .small, sound: "sell") { model.sellRelic(index) }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PixelRect(radius: 8).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 2, y: 5))
+        .overlay(PixelRect(radius: 8).stroke(Theme.rarity[relic.rarity], lineWidth: 2))
+    }
+}
+
+/// A ware on the baize: a card with its price coin. Selected, it lifts and
+/// shows what it does, with a Buy button.
+struct Ware: View {
     @Environment(GameModel.self) private var model
     let item: ShopItemV
+    let selected: Bool
+    let tap: () -> Void
+    let buy: () -> Void
 
-    var edge: Color {
+    static let cream = Color(hex: 0xf3ead6)
+    static let ink = Color(hex: 0x2a2418)
+
+    var body: some View {
+        let edge = ShopItemInfo.edge(item)
+        VStack(spacing: 0) {
+            Text(ShopItemInfo.kindName(item)).font(Theme.font(12)).foregroundStyle(edge).brightness(-0.25)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 4)
+            Spacer(minLength: 0)
+            Group {
+                if let s = item.seal { SealBadge(key: s, size: 64) }
+                else if let e = item.cardEdition {
+                    PixelImage(image: model.art.card(.sample, fourColor: model.fourColor)).frame(width: 54, height: 76)
+                        .modifier(EditionShine(edition: e))
+                }
+                else if let i = item.icon { Icon(key: i, scale: 4).modifier(EditionShine(edition: item.edition?.key)) }
+            }
+            Spacer(minLength: 0)
+            Text(item.name).font(Theme.font(16, .bold)).foregroundStyle(Self.ink)
+                .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 10).padding(.top, 10).padding(.bottom, 12)
+        .frame(width: 150, height: 210)
+        .background(PixelRect(radius: 10).fill(Self.cream).shadow(color: .black.opacity(0.45), radius: 0, x: 0, y: selected ? 10 : 7))
+        .overlay(PixelRect(radius: 10).stroke(edge, lineWidth: 4))
+        .overlay(PixelRect(radius: 7).stroke(edge.opacity(selected ? 1 : 0.45), lineWidth: 2).padding(6))
+        .overlay(alignment: .topTrailing) {
+            if !item.sold {
+                Text("$\(item.cost)").font(Theme.font(16, .bold)).foregroundStyle(Self.ink)
+                    .frame(minWidth: 38, minHeight: 38)
+                    .background(PixelRect(radius: 10).fill(Theme.brass))
+                    .overlay(PixelRect(radius: 10).stroke(Theme.brassDim, lineWidth: 3))
+                    .padding(8)
+            }
+        }
+        .overlay {
+            if item.sold {
+                ZStack {
+                    PixelRect(radius: 10).fill(.black.opacity(0.5))
+                    Text("SOLD").font(Theme.font(28, .bold)).foregroundStyle(Self.cream).padding(.horizontal, 8)
+                        .overlay(Rectangle().stroke(Self.cream, lineWidth: 3)).rotationEffect(.degrees(-14))
+                }
+            }
+        }
+        .rotationEffect(.degrees(selected ? -1.5 : 0))
+        .offset(y: selected ? -8 : 0)
+        .contentShape(Rectangle())
+        .onTapGesture { if !item.sold { tap() } }
+        .overlay(alignment: .top) {
+            // The card is a fixed 210 tall: hang the details just below it.
+            if selected && !item.sold {
+                ShopItemInfo(item: item, buy: buy)
+                    .frame(width: 280)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: 222)
+                    .transition(.opacity)
+            }
+        }
+    }
+}
+
+/// What a ware does, and its Buy button.
+struct ShopItemInfo: View {
+    let item: ShopItemV
+    let buy: () -> Void
+
+    static func edge(_ item: ShopItemV) -> Color {
         switch item.kind {
         case "relic": Theme.rarity[item.rarity ?? 1]
         case "seal": Color(css: item.color ?? "#d9a441")
@@ -82,6 +180,14 @@ struct ShopItemCard: View {
         case "ploy", "bundle": Theme.ploy
         case "edition": Edition.color(item.cardEdition ?? "etched")
         default: Theme.brass
+        }
+    }
+
+    static func kindName(_ item: ShopItemV) -> String {
+        switch item.kind {
+        case "relic": "\(item.rarityName ?? "") relic"
+        case "edition": "Card edition"
+        default: item.kind.prefix(1).uppercased() + item.kind.dropFirst()
         }
     }
 
@@ -98,46 +204,34 @@ struct ShopItemCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let edge = Self.edge(item)
+        VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                if let e = item.edition { EditionTag(edition: e, size: 13) }
-                Text(kindLabel).font(Theme.font(14)).foregroundStyle(edge)
+                if let e = item.edition { EditionTag(edition: e, size: 12) }
+                Text(kindLabel).font(Theme.font(13)).foregroundStyle(item.kind == "ploy" || item.kind == "bundle" ? Color(hex: 0xc2adf0) : edge)
             }
-            HStack(alignment: .top) {
-                Text(item.name).font(Theme.font(20, .bold)).inkShadow()
-                Spacer()
-                if let s = item.seal { SealBadge(key: s, size: 42) }
-                else if let e = item.cardEdition {
-                    PixelImage(image: model.art.card(.sample, fourColor: model.fourColor)).frame(width: 40, height: 56)
-                        .modifier(EditionShine(edition: e))
-                }
-                else if let i = item.icon { Icon(key: i, scale: 3).modifier(EditionShine(edition: item.edition?.key)) }
-            }
-            Text(item.text + (item.kind == "relic" ? "" : ".")).font(Theme.font(16)).foregroundStyle(Theme.inkDim)
+            Text(item.name).font(Theme.font(20, .bold)).inkShadow()
+            Text(item.text + (item.kind == "relic" ? "" : ".")).font(Theme.font(15)).foregroundStyle(Theme.inkDim)
             if let e = item.edition {
                 Text("\(e.name): \(e.text.prefix(1).lowercased() + e.text.dropFirst())")
-                    .font(Theme.font(16)).foregroundStyle(Edition.color(e.key))
+                    .font(Theme.font(15)).foregroundStyle(Edition.color(e.key))
             }
             if item.kind == "upgrade", let lvl = item.level {
                 Text("Lv.\(lvl) → Lv.\(lvl + 1): +\(num(item.nextChips ?? 0)) chips, +\(item.nextMult ?? 0, specifier: "%.1f") mult")
-                    .font(Theme.font(16))
+                    .font(Theme.font(15))
             }
-            if item.kind == "pack" { Text("Changes the pack everyone is dealt from. You choose the card.").font(Theme.font(15)) }
-            if item.kind == "ploy" { Text("One use. Hold up to 2; use it from the sidebar.").font(Theme.font(15)) }
-            if item.kind == "seal" { Text("You choose the card.").font(Theme.font(16)) }
-            if item.kind == "edition" { Text("Lasts the run. You choose the card.").font(Theme.font(16)) }
-            Spacer(minLength: 0)
-            if item.sold {
-                Text("SOLD").font(Theme.font(28, .bold)).foregroundStyle(Theme.inkDim).frame(maxWidth: .infinity)
-            } else {
-                GameButton("Buy $\(item.cost)", enabled: item.canBuy, sound: nil) { model.buy(item) }
-            }
+            if item.kind == "pack" { Text("Changes the pack everyone is dealt from. You choose the card.").font(Theme.font(14)) }
+            if item.kind == "ploy" { Text("One use. Hold up to 2; use it from the sidebar.").font(Theme.font(14)) }
+            if item.kind == "seal" { Text("You choose the card.").font(Theme.font(15)) }
+            if item.kind == "edition" { Text("Lasts the run. You choose the card.").font(Theme.font(15)) }
+            GameButton(item.canBuy ? "Buy $\(item.cost)" : (item.why ?? "Can't buy"), enabled: item.canBuy, sound: nil) { buy() }
+                .padding(.top, 6)
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(PixelRect(radius: 10).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5))
-        .overlay(PixelRect(radius: 10).stroke(edge, lineWidth: 2))
-        .overlay { if item.sold { PixelRect(radius: 10).fill(.black.opacity(0.5)).allowsHitTesting(false) } }
+        .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(PixelRect(radius: 8).fill(Theme.panel).shadow(color: .black.opacity(0.45), radius: 0, x: 0, y: 6))
+        .overlay(PixelRect(radius: 8).stroke(Theme.brassDim, lineWidth: 2))
+        .onTapGesture {} // keep taps inside from closing it
     }
 }
 

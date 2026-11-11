@@ -1,5 +1,6 @@
-<!-- The club: four items (relics and upgrades), your relics to sell, a
-     reroll and the way to the next board. -->
+<!-- The club: the wares laid out on the baize as cards, each with its price
+     coin (tap or hover one to read it and buy), your relics to sell, a reroll
+     and the way to the next board. -->
 <script lang="ts">
 	import { fly } from 'svelte/transition';
 	import { backOut, cubicOut } from 'svelte/easing';
@@ -37,6 +38,13 @@
 	);
 	const edge = (it: R.ShopItem) =>
 		it.kind === 'relic' ? css(C.rarity[it.def.rarity]) : it.kind === 'seal' ? it.def.color : it.kind === 'pack' ? 'var(--chips)' : it.kind === 'edition' ? editionColor(it.def.key) : it.kind === 'ploy' || it.kind === 'bundle' ? 'var(--ploy)' : 'var(--brass)';
+	const kindName = (it: R.ShopItem) =>
+		it.kind === 'relic' ? `${relics.RARITY_NAME[it.def.rarity]} relic` : it.kind === 'edition' ? 'Card edition' : it.kind[0].toUpperCase() + it.kind.slice(1);
+	let picked = $state<number | null>(null);
+	$effect(() => {
+		void game.shopRolls;
+		picked = null;
+	});
 	function canBuy(i: number) {
 		void game.v;
 		return R.canBuy(run, i);
@@ -47,74 +55,120 @@
 		const a = el.getBoundingClientRect(),
 			b = stage.getBoundingClientRect();
 		const k = stage.offsetWidth / b.width;
+		picked = null;
 		game.buy(i, (a.left + a.width / 2 - b.left) * k, (a.top + a.height / 2 - b.top) * k);
 	}
 </script>
 
-<div class="shop" class:portrait style:left="{L.table.x}px" style:top="{L.table.y}px" style:width="{L.table.w}px" style:height="{L.table.h}px">
+{#snippet face(item: R.ShopItem)}
+	{#if item.kind === 'seal'}<SealBadge seal={item.def.key} size={64} />
+	{:else if item.kind === 'edition'}<Shine edition={item.def.key}><img class="ed-card" src={cardFace(cards.card(3, 13), false, settings.pixelCards, settings.fourColor)} alt="" /></Shine>
+	{:else if item.kind === 'relic'}<Shine edition={item.edition}><Icon name={item.def.icon} scale={4} /></Shine>
+	{:else}<Icon name={item.def.icon} scale={4} />{/if}
+{/snippet}
+
+{#snippet info(item: R.ShopItem)}
+	{#if item.kind === 'relic'}
+		<div class="kind" style:color={edge(item)}>
+			{#if item.edition}<span class="ed" style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name.toUpperCase()}</span>{/if}
+			{relics.RARITY_NAME[item.def.rarity]} relic
+		</div>
+		<h3>{item.name}</h3>
+		<p>{relics.textAt(item.def, run.balance)}</p>
+		{#if item.edition}<p style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name}: {relics.EDITIONS[item.edition].text.toLowerCase()}</p>{/if}
+	{:else if item.kind === 'upgrade'}
+		{@const lvl = run.levels[item.def.key]}
+		{@const next = R.upgradeBonus(item.def.key, lvl + 1)}
+		<div class="kind brass">Upgrade</div>
+		<h3>{item.name}</h3>
+		<p>{R.upgradeText(item.def.key, run.balance)}.</p>
+		<p class="ink">Lv.{lvl} → Lv.{lvl + 1}: +{next[0]} chips, +{next[1].toFixed(1)} mult</p>
+	{:else if item.kind === 'seal'}
+		<div class="kind" style:color={item.def.color}>Seal</div>
+		<h3>{item.name}</h3>
+		<p>{item.def.text}.</p>
+		<p class="ink">You choose the card.</p>
+	{:else if item.kind === 'edition'}
+		<div class="kind" style:color={editionColor(item.def.key)}>Card edition</div>
+		<h3>{item.name}</h3>
+		<p>{item.def.text}.</p>
+		<p class="ink">Lasts the run. You choose the card.</p>
+	{:else if item.kind === 'ploy'}
+		<div class="kind" style:color="var(--ploy-light)">Ploy</div>
+		<h3>{item.name}</h3>
+		<p>{item.def.text}.</p>
+		<p class="ink">One use. You hold up to {ploysLib.PLOY_SLOTS}; use it from the sidebar.</p>
+	{:else if item.kind === 'bundle'}
+		<div class="kind" style:color="var(--ploy-light)">Bundle</div>
+		<h3>{item.name}</h3>
+		<p>{item.def.text}.</p>
+	{:else}
+		<div class="kind pack">Pack</div>
+		<h3>{item.name}</h3>
+		<p>{item.def.text}.</p>
+		<p class="ink">Changes the pack everyone is dealt from. You choose the card.</p>
+	{/if}
+{/snippet}
+
+{#snippet ware(item: R.ShopItem, i: number, below: boolean)}
+	{@const can = canBuy(i)}
+	<div
+		class="item"
+		class:sel={picked === i}
+		class:sold={item.sold}
+		style:--edge={edge(item)}
+		role="button"
+		tabindex="0"
+		onclick={(e) => {
+			e.stopPropagation();
+			picked = picked === i ? null : i;
+		}}
+		onkeydown={(e) => e.key === 'Enter' && (picked = picked === i ? null : i)}
+		in:fly={{ y: 60, duration: 350, delay: i * 80, easing: backOut }}
+	>
+		<div class="card">
+			<div class="kindline">{kindName(item)}</div>
+			{#if !item.sold}<div class="coin">${item.cost}</div>{/if}
+			<div class="art">{@render face(item)}</div>
+			<div class="name">{item.name}</div>
+			{#if item.sold}<div class="stamp">SOLD</div>{/if}
+		</div>
+		{#if !item.sold}
+			<div class="info" class:below class:above={!below}>
+				<div class="info-box" style:border-color={edge(item)}>
+					{@render info(item)}
+					<div class="buy">
+						<Button enabled={can[0]} sound={false} title={can[0] ? undefined : `Can't buy: ${can[1]}`} onclick={(e) => buy(i, e)} style="width: 100%">
+							{can[0] ? `Buy $${item.cost}` : can[1]}
+						</Button>
+					</div>
+				</div>
+			</div>
+		{/if}
+	</div>
+{/snippet}
+
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+<div
+	class="shop"
+	class:portrait
+	style:left="{L.table.x}px"
+	style:top="{L.table.y}px"
+	style:width="{L.table.w}px"
+	style:height="{L.table.h}px"
+	onclick={() => (picked = null)}
+>
 	<div class="head">
 		<div>
 			<h1>The Club</h1>
-			<div class="dim">Spend your winnings before the next board.</div>
+			<div class="dim">Spend your winnings before the next board. Tap a card to read it.</div>
 		</div>
 		<div class="money">${num(money.current)}</div>
 	</div>
 
 	{#key game.shopRolls}
-		<div class="items">
-			{#each items as item, i (i)}
-				{@const can = canBuy(i)}
-				<div class="item" style:border-color={edge(item)} in:fly={{ y: 60, duration: 350, delay: i * 80, easing: backOut }}>
-					{#if item.kind === 'relic'}
-						<div class="kind" style:color={edge(item)}>
-							{#if item.edition}<span class="ed" style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name.toUpperCase()}</span>{/if}
-							{relics.RARITY_NAME[item.def.rarity]} relic
-						</div>
-						<div class="title-row"><h3>{item.name}</h3><Shine edition={item.edition}><Icon name={item.def.icon} scale={3} /></Shine></div>
-						<p>{relics.textAt(item.def, run.balance)}</p>
-						{#if item.edition}<p style:color={editionColor(item.edition)}>{relics.EDITIONS[item.edition].name}: {relics.EDITIONS[item.edition].text.toLowerCase()}</p>{/if}
-					{:else if item.kind === 'upgrade'}
-						{@const lvl = run.levels[item.def.key]}
-						{@const next = R.upgradeBonus(item.def.key, lvl + 1)}
-						<div class="kind brass">Upgrade</div>
-						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{R.upgradeText(item.def.key, run.balance)}.</p>
-						<p class="ink">Lv.{lvl} → Lv.{lvl + 1}: +{next[0]} chips, +{next[1].toFixed(1)} mult</p>
-					{:else if item.kind === 'seal'}
-						<div class="kind" style:color={item.def.color}>Seal</div>
-						<div class="title-row"><h3>{item.name}</h3><SealBadge seal={item.def.key} size={42} /></div>
-						<p>{item.def.text}.</p>
-						<p class="ink">You choose the card.</p>
-					{:else if item.kind === 'edition'}
-						<div class="kind" style:color={editionColor(item.def.key)}>Card edition</div>
-						<div class="title-row"><h3>{item.name}</h3><Shine edition={item.def.key}><img class="ed-card" src={cardFace(cards.card(3, 13), false, settings.pixelCards, settings.fourColor)} alt="" /></Shine></div>
-						<p>{item.def.text}.</p>
-						<p class="ink">Lasts the run. You choose the card.</p>
-					{:else if item.kind === 'ploy'}
-						<div class="kind" style:color="var(--ploy)">Ploy</div>
-						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{item.def.text}.</p>
-						<p class="ink">One use. You hold up to {ploysLib.PLOY_SLOTS}; use it from the sidebar.</p>
-					{:else if item.kind === 'bundle'}
-						<div class="kind" style:color="var(--ploy)">Bundle</div>
-						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{item.def.text}.</p>
-					{:else}
-						<div class="kind pack">Pack</div>
-						<div class="title-row"><h3>{item.name}</h3><Icon name={item.def.icon} scale={3} /></div>
-						<p>{item.def.text}.</p>
-						<p class="ink">Changes the pack everyone is dealt from. You choose the card.</p>
-					{/if}
-					<div class="buy">
-						{#if item.sold}
-							<div class="sold">SOLD</div>
-						{:else}
-							<Button enabled={can[0]} sound={false} title={can[0] ? undefined : `Can't buy: ${can[1]}`} onclick={(e) => buy(i, e)} style="width: 100%">Buy ${item.cost}</Button>
-						{/if}
-					</div>
-					{#if item.sold}<div class="sold-cover"></div>{/if}
-				</div>
-			{/each}
+		<div class="wares">
+			{#each items as item, i (i)}{@render ware(item, i, true)}{/each}
 		</div>
 	{/key}
 
@@ -157,7 +211,7 @@
 		padding: 18px 30px 26px;
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: 16px;
 		z-index: 110;
 	}
 	.head {
@@ -182,45 +236,164 @@
 		color: var(--ink-dim);
 		font-size: 17px;
 	}
-	.items {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 18px;
-		height: 290px;
+	.wares {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 30px;
+		height: 270px;
+		background: radial-gradient(ellipse at center, var(--felt-light), var(--felt-edge) 80%);
+		border: 3px solid var(--brass-dim);
+		box-shadow:
+			inset 0 0 0 3px rgba(0, 0, 0, 0.25),
+			0 6px 0 rgba(0, 0, 0, 0.35);
 	}
-	.portrait .items {
-		grid-template-columns: repeat(2, 1fr);
+	.portrait .wares {
+		flex-wrap: wrap;
 		height: auto;
-		grid-auto-rows: 260px;
+		padding: 24px 0;
 	}
-	.item,
-	.relic {
-		position: relative;
-		background: var(--panel);
-		border: 2px solid var(--brass-dim);
-		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
-		--px-sy: 6px;
-		clip-path: var(--px-clip);
-	}
+
 	.item {
+		position: relative;
+		width: 150px;
+		cursor: pointer;
+		outline: none;
+		transition: transform 0.12s;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.item:hover,
+	.item.sel {
+		transform: translateY(-8px) rotate(-1.5deg);
+		z-index: 5;
+	}
+	.item.sold {
+		cursor: default;
+		transform: none;
+	}
+	.card {
+		position: relative;
+		height: 210px;
+		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
-		padding: 12px 16px;
-		overflow: hidden;
+		align-items: center;
+		justify-content: space-between;
+		padding: 10px 10px 12px;
+		background: #f3ead6;
+		color: #2a2418;
+		border: 4px solid var(--edge);
+		box-shadow:
+			inset 0 0 0 3px #f3ead6,
+			inset 0 0 0 5px color-mix(in srgb, var(--edge) 45%, #f3ead6),
+			0 7px 0 rgba(0, 0, 0, 0.45);
+		--px-a: 6px;
+		--px-sy: 7px;
+		clip-path: var(--px-clip);
 		animation: bobitem 3.9s ease-in-out infinite;
+	}
+	.sel .card {
+		box-shadow:
+			inset 0 0 0 3px #f3ead6,
+			inset 0 0 0 5px var(--edge),
+			0 10px 0 rgba(0, 0, 0, 0.45);
 	}
 	@keyframes bobitem {
 		50% {
 			transform: translateY(-3px);
 		}
 	}
+	.kindline {
+		align-self: flex-start;
+		font-size: 12px;
+		letter-spacing: 0.04em;
+		color: color-mix(in srgb, var(--edge) 70%, #2a2418);
+		padding-left: 4px;
+	}
+	.coin {
+		position: absolute;
+		right: 8px;
+		top: 8px;
+		min-width: 38px;
+		height: 38px;
+		box-sizing: border-box;
+		padding: 0 6px;
+		--px-a: 10px;
+		--px-b: 4px;
+		--px-sy: 0px;
+		clip-path: var(--px-clip);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--brass);
+		box-shadow: inset 0 -3px 0 var(--brass-dim), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+		color: #2a2418;
+		font-size: 16px;
+		font-weight: 700;
+	}
+	.art {
+		flex: 1;
+		display: flex;
+		align-items: center;
+	}
 	.ed-card {
-		width: 40px;
-		height: 56px;
+		width: 54px;
+		height: 76px;
 		display: block;
 	}
+	.name {
+		font-size: 16px;
+		font-weight: 700;
+		line-height: 1.1;
+		text-align: center;
+	}
+	.sold .card {
+		filter: grayscale(0.8) brightness(0.5);
+		animation: none;
+	}
+	.stamp {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%) rotate(-14deg);
+		font-size: 28px;
+		font-weight: 700;
+		color: #2a2418;
+		border: 3px solid #2a2418;
+		padding: 0 8px;
+	}
+	.info {
+		display: none;
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 280px;
+		z-index: 20;
+		cursor: default;
+	}
+	.info.below {
+		top: 100%;
+		padding-top: 12px;
+	}
+	.info.above {
+		bottom: 100%;
+		padding-bottom: 12px;
+	}
+	.item:not(.sold):hover .info,
+	.item.sel .info {
+		display: block;
+	}
+	.info-box {
+		background: var(--panel);
+		border: 2px solid var(--brass-dim);
+		padding: 10px 14px 12px;
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+		--px-a: 5px;
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
+	}
 	.kind {
-		font-size: 14px;
+		font-size: 13px;
 	}
 	.pack {
 		color: var(--chips);
@@ -231,40 +404,21 @@
 	.ink {
 		color: var(--ink) !important;
 	}
-	.title-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: 8px;
-	}
 	h3 {
-		margin: 6px 0 4px;
+		margin: 4px 0 2px;
 		font-size: 20px;
 		text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
 	}
 	p {
-		margin: 6px 0 0;
-		font-size: 16px;
+		margin: 5px 0 0;
+		font-size: 15px;
 		line-height: 1.3;
 		color: var(--ink-dim);
 	}
 	.buy {
-		margin-top: auto;
-		padding-top: 8px;
+		margin-top: 10px;
 	}
-	.sold {
-		text-align: center;
-		font-size: 28px;
-		font-weight: 700;
-		color: var(--ink-dim);
-		position: relative;
-		z-index: 2;
-	}
-	.sold-cover {
-		position: absolute;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.55);
-	}
+
 	.owned h3 {
 		margin: 0 0 8px;
 	}
@@ -291,12 +445,18 @@
 		grid-template-columns: repeat(3, 1fr);
 	}
 	.relic {
+		position: relative;
 		height: 110px;
 		box-sizing: border-box;
 		padding: 10px 12px;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
+		background: var(--panel);
+		border: 2px solid var(--brass-dim);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+		--px-sy: 6px;
+		clip-path: var(--px-clip);
 	}
 	.relic-head {
 		display: flex;

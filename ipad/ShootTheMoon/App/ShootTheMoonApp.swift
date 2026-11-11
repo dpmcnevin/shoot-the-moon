@@ -13,6 +13,9 @@ struct ShootTheMoonApp: App {
                     .persistentSystemOverlays(.hidden)
                     .statusBarHidden()
                     .onAppear(perform: lockWindow)
+                    #if DEBUG
+                    .task { if ProcessInfo.processInfo.environment["STM_TO_SHOP"] != nil { model.debugToShop() } }
+                    #endif
             } else {
                 Text("The game engine failed to load.").foregroundStyle(.white)
             }
