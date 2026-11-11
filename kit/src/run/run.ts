@@ -3,21 +3,29 @@
 //
 //   tables x boards x hands   Each board has a goal; reach it within its
 //                             hands to win the board, earn money and visit
-//                             the club. Win every board of every table.
+//                             the club. The last board of a table has a boss.
+//                             Boards 1 and 2 can be skipped for a tag. Win
+//                             every table, then keep going (endless).
 //   score                     A hand scores chips x mult: the game's base
-//                             lines, then upgrade levels, then relics (in
-//                             the order you hold them), then ploys.
-//   the club                  Relics, upgrades and ploys; reroll, sell.
+//                             lines, upgrade levels, relics (and their
+//                             editions), the cards you played (editions and
+//                             seals), the boss, then ploys.
+//   the club                  Relics, upgrades, ploys, card editions, seals
+//                             and bundles; reroll, sell.
+//   the pack                  The run's own cards, with ids, so editions and
+//                             seals stay on a card all run.
 //   saves                     A run is its seed and its actions: replaying
 //                             them rebuilds it exactly (see save.ts).
 //
 // The game itself lives in a GameModule: how a hand is dealt, the actions a
-// player takes before and during play (passing, bidding, playing a card),
-// when the hand is over, its base score, and its content (relics, upgrades,
-// ploys). The run calls the module; the module never reaches into the run
-// beyond `run.hand`, `run.ext` and the helpers here.
+// player takes before and during play, when the hand is over, its base
+// score, and its content. Everything else here is shared.
 
 import { newRng, randomSeedString, type RNG } from '../core/rules/rng.ts';
+import * as cards from '../core/rules/cards.ts';
+import type { Card, Hands } from '../core/rules/cards.ts';
+import * as C from './content.ts';
+import type { CardMod, DeckDef, PlayedCard, SealDef, TagKey, BundleKey, RelicEditionKey, CardEditionKey } from './content.ts';
 
 // ------------------------------------------------------------------ scoring
 
@@ -27,9 +35,11 @@ export interface Line {
 	mult?: number;
 	xmult?: number;
 	money?: number;
+	/** An edition behind the line (a relic's or a card's), for its color. */
+	edition?: string;
 }
 
-/** What a relic, upgrade or ploy adds to a hand. */
+/** What a relic, upgrade, seal, boss or ploy adds to a hand. */
 export interface Effect {
 	chips?: number;
 	/** Vulnerable's relics say points; the same thing. */
@@ -59,10 +69,12 @@ export interface BaseScore<S> {
 	title: string;
 	made: boolean;
 	lines: Line[];
-	/** What relics see: the game's facts about the hand. */
+	/** What relics and bosses see: the game's facts about the hand. */
 	ctx: S;
 	/** Which upgrades this hand levels (their keys). */
 	levels: string[];
+	/** The cards played this hand, for editions and seals. */
+	played?: PlayedCard[];
 	detail?: unknown;
 }
 
@@ -75,6 +87,7 @@ export interface Relic<S = unknown> {
 	cost: number;
 	/** Scaling relics keep what they've grown here. */
 	state: Record<string, any>;
+	edition?: RelicEditionKey;
 }
 
 export interface RelicDef<S = unknown> {
@@ -90,6 +103,8 @@ export interface RelicDef<S = unknown> {
 	/** After each hand is banked (scaling relics grow here); may pay money. */
 	onHandEnd?: (ctx: S, relic: Relic<S>, made: boolean, run: Run) => { money?: number } | void;
 	onBoardWin?: (relic: Relic<S>, run: Run) => { money?: number } | void;
+	/** A rule the game reads with hasRule (a relic that bends the rules). */
+	rule?: string;
 }
 
 /** A permanent level for one kind of hand: each level past the first adds
@@ -117,6 +132,20 @@ export interface PloyDef {
 	use: (run: Run) => void;
 }
 
+/** A boss: the last board of each table, with a rule. Score hooks run
+ *  after relics; `rule` is a key the game checks with bossIs(); `hands`
+ *  changes the hands on its board. */
+export interface BossDef<S = unknown> {
+	key: string;
+	name: string;
+	text: string;
+	icon?: string;
+	score?: (ctx: S, run: Run) => Line | null | void;
+	hands?: number;
+	/** Bosses come in tiers; later tables draw from higher ones. */
+	tier?: number;
+}
+
 export const RARITY_NAME = ['', 'Common', 'Uncommon', 'Rare', 'Legendary'];
 
 // ------------------------------------------------------------------ module
@@ -140,9 +169,12 @@ export interface GameModule<H = any, A = any, S = any> {
 	startMoney: number;
 	goal(table: number, board: number): number;
 	boardName?(run: Run<H>): string;
-	/** Called as each board starts (vulnerability, a boss...). */
+	/** The run's pack (default: the 52-card deck). Ids are added by the kit. */
+	newPack?(): Card[];
+	/** Called as each board starts (vulnerability...). */
 	startBoard?(run: Run<H>): void;
-	/** Deal a new hand. Return 'pre' to ask for the pre-play step first. */
+	/** Deal a new hand from run.pack (see shuffledPack, homing). Return 'pre'
+	 *  to ask for the pre-play step first. */
 	deal(run: Run<H>): { hand: H; phase: 'pre' | 'play' };
 	/** Apply one of the game's own actions; throw if it's illegal. The module
 	 *  runs the AI seats after it until it's the player's turn again, unless
@@ -154,17 +186,24 @@ export interface GameModule<H = any, A = any, S = any> {
 	stepAI?(run: Run<H>): 'trick' | 'card' | null;
 	/** The hand has been played out. */
 	handOver(run: Run<H>): boolean;
+	/** Nothing has happened this hand yet: no trick finished (a board can
+	 *  still be skipped). Default: only in the pre-play step. */
+	untouched?(run: Run<H>): boolean;
 	/** The game's part of the score. */
 	score(run: Run<H>): BaseScore<S>;
 	relics: RelicDef<S>[];
 	upgrades: UpgradeDef[];
-	/** The game's own ploys; the kit adds its generic ones. */
+	/** The game's own ploys, seals, decks and bosses; the kit adds its generic ones. */
 	ploys?: PloyDef[];
+	seals?: SealDef[];
+	decks?: DeckDef[];
+	bosses?: BossDef<S>[];
+	/** Card editions and seals change cards in the pack (off for a game
+	 *  whose pack must stay as dealt). Default on. */
+	cardMods?: boolean;
 	/** A sensible action for the player right now: autoplay and tests. Any
 	 *  randomness comes from `rng`, never the run's own (replays must match). */
 	bot(run: Run<H>, rng: RNG): A;
-	/** The club's mix: chance of an upgrade and of a ploy (the rest relics). */
-	shopOdds?: { upgrade: number; ploy: number };
 }
 
 // ------------------------------------------------------------------ the run
@@ -181,15 +220,25 @@ export const PHASE = {
 export type Phase = (typeof PHASE)[keyof typeof PHASE];
 
 export type ShopItem =
-	| { kind: 'relic'; def: RelicDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'relic'; def: RelicDef; name: string; cost: number; edition?: RelicEditionKey; sold?: boolean }
 	| { kind: 'upgrade'; def: UpgradeDef; name: string; cost: number; sold?: boolean }
-	| { kind: 'ploy'; def: PloyDef; name: string; cost: number; sold?: boolean };
+	| { kind: 'ploy'; def: PloyDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'edition'; def: C.CardEditionDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'seal'; def: SealDef; name: string; cost: number; sold?: boolean }
+	| { kind: 'bundle'; def: C.BundleDef; name: string; cost: number; sold?: boolean };
+
+/** One of a bundle's three choices. */
+export type BundleChoice =
+	| { kind: 'relic'; def: RelicDef; edition?: RelicEditionKey }
+	| { kind: 'ploy'; def: PloyDef }
+	| { kind: 'edition'; cardId: number; edition: CardEditionKey };
 
 export interface Payout {
 	board: number;
 	unused: number;
 	interest: number;
 	relics: number;
+	boss: number;
 	total: number;
 }
 
@@ -199,6 +248,7 @@ export interface Stats {
 	best: number;
 	total: number;
 	ploysUsed: number;
+	boardsSkipped: number;
 }
 
 export interface Run<H = any> {
@@ -206,6 +256,7 @@ export interface Run<H = any> {
 	module: GameModule<H>;
 	seed: string | number;
 	rng: RNG;
+	deck: string;
 	table: number;
 	board: number;
 	boardsWonThisTable: number;
@@ -213,6 +264,7 @@ export interface Run<H = any> {
 	score: number;
 	target: number;
 	handsLeft: number;
+	handsThisBoard: number;
 	phase: Phase;
 	hand: H;
 	result: Breakdown | null;
@@ -220,13 +272,28 @@ export interface Run<H = any> {
 	/** Ploy keys held. */
 	ploys: string[];
 	levels: Record<string, number>;
+	/** The run's cards, with ids; mods by card id. */
+	pack: Card[];
+	mods: Record<string, CardMod>;
 	shop: { items: ShopItem[] } | null;
+	/** A bundle being opened in the club. */
+	opening: { bundle: BundleKey; options: BundleChoice[] } | null;
 	rerollCost: number;
+	freeRerolls?: boolean;
+	doubleInterest?: boolean;
+	/** This table's boss (the last board's). */
+	boss: BossDef | null;
+	/** This table's tags for skipping boards 1 and 2. */
+	tagOffers: TagKey[];
+	/** Tags whose reward comes later (the next club). */
+	pendingTags: TagKey[];
+	/** After the last table: the run goes on. */
+	endless: boolean;
 	/** Spotlight: the next hand scores x2. */
 	spotlight?: boolean;
 	lastPayout?: Payout;
 	stats: Stats;
-	/** The game's own run state (vulnerability, a pass rotation...). */
+	/** The game's own run state (a pass rotation, a dealer...). */
 	ext: Record<string, any>;
 }
 
@@ -236,8 +303,11 @@ export const SHOP_SIZE = 4;
 export const BASE_REROLL = 5;
 export const MONEY_PER_BOARD = 4;
 export const MONEY_PER_UNUSED = 1;
+export const BOSS_BONUS = 2;
 export const INTEREST_PER = 5;
 export const MAX_INTEREST = 5;
+/** Endless goals grow this much a table past the last. */
+export const ENDLESS_GROWTH = 1.6;
 
 /** Ploys every game gets. */
 export const GENERIC_PLOYS: PloyDef[] = [
@@ -260,8 +330,38 @@ export const GENERIC_PLOYS: PloyDef[] = [
 	}
 ];
 
+/** Starting decks every game gets (a game adds its own). */
+export const GENERIC_DECKS: DeckDef[] = [
+	{ key: 'standard', name: 'Standard Deck', text: 'The usual start', back: 'standard' },
+	{ key: 'gilded', name: 'Gilded Deck', text: 'Start with $10', back: 'gilded', apply: (run) => (run.money = 10) },
+	{
+		key: 'royal', name: 'Royal Deck', text: 'Your four aces start Etched', back: 'royal',
+		apply: (run) => run.pack.filter((c) => c.rank === 14).forEach((c) => setMod(run, c, { edition: 'etched' }))
+	},
+	{
+		key: 'schemer', name: "Schemer's Deck", text: 'Start with two ploys', back: 'schemer',
+		apply: (run) => {
+			while (run.ploys.length < PLOY_SLOTS) run.ploys.push(run.rng.pick(allPloys(run.module))!.key);
+		}
+	},
+	{
+		key: 'collector', name: "Collector's Deck", text: 'Start with a random common relic, but only $2', back: 'collector',
+		apply: (run) => {
+			const def = run.rng.pick(run.module.relics.filter((d) => d.rarity === 1));
+			if (def) run.relics.push(instantiate(def));
+			run.money = 2;
+		}
+	}
+];
+
 export function allPloys(m: GameModule): PloyDef[] {
 	return [...GENERIC_PLOYS, ...(m.ploys ?? [])];
+}
+export function allSeals(m: GameModule): SealDef[] {
+	return [...C.SEALS, ...(m.seals ?? [])];
+}
+export function allDecks(m: GameModule): DeckDef[] {
+	return [...GENERIC_DECKS, ...(m.decks ?? [])];
 }
 export function ployDef(run: Run, key: string): PloyDef | undefined {
 	return allPloys(run.module).find((p) => p.key === key);
@@ -271,13 +371,71 @@ function assert(cond: unknown, msg: string): asserts cond {
 	if (!cond) throw new Error(msg);
 }
 
-export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number } = {}): Run<H> {
+export function instantiate(def: RelicDef, edition?: RelicEditionKey): Relic {
+	return { key: def.key, def, name: def.name, cost: def.cost + (edition ? C.RELIC_EDITIONS[edition].cost : 0), state: {}, edition };
+}
+
+// ------------------------------------------------------------------ the pack
+
+export function mod(run: Run, c: Card): CardMod {
+	return run.mods[C.modKey(c)] ?? {};
+}
+export function setMod(run: Run, c: Card, m: CardMod) {
+	run.mods[C.modKey(c)] = { ...mod(run, c), ...m };
+}
+export function sealOf(run: Run, c: Card): SealDef | undefined {
+	const k = mod(run, c).seal;
+	return k ? allSeals(run.module).find((s) => s.key === k) : undefined;
+}
+
+/** The pack, shuffled with the run's RNG: what a module deals from. */
+export function shuffledPack(run: Run): Card[] {
+	return run.rng.shuffle(run.pack.slice());
+}
+
+/** Homing seals: move each into the player's hand right after the deal,
+ *  swapping it for their lowest card that isn't homing. Deterministic. */
+export function homing(run: Run, hands: Hands, player: number) {
+	const home = (c: Card) => !!sealOf(run, c)?.homing;
+	const mine = hands[player];
+	for (let seat = 1; seat < hands.length; seat++) {
+		if (seat === player) continue;
+		for (const c of hands[seat].slice()) {
+			if (!home(c)) continue;
+			const give = mine.filter((m) => !home(m)).reduce<Card | undefined>((lo, m) => (!lo || m.rank < lo.rank || (m.rank === lo.rank && m.suit < lo.suit) ? m : lo), undefined);
+			if (!give) continue;
+			hands[seat].splice(hands[seat].indexOf(c), 1, give);
+			mine.splice(mine.indexOf(give), 1, c);
+		}
+	}
+	for (let seat = 1; seat < hands.length; seat++) cards.sortHand(hands[seat]);
+}
+
+// ------------------------------------------------------------------ rules
+
+/** Is this table's boss on now, and is it this one? */
+export function bossActive(run: Run): boolean {
+	return !!run.boss && run.board === run.module.boardsPerTable;
+}
+export function bossIs(run: Run, key: string): boolean {
+	return bossActive(run) && run.boss!.key === key;
+}
+/** A held relic bends the rules this way. */
+export function hasRule(run: Run, rule: string): boolean {
+	return run.relics.some((r) => r.def.rule === rule);
+}
+
+// ------------------------------------------------------------------ new run
+
+export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number; deck?: string } = {}): Run<H> {
 	seed = seed ?? randomSeedString(newRng());
+	const base = module.newPack?.() ?? cards.newDeck();
 	const run: Run<H> = {
 		game: module.id,
 		module,
 		seed,
 		rng: newRng(seed),
+		deck: opts.deck ?? 'standard',
 		table: 1,
 		board: 1,
 		boardsWonThisTable: 0,
@@ -285,17 +443,26 @@ export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: {
 		score: 0,
 		target: 0,
 		handsLeft: 0,
+		handsThisBoard: 0,
 		phase: PHASE.PRE,
 		hand: null as H,
 		result: null,
 		relics: [],
 		ploys: [],
 		levels: Object.fromEntries(module.upgrades.map((u) => [u.key, 1])),
+		pack: base.map((c, i) => ({ ...c, id: i + 1 })),
+		mods: {},
 		shop: null,
+		opening: null,
 		rerollCost: BASE_REROLL,
-		stats: { hands: 0, made: 0, best: 0, total: 0, ploysUsed: 0 },
+		boss: null,
+		tagOffers: [],
+		pendingTags: [],
+		endless: false,
+		stats: { hands: 0, made: 0, best: 0, total: 0, ploysUsed: 0, boardsSkipped: 0 },
 		ext: {}
 	};
+	allDecks(module).find((d) => d.key === run.deck)?.apply?.(run);
 	startBoard(run);
 	return run;
 }
@@ -304,10 +471,29 @@ export function boardName(run: Run): string {
 	return run.module.boardName?.(run) ?? `Board ${run.board}`;
 }
 
+/** The goal for a board (past the last table, it keeps growing). */
+export function goalFor(m: GameModule, table: number, board: number): number {
+	if (table <= m.tables) return m.goal(table, board);
+	const g = m.goal(m.tables, board) * ENDLESS_GROWTH ** (table - m.tables);
+	return Math.round(g / 10) * 10;
+}
+
+function newTable(run: Run) {
+	const bosses = run.module.bosses ?? [];
+	if (bosses.length) {
+		const tier = Math.min(3, Math.ceil(run.table / 3));
+		const pool = bosses.filter((b) => (b.tier ?? 1) <= tier && b.key !== run.boss?.key);
+		run.boss = run.rng.pick(pool.length ? pool : bosses)!;
+	}
+	run.tagOffers = Array.from({ length: run.module.boardsPerTable - 1 }, () => C.TAG_KEYS[run.rng.int(1, C.TAG_KEYS.length) - 1]);
+}
+
 function startBoard(run: Run) {
-	run.target = run.module.goal(run.table, run.board);
+	if (run.board === 1) newTable(run);
+	run.target = goalFor(run.module, run.table, run.board);
 	run.score = 0;
-	run.handsLeft = run.module.handsPerBoard;
+	run.handsThisBoard = (bossActive(run) && run.boss!.hands) || run.module.handsPerBoard;
+	run.handsLeft = run.handsThisBoard;
 	run.module.startBoard?.(run);
 	startHand(run);
 }
@@ -342,44 +528,49 @@ export function stepAI(run: Run): 'trick' | 'card' | null {
 	return r;
 }
 
-/** Moves the module made can leave the phase at PRE or PLAY; we look at
- *  the module's state to see whether the hand is done. */
 function afterGameStep(run: Run) {
 	if ((run.phase === PHASE.PRE || run.phase === PHASE.PLAY) && run.module.handOver(run)) finishHand(run);
 }
 
-/** The game's base score, then levels, relics and ploys: the hand's total. */
+/** The game's base score, then levels, relics, cards, the boss and ploys. */
 export function pipeline<S>(run: Run, base: BaseScore<S>): Breakdown {
 	const lines = base.lines.slice();
 	let chips = lines.reduce((n, l) => n + (l.chips ?? 0), 0);
 	let mult = (1 + lines.reduce((n, l) => n + (l.mult ?? 0), 0)) * lines.reduce((x, l) => x * (l.xmult ?? 1), 1);
 	let money = 0;
 	if (!base.made) return { title: base.title, made: false, lines, chips, mult, total: 0, money: 0, detail: base.detail };
-	for (const key of base.levels) {
-		const u = run.module.upgrades.find((x) => x.key === key);
-		const lvl = run.levels[key] ?? 1;
-		if (!u || lvl <= 1) continue;
-		const c = (lvl - 1) * u.chips,
-			m = (lvl - 1) * u.mult;
-		chips += c;
-		mult += m;
-		lines.push({ label: `${u.name} level ${lvl}`, chips: c, mult: m });
-	}
-	for (const relic of run.relics) {
-		const e = relic.def.score?.(base.ctx as never, relic as never);
-		if (!e) continue;
+	const add = (label: string, e: Effect | null | void, edition?: string) => {
+		if (!e) return;
 		const c = e.chips ?? e.points ?? 0;
-		if (!c && !e.mult && !e.money && (!e.xmult || e.xmult === 1)) continue;
+		if (!c && !e.mult && !e.money && (!e.xmult || e.xmult === 1)) return;
 		chips += c;
 		mult += e.mult ?? 0;
 		if (e.xmult) mult *= e.xmult;
 		money += e.money ?? 0;
-		lines.push({ label: relic.name, chips: c || undefined, mult: e.mult || undefined, xmult: e.xmult, money: e.money || undefined });
+		lines.push({ label, chips: c || undefined, mult: e.mult || undefined, xmult: e.xmult, money: e.money || undefined, edition });
+	};
+	for (const key of base.levels) {
+		const u = run.module.upgrades.find((x) => x.key === key);
+		const lvl = run.levels[key] ?? 1;
+		if (!u || lvl <= 1) continue;
+		add(`${u.name} level ${lvl}`, { chips: (lvl - 1) * u.chips, mult: (lvl - 1) * u.mult });
 	}
-	if (run.spotlight) {
-		mult *= 2;
-		lines.push({ label: 'Spotlight', xmult: 2 });
+	for (const relic of run.relics) {
+		add(relic.name, relic.def.score?.(base.ctx as never, relic as never));
+		const ed = relic.edition && C.RELIC_EDITIONS[relic.edition];
+		if (ed?.effect) add(`${ed.name} ${relic.name}`, ed.effect, ed.key);
 	}
+	for (const p of base.played ?? []) {
+		const m = mod(run, p.card);
+		if (m.edition && p.mine) add(`${C.CARD_EDITIONS[m.edition].name} ${cards.name(p.card)}`, C.CARD_EDITIONS[m.edition].effect, m.edition);
+		const seal = sealOf(run, p.card);
+		if (seal?.onPlayed) add(`${seal.name.replace(' Seal', '')} ${cards.name(p.card)}`, seal.onPlayed(p, run));
+	}
+	if (bossActive(run)) {
+		const l = run.boss!.score?.(base.ctx as never, run);
+		if (l) add(l.label, l);
+	}
+	if (run.spotlight) add('Spotlight', { xmult: 2 });
 	return { title: base.title, made: true, lines, chips, mult, total: Math.max(0, Math.floor(chips * mult)), money, detail: base.detail };
 }
 
@@ -417,12 +608,56 @@ export function interest(run: Run): number {
 function winBoard(run: Run) {
 	let relics = 0;
 	for (const r of run.relics) relics += r.def.onBoardWin?.(r as never, run)?.money ?? 0;
-	const p: Payout = { board: MONEY_PER_BOARD, unused: Math.max(0, run.handsLeft) * MONEY_PER_UNUSED, interest: interest(run), relics, total: 0 };
-	p.total = p.board + p.unused + p.interest + p.relics;
+	const int = interest(run) * (run.doubleInterest ? 2 : 1);
+	run.doubleInterest = false;
+	const p: Payout = { board: MONEY_PER_BOARD, unused: Math.max(0, run.handsLeft) * MONEY_PER_UNUSED, interest: int, relics, boss: bossActive(run) ? BOSS_BONUS : 0, total: 0 };
+	p.total = p.board + p.unused + p.interest + p.relics + p.boss;
 	run.money += p.total;
 	run.lastPayout = p;
 	run.boardsWonThisTable++;
-	run.phase = run.board === run.module.boardsPerTable && run.table === run.module.tables ? PHASE.VICTORY : PHASE.WON;
+	const last = run.board === run.module.boardsPerTable && run.table === run.module.tables && !run.endless;
+	run.phase = last ? PHASE.VICTORY : PHASE.WON;
+}
+
+/** After winning the last table: keep going, with growing goals. */
+export function goEndless(run: Run): [boolean, string?] {
+	if (run.phase !== PHASE.VICTORY) return [false, 'not yet'];
+	run.endless = true;
+	run.phase = PHASE.WON;
+	return [true];
+}
+
+// ------------------------------------------------------------------ skipping
+
+/** The tag for skipping this board, if it can be skipped now: boards
+ *  before the last, before anything has happened on them. */
+export function skipTag(run: Run): TagKey | null {
+	if (run.board >= run.module.boardsPerTable) return null;
+	const fresh = run.phase === PHASE.PRE || (run.phase === PHASE.PLAY && !!run.module.untouched?.(run));
+	if (!fresh || run.handsLeft !== run.handsThisBoard || run.score > 0) return null;
+	return run.tagOffers[run.board - 1] ?? null;
+}
+
+export function skipBoard(run: Run): [boolean, string?] {
+	const tag = skipTag(run);
+	if (!tag) return [false, "this board can't be skipped now"];
+	if (tag === 'ploy') {
+		if (run.ploys.length < PLOY_SLOTS) run.ploys.push(run.rng.pick(allPloys(run.module))!.key);
+		else run.money += 3;
+	} else if (tag === 'edition') giveRandomEdition(run);
+	else if (tag === 'cash') run.money += 8;
+	else if (tag === 'interest') run.doubleInterest = true;
+	else run.pendingTags.push(tag);
+	run.stats.boardsSkipped++;
+	run.board++;
+	startBoard(run);
+	return [true];
+}
+
+function giveRandomEdition(run: Run) {
+	if (run.module.cardMods === false) return;
+	const free = run.pack.filter((c) => !mod(run, c).edition);
+	if (free.length) setMod(run, run.rng.pick(free)!, { edition: C.rollCardEdition(run.rng).key });
 }
 
 // ------------------------------------------------------------------ the club
@@ -431,24 +666,24 @@ export function enterShop(run: Run) {
 	assert(run.phase === PHASE.WON, 'enterShop: no board won');
 	run.phase = PHASE.SHOP;
 	run.rerollCost = BASE_REROLL;
-	run.shop = { items: Array.from({ length: SHOP_SIZE }, () => rollItem(run)) };
+	run.freeRerolls = false;
+	run.shop = { items: [] };
+	for (let i = 0; i < SHOP_SIZE; i++) run.shop.items.push(rollItem(run));
+	// Tags paid at the club.
+	for (const t of run.pendingTags.splice(0)) {
+		if (t === 'bundle') run.shop.items.push({ kind: 'bundle', def: C.BUNDLES.relic, name: C.BUNDLES.relic.name, cost: 0 });
+		else if (t === 'reroll') {
+			run.freeRerolls = true;
+			run.rerollCost = 0;
+		}
+	}
 }
 
 const RARITY_ODDS = [0, 0.7, 0.25, 0.05];
 
-function rollItem(run: Run): ShopItem {
+function rollRelicDef(run: Run, extraOwned: Set<string> = new Set()): RelicDef | undefined {
 	const m = run.module;
-	const odds = m.shopOdds ?? { upgrade: 0.2, ploy: 0.2 };
-	const roll = run.rng.next();
-	if (roll < odds.upgrade && m.upgrades.length) {
-		const def = run.rng.pick(m.upgrades)!;
-		return { kind: 'upgrade', def, name: def.name, cost: 3 + (run.levels[def.key] ?? 1) };
-	}
-	if (roll < odds.upgrade + odds.ploy) {
-		const def = run.rng.pick(allPloys(m))!;
-		return { kind: 'ploy', def, name: def.name, cost: def.cost };
-	}
-	const have = new Set([...run.relics.map((r) => r.key), ...(run.shop?.items ?? []).filter((i) => i.kind === 'relic').map((i) => i.def.key)]);
+	const have = new Set([...run.relics.map((r) => r.key), ...(run.shop?.items ?? []).filter((i) => i.kind === 'relic').map((i) => i.def.key), ...extraOwned]);
 	let r = run.rng.next(),
 		rarity = 1;
 	for (let k = 1; k < RARITY_ODDS.length; k++) {
@@ -459,28 +694,108 @@ function rollItem(run: Run): ShopItem {
 		r -= RARITY_ODDS[k];
 	}
 	const pool = m.relics.filter((d) => d.rarity === rarity && !have.has(d.key));
-	const def = run.rng.pick(pool.length ? pool : m.relics.filter((d) => !have.has(d.key)))!;
-	return { kind: 'relic', def, name: def.name, cost: def.cost };
+	return run.rng.pick(pool.length ? pool : m.relics.filter((d) => !have.has(d.key)));
+}
+
+function rollItem(run: Run): ShopItem {
+	const m = run.module;
+	const mods = m.cardMods !== false;
+	const roll = run.rng.next();
+	// Upgrades 18%, ploys 12%, bundles 10%, card editions 8%, seals 8%; the rest relics.
+	if (roll < 0.18 && m.upgrades.length) {
+		const def = run.rng.pick(m.upgrades)!;
+		return { kind: 'upgrade', def, name: def.name, cost: 3 + (run.levels[def.key] ?? 1) };
+	}
+	if (roll < 0.3) {
+		const def = run.rng.pick(allPloys(m))!;
+		return { kind: 'ploy', def, name: def.name, cost: def.cost };
+	}
+	if (roll < 0.4) {
+		const def = C.rollBundle(run.rng);
+		if (def.key !== 'edition' || mods) return { kind: 'bundle', def, name: def.name, cost: def.cost };
+	}
+	if (mods && roll >= 0.4 && roll < 0.48) {
+		const def = C.rollCardEdition(run.rng);
+		return { kind: 'edition', def, name: `${def.name} card`, cost: def.cost };
+	}
+	if (mods && roll >= 0.48 && roll < 0.56) {
+		const def = run.rng.pick(allSeals(m))!;
+		return { kind: 'seal', def, name: def.name, cost: def.cost };
+	}
+	const def = rollRelicDef(run)!;
+	const edition = C.rollRelicEdition(run.rng);
+	return { kind: 'relic', def, name: def.name, cost: def.cost + (edition ? C.RELIC_EDITIONS[edition].cost : 0), edition };
+}
+
+/** Relic slots: Phantom relics take none. */
+export function relicSlotsUsed(run: Run): number {
+	return run.relics.filter((r) => r.edition !== 'phantom').length;
+}
+
+/** Does buying this item need a card from the pack (edition, seal)? */
+export function needsCard(it: ShopItem): boolean {
+	return it.kind === 'edition' || it.kind === 'seal';
 }
 
 export function canBuy(run: Run, i: number): [boolean, string?] {
 	const it = run.shop?.items[i];
 	if (!it || it.sold) return [false, 'sold'];
+	if (run.opening) return [false, 'open your bundle first'];
 	if (run.money < it.cost) return [false, 'too expensive'];
-	if (it.kind === 'relic' && run.relics.length >= RELIC_SLOTS) return [false, 'no relic slot'];
+	if (it.kind === 'relic' && it.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slot'];
 	if (it.kind === 'ploy' && run.ploys.length >= PLOY_SLOTS) return [false, 'no ploy slot'];
 	return [true];
 }
 
-export function buy(run: Run, i: number): [boolean, string?] {
+/** Buy an item; editions and seals go on the card you name. */
+export function buy(run: Run, i: number, cardId?: number): [boolean, string?] {
 	const ok = canBuy(run, i);
 	if (!ok[0]) return ok;
 	const it = run.shop!.items[i];
+	const card = cardId !== undefined ? run.pack.find((c) => c.id === cardId) : undefined;
+	if (needsCard(it) && !card) return [false, 'choose a card'];
 	run.money -= it.cost;
 	it.sold = true;
-	if (it.kind === 'relic') run.relics.push({ key: it.def.key, def: it.def, name: it.def.name, cost: it.cost, state: {} });
+	if (it.kind === 'relic') run.relics.push(instantiate(it.def, it.edition));
 	else if (it.kind === 'upgrade') run.levels[it.def.key] = (run.levels[it.def.key] ?? 1) + 1;
-	else run.ploys.push(it.def.key);
+	else if (it.kind === 'ploy') run.ploys.push(it.def.key);
+	else if (it.kind === 'edition') setMod(run, card!, { edition: it.def.key });
+	else if (it.kind === 'seal') setMod(run, card!, { seal: it.def.key });
+	else run.opening = { bundle: it.def.key, options: bundleOptions(run, it.def.key) };
+	return [true];
+}
+
+function bundleOptions(run: Run, key: BundleKey): BundleChoice[] {
+	const out: BundleChoice[] = [];
+	if (key === 'relic') {
+		const seen = new Set<string>();
+		for (let i = 0; i < 3; i++) {
+			const def = rollRelicDef(run, seen);
+			if (!def) break;
+			seen.add(def.key);
+			out.push({ kind: 'relic', def, edition: C.rollRelicEdition(run.rng) });
+		}
+	} else if (key === 'ploy') {
+		const pool = run.rng.shuffle(allPloys(run.module).slice());
+		for (const def of pool.slice(0, 3)) out.push({ kind: 'ploy', def });
+	} else {
+		const free = run.rng.shuffle(run.pack.filter((c) => !mod(run, c).edition));
+		for (const c of free.slice(0, 3)) out.push({ kind: 'edition', cardId: c.id!, edition: C.rollCardEdition(run.rng).key });
+	}
+	return out;
+}
+
+/** Take one of the open bundle's choices (-1: none). */
+export function pick(run: Run, i: number): [boolean, string?] {
+	const o = run.opening;
+	if (!o) return [false, 'no bundle open'];
+	const c = o.options[i];
+	if (c?.kind === 'relic' && c.edition !== 'phantom' && relicSlotsUsed(run) >= RELIC_SLOTS) return [false, 'no relic slot'];
+	if (c?.kind === 'ploy' && run.ploys.length >= PLOY_SLOTS) return [false, 'no ploy slot'];
+	if (c?.kind === 'relic') run.relics.push(instantiate(c.def, c.edition));
+	else if (c?.kind === 'ploy') run.ploys.push(c.def.key);
+	else if (c?.kind === 'edition') setMod(run, run.pack.find((x) => x.id === c.cardId)!, { edition: c.edition });
+	run.opening = null;
 	return [true];
 }
 
@@ -493,9 +808,9 @@ export function sellRelic(run: Run, i: number): boolean {
 }
 
 export function reroll(run: Run): boolean {
-	if (run.money < run.rerollCost) return false;
+	if (run.money < run.rerollCost || run.opening) return false;
 	run.money -= run.rerollCost;
-	run.rerollCost++;
+	if (!run.freeRerolls) run.rerollCost++;
 	run.shop!.items = Array.from({ length: SHOP_SIZE }, () => rollItem(run));
 	return true;
 }
@@ -503,6 +818,7 @@ export function reroll(run: Run): boolean {
 export function leaveShop(run: Run) {
 	assert(run.phase === PHASE.SHOP, 'leaveShop: not in the club');
 	run.shop = null;
+	run.opening = null;
 	if (run.board === run.module.boardsPerTable) {
 		run.table++;
 		run.board = 1;

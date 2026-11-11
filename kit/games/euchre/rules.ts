@@ -91,8 +91,9 @@ export interface EuchreHand {
 	complete: boolean;
 }
 
-export function deal(rng: RNG, dealer: number): EuchreHand {
-	const deck = rng.shuffle(newDeck());
+/** Deal from a pack of 24 (a run's pack, which may carry ids). */
+export function deal(rng: RNG, dealer: number, pack: Card[] = newDeck()): EuchreHand {
+	const deck = rng.shuffle(pack.slice());
 	const hands: Hands = [[], [], [], [], []];
 	let k = 0;
 	for (let i = 0; i < 5; i++) for (let s = 1; s <= 4; s++) hands[s].push(deck[k++]);

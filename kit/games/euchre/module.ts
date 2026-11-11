@@ -147,7 +147,8 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 	boardName: (run) => (run.board === 3 ? 'Big Board' : `Board ${run.board}`),
 	deal(run) {
 		const dealer = (run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST);
-		run.hand = E.deal(run.rng, dealer);
+		run.hand = E.deal(run.rng, dealer, run.pack);
+		R.homing(run, run.hand.hands, E.PLAYER);
 		run.phase = R.PHASE.PRE;
 		runCalls(run);
 		return { hand: run.hand, phase: run.hand.trump === null ? 'pre' : 'play' };
@@ -174,6 +175,7 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 		}
 	},
 	handOver: (run) => run.hand.complete,
+	untouched: (run) => run.hand.tricks.length === 0,
 	aiToMove: (run) => run.hand.trump !== null && !run.hand.complete && run.hand.turn !== E.PLAYER,
 	stepAI: (run) => (E.play(run.hand, run.hand.turn, ai.chooseCard(run.hand, run.hand.turn)) ? 'trick' : 'card'),
 	score(run) {
@@ -203,10 +205,19 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 			lines.push({ label: 'Euchred them', chips: 60 });
 			levels.push('euchre');
 		}
-		return { title, made: true, lines, ctx: c, levels, detail: c.points };
+		const played = run.hand.tricks.flatMap((t) => t.plays.map((p) => ({ card: p.card, mine: p.seat === E.PLAYER, wonByUs: E.sameSide(t.winner, E.PLAYER), winning: p.seat === t.winner })));
+		return { title, made: true, lines, ctx: c, levels, played, detail: c.points };
 	},
+	newPack: E.newDeck,
 	relics: RELICS,
 	upgrades: UPGRADES,
+	bosses: [
+		{ key: 'cold_deck', name: 'The Cold Deck', text: 'x0.75 mult on every hand', tier: 1, score: () => ({ label: 'The Cold Deck', xmult: 0.75 }) },
+		{ key: 'bower_thief', name: 'The Bower Thief', text: '-40 chips for each trick you win with a bower', tier: 1, score: (c) => (c.rightWins + c.leftWins ? { label: 'The Bower Thief', chips: -40 * (c.rightWins + c.leftWins) } : null) },
+		{ key: 'short_table', name: 'The Short Table', text: 'Only three hands on this board', tier: 2, hands: 3 },
+		{ key: 'grudge', name: 'The Grudge', text: 'Hands where they make trump score half', tier: 2, score: (c) => (!c.makers ? { label: 'The Grudge: their trump', xmult: 0.5 } : null) },
+		{ key: 'marcher', name: 'The Drill Sergeant', text: 'Only marches and euchres score levels; x0.6 otherwise', tier: 3, score: (c) => (!c.march && !c.euchredThem ? { label: 'The Drill Sergeant', xmult: 0.6 } : null) }
+	],
 	bot(run) {
 		const h = run.hand;
 		if (run.phase === R.PHASE.PRE) {

@@ -17,7 +17,8 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 	for (let step = 0; step < maxSteps; step++) {
 		const p = run.phase;
 		if (p === R.PHASE.OVER || p === R.PHASE.VICTORY) break;
-		if (p === R.PHASE.PRE || p === R.PHASE.PLAY) {
+		if ((p === R.PHASE.PRE || p === R.PHASE.PLAY) && (R.skipTag(run) === 'cash' || R.skipTag(run) === 'edition')) go({ t: 'skip' });
+		else if (p === R.PHASE.PRE || p === R.PHASE.PLAY) {
 			// Use a held ploy when it can help (Spotlight, Encore on the last hand).
 			const slot = run.ploys.findIndex((k, i) => (k !== 'encore' || run.handsLeft <= 1) && R.canUsePloy(run, i)[0]);
 			if (slot >= 0) go({ t: 'ploy', slot });
@@ -25,8 +26,14 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 		} else if (p === R.PHASE.SCORED) go({ t: 'next' });
 		else if (p === R.PHASE.WON) go({ t: 'shop' });
 		else if (p === R.PHASE.SHOP) {
+			if (run.opening) {
+				const ok = run.opening.options.findIndex((o) => (o.kind === 'relic' ? R.relicSlotsUsed(run) < R.RELIC_SLOTS : o.kind === 'ploy' ? run.ploys.length < R.PLOY_SLOTS : true));
+				go({ t: 'pick', index: ok });
+				continue;
+			}
 			const i = run.shop!.items.findIndex((_, k) => R.canBuy(run, k)[0]);
-			go(i >= 0 ? { t: 'buy', slot: i } : { t: 'leave' });
+			if (i < 0) go({ t: 'leave' });
+			else go({ t: 'buy', slot: i, card: R.needsCard(run.shop!.items[i]) ? rng.pick(run.pack)!.id : undefined });
 		}
 	}
 	return { run, save };

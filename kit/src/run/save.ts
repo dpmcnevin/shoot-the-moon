@@ -8,7 +8,10 @@ export type Action =
 	| { t: 'game'; a: unknown }
 	| { t: 'next' }
 	| { t: 'shop' }
-	| { t: 'buy'; slot: number }
+	| { t: 'buy'; slot: number; card?: number }
+	| { t: 'pick'; index: number }
+	| { t: 'skip' }
+	| { t: 'endless' }
 	| { t: 'sell'; slot: number }
 	| { t: 'reroll' }
 	| { t: 'leave' }
@@ -30,7 +33,13 @@ export function apply(run: Run, a: Action) {
 		case 'shop':
 			return R.enterShop(run);
 		case 'buy':
-			return R.buy(run, a.slot);
+			return R.buy(run, a.slot, a.card);
+		case 'pick':
+			return R.pick(run, a.index);
+		case 'skip':
+			return R.skipBoard(run);
+		case 'endless':
+			return R.goEndless(run);
 		case 'sell':
 			return R.sellRelic(run, a.slot);
 		case 'reroll':

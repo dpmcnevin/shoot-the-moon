@@ -184,7 +184,8 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 	goal: (table, board) => round10(RUBBER_BASE[Math.min(table, 8) - 1] * BOARD_SCALE[board - 1]),
 	boardName: (run) => (run.board === 3 ? 'Vulnerable Board' : `Board ${run.board}`),
 	deal(run) {
-		const hands = cards.deal(run.rng);
+		const pack = R.shuffledPack(run);
+		const hands: Hands = [[], ...[0, 1, 2, 3].map((i) => cards.sortHand(pack.slice(i * 13, i * 13 + 13)))];
 		const N = cards.NORTH,
 			S = cards.SOUTH;
 		// You always declare, so your side is the stronger, and you hold the
@@ -194,6 +195,7 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 			[hands[S], hands[cards.WEST]] = [hands[cards.WEST], hands[S]];
 		}
 		if (cards.hcp(hands[N]) > cards.hcp(hands[S])) [hands[N], hands[S]] = [hands[S], hands[N]];
+		R.homing(run, hands, S);
 		const hand: Deal = {
 			hands,
 			original: [[], ...[1, 2, 3, 4].map((s) => cards.copyHand(hands[s]))],
@@ -212,7 +214,7 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		if (a.t === 'bid') {
 			if (run.phase !== R.PHASE.PRE) throw new Error('bridge: not bidding');
 			const c: Contract = { level: a.level, strain: a.strain, doubled: 0 };
-			if (bidding.defendersDouble(c, d.hands[d.declarer], d.hands[d.dummy], run.rng)) c.doubled = 1;
+			if (R.bossIs(run, 'doubler') || bidding.defendersDouble(c, d.hands[d.declarer], d.hands[d.dummy], run.rng)) c.doubled = 1;
 			d.contract = c;
 			d.state = play.newPlay(d.hands, c.strain, cards.nextSeat(d.declarer));
 			run.phase = R.PHASE.PLAY;
@@ -243,10 +245,21 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		const d = run.hand;
 		const st = d.state!;
 		const won = play.declarerTricks(st, d.declarer);
-		return base(run, scoreCtx(run, d.contract!, won, play.summarise(st, d.declarer), st.tricks));
+		const b = base(run, scoreCtx(run, d.contract!, won, play.summarise(st, d.declarer), st.tricks));
+		b.played = st.tricks.flatMap((t) =>
+			t.plays.map((p) => ({ card: p.card, mine: cards.sameSide(p.seat, d.declarer), wonByUs: cards.sameSide(t.winner, d.declarer), winning: p.seat === t.winner }))
+		);
+		return b;
 	},
 	relics: RELICS,
 	upgrades: UPGRADES,
+	bosses: [
+		{ key: 'doubler', name: 'The Doubler', text: 'The defenders double every contract', tier: 1 },
+		{ key: 'tightwad', name: 'The Tightwad', text: 'x0.75 mult on every deal', tier: 1, score: () => ({ label: 'The Tightwad', xmult: 0.75 }) },
+		{ key: 'snob', name: 'The Snob', text: 'Contracts below game score half', tier: 2, score: (c) => (!scoring.isGame(c.contract) ? { label: 'The Snob: below game', xmult: 0.5 } : null) },
+		{ key: 'short_rubber', name: 'The Short Rubber', text: 'Only two deals on this board', tier: 2, hands: 2 },
+		{ key: 'purist', name: 'The Purist', text: 'Overtricks cost 30 points each', tier: 3, score: (c) => (c.tricksWon > scoring.tricksNeeded(c.contract) ? { label: 'The Purist: overtricks', chips: -30 * (c.tricksWon - scoring.tricksNeeded(c.contract)) } : null) }
+	],
 	bot(run, rng) {
 		if (run.phase === R.PHASE.PRE) {
 			const c = recommendBid(run);
