@@ -66,7 +66,7 @@
 		position: absolute;
 		left: 270px;
 		width: 1010px;
-		top: 130px;
+		top: 120px;
 		display: flex;
 		justify-content: center;
 		pointer-events: none;

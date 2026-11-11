@@ -45,8 +45,8 @@
 
 <style>
 	.panel {
-		width: 640px;
-		padding: 14px 18px;
+		width: 600px;
+		padding: 10px 16px 12px;
 		background: rgba(10, 18, 14, 0.94);
 		border: 2px solid var(--brass-dim);
 	}
@@ -54,10 +54,10 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 10px;
+		margin-bottom: 6px;
 	}
 	.title {
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: 700;
 	}
 	.dim {
@@ -67,13 +67,14 @@
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(5, 1fr);
-		gap: 4px;
+		gap: 3px;
 	}
 	.cell {
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 3px 0;
+		align-items: baseline;
+		justify-content: center;
+		gap: 6px;
+		padding: 2px 0;
 		background: var(--panel);
 		border: 2px solid transparent;
 		color: var(--ink);
@@ -88,7 +89,7 @@
 		border-color: var(--brass);
 	}
 	.c {
-		font-size: 17px;
+		font-size: 15px;
 		font-weight: 700;
 	}
 	.red .c {
