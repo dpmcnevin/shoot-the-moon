@@ -226,18 +226,26 @@ final class GameModel {
 
     #if DEBUG
     /// Debug builds only: STM_TO_SHOP=1 in the environment plays a new run
-    /// straight through to the first club, for checking its layout.
-    func debugToShop() {
-        newRun()
-        showOverview = false
-        for _ in 0..<60 {
-            guard let v = view else { return }
-            switch v.phase {
-            case .pass: act(.pass(Array(v.hand.mine.prefix(3).map(\.id))))
-            case .play: act(.playOut)
-            case .handScored: revealDone = true; act(.continue)
-            case .boardWon: act(.shop)
-            default: return
+    /// straight through to the first club, for checking its layout;
+    /// STM_TO_SCORE=1 stops on the score panel of the hand that wins a board.
+    func debugToShop(stopAtWin: Bool = false) {
+        for _ in 0..<(stopAtWin ? 20 : 1) {
+            newRun()
+            showOverview = false
+            for _ in 0..<60 {
+                guard let v = view else { return }
+                switch v.phase {
+                case .pass: act(.pass(Array(v.hand.mine.prefix(3).map(\.id))))
+                case .play: act(.playOut)
+                case .handScored:
+                    if stopAtWin, let r = v.result, r.total >= v.target { return }
+                    revealDone = true; act(.continue)
+                case .boardWon:
+                    if stopAtWin { break }
+                    act(.shop)
+                default: return
+                }
+                if stopAtWin && view?.phase == .boardWon { break }
             }
         }
     }

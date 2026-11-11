@@ -99,6 +99,18 @@ struct OwnedRelic: View {
 
 /// A ware on the baize: a card with its price coin. Selected, it lifts and
 /// shows what it does, with a Buy button.
+extension Color {
+    /// This color mixed into another: `amount` of self, the rest `other`.
+    func mix(_ other: Color, _ amount: Double) -> Color {
+        let a = UIColor(self), b = UIColor(other)
+        var (r1, g1, b1, a1, r2, g2, b2, a2): (CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0, 0, 0, 0, 0)
+        a.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        b.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        let t = CGFloat(amount)
+        return Color(red: Double(r1 * t + r2 * (1 - t)), green: Double(g1 * t + g2 * (1 - t)), blue: Double(b1 * t + b2 * (1 - t)))
+    }
+}
+
 struct Ware: View {
     @Environment(GameModel.self) private var model
     let item: ShopItemV
@@ -111,9 +123,18 @@ struct Ware: View {
 
     var body: some View {
         let edge = ShopItemInfo.edge(item)
+        let bundle = item.kind == "bundle"
+        // Each kind reads at a glance: a banner naming it, and its own card.
+        // Relics are plain cream; bundles are wrapped packages; the rest are
+        // tinted with their kind's color.
+        let fill: Color = bundle ? Color(hex: 0x3b2a63) : item.kind == "relic" ? Self.cream : edge.mix(Self.cream, 0.18)
         VStack(spacing: 0) {
-            Text(ShopItemInfo.kindName(item)).font(Theme.font(12)).foregroundStyle(edge).brightness(-0.25)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 4)
+            Text(item.kind == "relic" ? "RELIC" : ShopItemInfo.kindName(item).uppercased())
+                .font(Theme.font(13, .bold)).tracking(1.2).foregroundStyle(Theme.bg)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .padding(.horizontal, 22).padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .background(bundle ? Theme.brass : edge)
             Spacer(minLength: 0)
             Group {
                 if let s = item.seal { SealBadge(key: s, size: 64) }
@@ -124,21 +145,38 @@ struct Ware: View {
                 else if let i = item.icon { Icon(key: i, scale: 4).modifier(EditionShine(edition: item.edition?.key)) }
             }
             Spacer(minLength: 0)
-            Text(item.name).font(Theme.font(16, .bold)).foregroundStyle(Self.ink)
+            if item.kind == "relic", let r = item.rarityName {
+                Text(r).font(Theme.font(12)).foregroundStyle(edge).brightness(-0.25).padding(.bottom, 2)
+            }
+            Text(item.name).font(Theme.font(16, .bold)).foregroundStyle(bundle ? Self.cream : Self.ink)
                 .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.8)
+                .padding(.horizontal, 10).padding(.bottom, 12)
+                .shadow(color: bundle ? .black.opacity(0.6) : .clear, radius: 0, x: 2, y: 2)
         }
-        .padding(.horizontal, 10).padding(.top, 10).padding(.bottom, 12)
         .frame(width: 150, height: 210)
-        .background(PixelRect(radius: 10).fill(Self.cream).shadow(color: .black.opacity(0.45), radius: 0, x: 0, y: selected ? 10 : 7))
-        .overlay(PixelRect(radius: 10).stroke(edge, lineWidth: 4))
-        .overlay(PixelRect(radius: 7).stroke(edge.opacity(selected ? 1 : 0.45), lineWidth: 2).padding(6))
+        .clipShape(PixelRect(radius: 10)) // the banner follows the corners
+        .background {
+            ZStack {
+                Self.cream.opacity(0) // keep the shape's frame
+                if bundle {
+                    // The ribbon round the package.
+                    Theme.brass.frame(width: 14).opacity(0.9)
+                    Theme.brass.frame(height: 14).opacity(0.9)
+                }
+            }
+            .background(fill)
+            .clipShape(PixelRect(radius: 10))
+            .shadow(color: .black.opacity(0.45), radius: 0, x: 0, y: selected ? 10 : 7)
+        }
+        .overlay(PixelRect(radius: 10).stroke(bundle ? Color(hex: 0x3b2a63) : edge, lineWidth: 4))
+        .overlay(PixelRect(radius: 7).stroke(edge.opacity(selected ? 1 : 0.45), lineWidth: 2).padding(6).opacity(bundle ? 0 : 1))
         .overlay(alignment: .topTrailing) {
             if !item.sold {
                 Text("$\(item.cost)").font(Theme.font(16, .bold)).foregroundStyle(Self.ink)
-                    .frame(minWidth: 38, minHeight: 38)
+                    .frame(minWidth: 40, minHeight: 40)
                     .background(PixelRect(radius: 10).fill(Theme.brass))
                     .overlay(PixelRect(radius: 10).stroke(Theme.brassDim, lineWidth: 3))
-                    .padding(8)
+                    .offset(x: 12, y: -14)
             }
         }
         .overlay {

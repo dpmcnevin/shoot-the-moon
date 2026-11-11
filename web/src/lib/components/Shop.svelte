@@ -126,10 +126,12 @@
 		onkeydown={(e) => e.key === 'Enter' && (picked = picked === i ? null : i)}
 		in:fly={{ y: 60, duration: 350, delay: i * 80, easing: backOut }}
 	>
-		<div class="card">
-			<div class="kindline">{kindName(item)}</div>
-			{#if !item.sold}<div class="coin">${item.cost}</div>{/if}
+		{#if !item.sold}<div class="coin">${item.cost}</div>{/if}
+		<div class="card k-{item.kind}">
+			<div class="banner">{item.kind === 'relic' ? 'Relic' : kindName(item)}</div>
+			{#if item.kind === 'bundle'}<div class="ribbon"></div>{/if}
 			<div class="art">{@render face(item)}</div>
+			{#if item.kind === 'relic'}<div class="rarity">{relics.RARITY_NAME[item.def.rarity]}</div>{/if}
 			<div class="name">{item.name}</div>
 			{#if item.sold}<div class="stamp">SOLD</div>{/if}
 		</div>
@@ -303,19 +305,74 @@
 			transform: translateY(-3px);
 		}
 	}
-	.kindline {
-		align-self: flex-start;
+	/* Each kind reads at a glance: a banner naming it, and its own card.
+	   Relics are plain cream; bundles are wrapped packages; the rest are
+	   tinted with their kind's color. */
+	.banner {
+		align-self: stretch;
+		margin: -10px -10px 0;
+		padding: 4px 0 5px;
+		background: var(--edge);
+		color: #1b1d26;
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		text-align: center;
+		position: relative;
+		z-index: 1;
+	}
+	.rarity {
 		font-size: 12px;
-		letter-spacing: 0.04em;
-		color: color-mix(in srgb, var(--edge) 70%, #2a2418);
-		padding-left: 4px;
+		letter-spacing: 0.06em;
+		color: color-mix(in srgb, var(--edge) 60%, #1b1d26);
+		margin-bottom: 2px;
+	}
+	.banner {
+		padding-left: 24px;
+		padding-right: 24px;
+	}
+	.card:not(.k-relic) {
+		background: color-mix(in srgb, var(--edge) 18%, #f3ead6);
+		box-shadow:
+			inset 0 0 0 3px color-mix(in srgb, var(--edge) 18%, #f3ead6),
+			inset 0 0 0 5px color-mix(in srgb, var(--edge) 45%, #f3ead6),
+			0 7px 0 rgba(0, 0, 0, 0.45);
+	}
+	.card.k-bundle {
+		background: #3b2a63;
+		color: #f3ead6;
+		box-shadow:
+			inset 0 0 0 3px #3b2a63,
+			0 7px 0 rgba(0, 0, 0, 0.45);
+	}
+	.k-bundle .banner {
+		background: var(--brass);
+	}
+	.ribbon {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background:
+			linear-gradient(90deg, transparent calc(50% - 7px), var(--brass) calc(50% - 7px), var(--brass) calc(50% + 7px), transparent calc(50% + 7px)),
+			linear-gradient(180deg, transparent calc(50% - 7px), var(--brass) calc(50% - 7px), var(--brass) calc(50% + 7px), transparent calc(50% + 7px));
+		opacity: 0.9;
+	}
+	.k-bundle .art,
+	.k-bundle .name {
+		position: relative;
+		z-index: 1;
+	}
+	.k-bundle .name {
+		text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
 	}
 	.coin {
 		position: absolute;
-		right: 8px;
-		top: 8px;
-		min-width: 38px;
-		height: 38px;
+		right: -12px;
+		top: -14px;
+		z-index: 3;
+		min-width: 40px;
+		height: 40px;
 		box-sizing: border-box;
 		padding: 0 6px;
 		--px-a: 10px;

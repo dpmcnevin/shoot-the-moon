@@ -65,8 +65,17 @@ struct ScorePanel: View {
                     pill(String(format: "%.2f", mult), Theme.mult)
                     Spacer()
                     if model.revealDone {
-                        Text("= \(num(r.total))").font(Theme.font(30, .bold)).inkShadow(3)
-                            .background { if r.total >= v.target && r.total > 0 { ScoreFire() } }
+                        let onFire = r.total >= v.target && r.total > 0
+                        // A hand that wins the board: the total on an ember
+                        // pill, flames licking up from behind it.
+                        Text(onFire ? num(r.total) : "= \(num(r.total))").font(Theme.font(30, .bold)).inkShadow(3)
+                            .padding(.horizontal, onFire ? 14 : 0).padding(.vertical, onFire ? 2 : 0)
+                            .background {
+                                if onFire {
+                                    PixelRect(radius: 8).fill(LinearGradient(colors: [Color(hex: 0xe8772e), Theme.bad], startPoint: .top, endPoint: .bottom))
+                                }
+                            }
+                            .background(alignment: .bottom) { if onFire { ScoreFire().frame(height: 86) } }
                             .transition(.scale(scale: 1.25).combined(with: .opacity))
                     }
                 }
@@ -247,22 +256,46 @@ struct EndingPanel: View {
 
 /// Flames behind a hand's total when that one hand beats the board's goal.
 struct ScoreFire: View {
+    /// Little pixel flames spread behind the total, flickering in steps, as
+    /// on the web: red at the base, then orange, then brass at the tips.
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.12)) { tl in
             let t = Int(tl.date.timeIntervalSinceReferenceDate / 0.12)
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(0..<7, id: \.self) { i in
-                    let h = 22.0 + Double((t + i * 3) % 4) * 7
-                    LinearGradient(stops: [.init(color: Theme.brass, location: 0), .init(color: Color(hex: 0xe8772e), location: 0.35), .init(color: Theme.bad, location: 0.7)],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(width: 12, height: h)
-                        .clipShape(PixelRect(radius: 4))
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(0..<4, id: \.self) { i in
+                    // Tips rise above the pill; each flickers on its own beat.
+                    let h = 62.0 + Double((t + i * 2) % 3) * 6 + (i == 1 || i == 2 ? 8 : 0)
+                    LinearGradient(stops: [
+                        .init(color: Theme.goldLight, location: 0), .init(color: Theme.brass, location: 0.3),
+                        .init(color: Color(hex: 0xe8772e), location: 0.3), .init(color: Color(hex: 0xe8772e), location: 0.62),
+                        .init(color: Theme.bad, location: 0.62), .init(color: Theme.bad, location: 1)
+                    ], startPoint: .top, endPoint: .bottom)
+                        .frame(width: 13, height: h)
+                        .clipShape(Flame())
+                    if i < 3 { Spacer(minLength: 2) }
                 }
             }
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .opacity(0.85)
+            .frame(height: 86, alignment: .bottom)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.horizontal, 6)
+            .opacity(0.95)
         }
-        .padding(.horizontal, -8)
         .allowsHitTesting(false)
+    }
+}
+
+/// A flame: a broad tongue, a point at the top and straight sides.
+struct Flame: Shape {
+    func path(in r: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: r.midX, y: r.minY))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.85, y: r.minY + r.height * 0.14))
+            p.addLine(to: CGPoint(x: r.maxX, y: r.minY + r.height * 0.3))
+            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+            p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+            p.addLine(to: CGPoint(x: r.minX, y: r.minY + r.height * 0.3))
+            p.addLine(to: CGPoint(x: r.minX + r.width * 0.15, y: r.minY + r.height * 0.14))
+            p.closeSubpath()
+        }
     }
 }
