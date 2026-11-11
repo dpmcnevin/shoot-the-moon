@@ -158,3 +158,24 @@ test('relic flags: interest cap, bargain rerolls, extra slot; the Jinx', () => {
 	assert.equal(j.jinxed, 'interest_rate');
 	assert.equal(R.activeRelics(j).length, 0);
 });
+
+import { apply, undo, replay } from '../src/run/save.ts';
+
+test('Undo takes back your last card, the other seats’ cards with it', () => {
+	const rng = newRng('u');
+	const run = R.newRun(euchre, 'UNDO');
+	const save = { version: 1, game: 'euchre', seed: 'UNDO', actions: [] };
+	const go = (a) => (save.actions.push(a), apply(run, a));
+	while (run.phase === 'pre') go({ t: 'game', a: euchre.bot(run, rng) });
+	run.ploys = ['undo'];
+	save.actions.unshift(); // the ploy came from somewhere; give it to the replay too
+	const before = run.hand.hands[3].length;
+	go({ t: 'game', a: euchre.bot(run, rng) });
+	assert.equal(run.hand.hands[3].length, before - 1);
+	assert.ok(R.canUsePloy(run, 0)[0]);
+	const back = undo(save);
+	assert.ok(back);
+	const again = replay(euchre, back);
+	assert.equal(again.hand.hands[3].length, before, 'the card is back in your hand');
+	assert.equal(again.stats.ploysUsed, 1);
+});

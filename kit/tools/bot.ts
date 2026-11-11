@@ -20,7 +20,7 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 		if ((p === R.PHASE.PRE || p === R.PHASE.PLAY) && (R.skipTag(run) === 'cash' || R.skipTag(run) === 'edition')) go({ t: 'skip' });
 		else if (p === R.PHASE.PRE || p === R.PHASE.PLAY) {
 			// Use a held ploy when it can help (Spotlight, Encore on the last hand).
-			const slot = run.ploys.findIndex((k, i) => (k !== 'encore' || run.handsLeft <= 1) && R.canUsePloy(run, i)[0]);
+			const slot = run.ploys.findIndex((k, i) => k !== 'undo' && (k !== 'encore' || run.handsLeft <= 1) && R.canUsePloy(run, i)[0]);
 			if (slot >= 0) go({ t: 'ploy', slot });
 			else go({ t: 'game', a: module.bot(run, rng) });
 		} else if (p === R.PHASE.SCORED) go({ t: 'next' });

@@ -346,6 +346,13 @@ export const GENERIC_PLOYS: PloyDef[] = [
 		use: (run) => (run.spotlight = true)
 	},
 	{
+		// Undo rewinds the run's save (see save.ts undo), so the host applies it.
+		key: 'undo', name: 'Undo', text: 'Take back the last card you played', cost: 4, icon: 'redeal',
+		when: [PHASE.PLAY],
+		canUse: (run) => (run.ext.lastPlay === run.stats.hands ? [true] : [false, 'nothing to take back this hand']),
+		use: () => {}
+	},
+	{
 		key: 'windfall', name: 'Windfall', text: 'Gain $5', cost: 2, icon: 'ploy_windfall',
 		when: [PHASE.PRE, PHASE.PLAY, PHASE.SCORED, PHASE.SHOP],
 		use: (run) => (run.money += 5)
@@ -542,6 +549,8 @@ function startHand(run: Run) {
 export function act(run: Run, action: unknown, opts?: { stepwise?: boolean }) {
 	assert(run.phase === PHASE.PRE || run.phase === PHASE.PLAY, 'act: not at the table');
 	run.module.act(run, action, opts);
+	// For Undo: the hand in which you last played a card.
+	if ((action as { t?: string })?.t === 'play') run.ext.lastPlay = run.stats.hands;
 	afterGameStep(run);
 }
 

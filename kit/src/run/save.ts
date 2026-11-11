@@ -15,7 +15,9 @@ export type Action =
 	| { t: 'sell'; slot: number }
 	| { t: 'reroll' }
 	| { t: 'leave' }
-	| { t: 'ploy'; slot: number };
+	| { t: 'ploy'; slot: number }
+	/** An Undo spent: the play it took back is gone from the save. */
+	| { t: 'drop'; key: string };
 
 export interface Save {
 	version: 1;
@@ -50,7 +52,23 @@ export function apply(run: Run, a: Action) {
 			return R.leaveShop(run);
 		case 'ploy':
 			return R.usePloy(run, a.slot);
+		case 'drop': {
+			const i = run.ploys.indexOf(a.key);
+			if (i >= 0) run.ploys.splice(i, 1);
+			run.stats.ploysUsed++;
+			return;
+		}
 	}
+}
+
+/** Undo: the save without your last card play (and anything after it), and
+ *  with the Undo spent. Replaying it puts the hand back as it was before
+ *  that card, the other seats' cards included. */
+export function undo(save: Save): Save | null {
+	let i = save.actions.length - 1;
+	while (i >= 0 && !(save.actions[i].t === 'game' && (save.actions[i] as { a: { t?: string } }).a?.t === 'play')) i--;
+	if (i < 0) return null;
+	return { ...save, actions: [...save.actions.slice(0, i), { t: 'drop', key: 'undo' }] };
 }
 
 export function replay(module: GameModule, save: Save): Run {

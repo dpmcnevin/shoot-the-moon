@@ -2,7 +2,7 @@
 // seed + actions per game so a run picks up where it left off.
 
 import * as R from '$kit/src/run/run.ts';
-import { apply, replay, type Action, type Save } from '$kit/src/run/save.ts';
+import { apply, replay, undo, type Action, type Save } from '$kit/src/run/save.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import { byId } from './games/index.ts';
 import { LANDSCAPE, type Layout } from './layout.ts';
@@ -99,6 +99,19 @@ class Arcade {
 	do(a: Action) {
 		const run = this.run!;
 		if (this.busy) return;
+		// Undo: rewind the save to before your last card, and replay it.
+		if (a.t === 'ploy' && run.ploys[a.slot] === 'undo') {
+			const ok = R.canUsePloy(run, a.slot);
+			const back = ok[0] ? undo(this.save!) : null;
+			if (!back) return this.flash(`Can't: ${ok[1] ?? 'nothing to take back'}`);
+			this.save = back;
+			this.run = replay(this.ui!.module, back);
+			this.picked = [];
+			this.persist();
+			this.v++;
+			sound.play('flip');
+			return this.flash('Taken back', 'good');
+		}
 		const before = run.phase;
 		try {
 			// Game moves leave the AI to us, so it can be paced and seen.
