@@ -2,7 +2,14 @@
 <script lang="ts">
 	import { arcade } from '../app.svelte.ts';
 	import { GAMES } from '../games/index.ts';
-	import { cardBack } from '../ui/images.ts';
+	import { cardBack, cardFace } from '../ui/images.ts';
+	import Shine from './Shine.svelte';
+	import * as cards from '$kit/src/core/rules/cards.ts';
+	// Four random cards around the title, some with an edition's shine.
+	const FAN = (() => {
+		const deck = cards.newDeck().sort(() => Math.random() - 0.5).slice(0, 4);
+		return deck.map((card) => ({ card, edition: Math.random() < 0.35 ? (['etched', 'lacquered', 'prismatic'] as const)[Math.floor(Math.random() * 3)] : undefined }));
+	})();
 	import Button from './Button.svelte';
 	import * as R from '$kit/src/run/run.ts';
 	import Collection from './Collection.svelte';
@@ -18,7 +25,11 @@
 </script>
 
 <div class="menu">
-	<h1>CARD ARCADE</h1>
+	<div class="titlerow">
+		<div class="fan left">{#each FAN.slice(0, 2) as f, i}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" style:transform="rotate({-14 + i * 10}deg)" /></Shine>{/each}</div>
+		<h1>CARD ARCADE</h1>
+		<div class="fan right">{#each FAN.slice(2) as f, i}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" style:transform="rotate({4 + i * 10}deg)" /></Shine>{/each}</div>
+	</div>
 	<div class="dim">cardkit prototype: one engine, a module per game</div>
 	<div class="games">
 		{#each GAMES as g (g.module.id)}
@@ -42,13 +53,31 @@
 		{/each}
 	</div>
 	<div class="settings">
-		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 160px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
+		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 120px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
+		<Button variant="plain" size="sm" onclick={() => settings.toggle('pixel')} style="width: 120px">{settings.pixel ? 'Pixel' : 'Smooth'}</Button>
 	</div>
 	{#if showing}<Collection ui={showing} close={() => (showing = null)} />{/if}
 </div>
 
 <style>
+	.titlerow {
+		display: flex;
+		align-items: center;
+		gap: 28px;
+	}
+	.fan {
+		display: flex;
+	}
+	.fan img {
+		width: 56px;
+		height: 78px;
+		image-rendering: pixelated;
+		margin: 0 -8px;
+		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+	}
 	.settings {
+		display: flex;
+		gap: 6px;
 		position: absolute;
 		right: 24px;
 		top: 20px;

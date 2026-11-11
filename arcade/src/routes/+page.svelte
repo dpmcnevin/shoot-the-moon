@@ -18,6 +18,7 @@
 	import DeckView from '$lib/components/DeckView.svelte';
 	import { fx } from '$lib/fx.svelte.ts';
 	import { layoutFor, cssVars } from '$lib/layout.ts';
+	import { settings } from '$lib/settings.svelte.ts';
 
 	let w = $state(1280),
 		h = $state(720);
@@ -41,7 +42,7 @@
 <svelte:window bind:innerWidth={w} bind:innerHeight={h} onpointerdown={() => sound.unlock()} onkeydown={() => sound.unlock()} />
 
 <div class="wrap">
-	<div class="stage" class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
+	<div class="stage" class:smooth={!settings.pixel} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
 		{#key L.portrait}<Felt x={0} w={L.W} h={L.H} />{/key}
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu />
@@ -88,6 +89,9 @@
 		height: 720px;
 		flex: none;
 		overflow: hidden;
+	}
+	.stage.smooth {
+		--card-render: auto;
 	}
 	.pre {
 		position: absolute;

@@ -7,6 +7,21 @@ import * as icons from '$kit/src/core/ui/icons.ts';
 import { toCanvas } from '$kit/src/core/ui/pixel.ts';
 import { sealBitmap } from '$kit/src/core/ui/sealart.ts';
 import { settings } from '../settings.svelte.ts';
+import * as cardart from '$kit/src/core/ui/cardart.ts';
+import { CARD_H, CARD_W } from '$kit/src/core/ui/theme.ts';
+
+/** A smooth card drawn with canvas 2D, supersampled for any screen. */
+function smooth(draw: (g: CanvasRenderingContext2D) => void, px: number): string {
+	const k = Math.max(2, px);
+	const canvas = document.createElement('canvas');
+	canvas.width = Math.round((CARD_W * k) / 2);
+	canvas.height = Math.round((CARD_H * k) / 2);
+	const g = canvas.getContext('2d')!;
+	g.scale(k / 2, k / 2);
+	g.translate(CARD_W / 2, CARD_H / 2);
+	draw(g);
+	return canvas.toDataURL();
+}
 
 const cache = new Map<string, string>();
 
@@ -35,10 +50,12 @@ function cached(key: string, build: () => string): string {
 
 export function cardFace(card: Card, trump = false, px = SCALE): string {
 	const four = settings.fourColor;
+	if (!settings.pixel) return cached(`s|${cards.code(card)}|${trump}|${px}|${four}`, () => smooth((g) => cardart.face(g, card, trump, four), px));
 	return cached(`${cards.code(card)}|${trump}|${px}|${four}`, () => toCanvas(pixelcards.faceBitmap(card, trump, four), px).toDataURL());
 }
 
 export function cardBack(deck = 'standard', px = SCALE): string {
+	if (!settings.pixel) return cached(`s|back|${deck}|${px}`, () => smooth((g) => cardart.back(g, deck), px));
 	return cached(`back|${deck}|${px}`, () => toCanvas(pixelcards.backBitmap(deck), px).toDataURL());
 }
 
