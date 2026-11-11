@@ -59,12 +59,14 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding-top: 60px;
-		gap: 10px;
+		padding: 28px 0 20px;
+		gap: 6px;
+		/* Fits the stage; scrolls if a game's card ever runs taller. */
+		overflow-y: auto;
 	}
 	h1 {
 		margin: 0;
-		font-size: 72px;
+		font-size: 60px;
 		color: var(--brass);
 		text-shadow: 5px 5px 0 rgba(0, 0, 0, 0.6);
 	}
@@ -72,7 +74,7 @@
 		color: var(--ink-dim);
 	}
 	.games {
-		margin-top: 40px;
+		margin-top: 22px;
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
@@ -81,17 +83,17 @@
 	}
 	.game {
 		width: 300px;
-		padding: 20px;
+		padding: 14px 18px;
 		background: rgba(12, 22, 18, 0.9);
 		border: 2px solid var(--brass-dim);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 10px;
+		gap: 7px;
 	}
 	.game img {
-		width: 80px;
-		height: 112px;
+		width: 60px;
+		height: 84px;
 		image-rendering: pixelated;
 	}
 	h2 {
@@ -105,7 +107,8 @@
 	p {
 		margin: 0;
 		text-align: center;
-		min-height: 60px;
+		font-size: 15px;
+		min-height: 54px;
 	}
 	.deck {
 		width: 100%;

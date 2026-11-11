@@ -46,7 +46,7 @@ export interface EuchreCtx {
 	handsThisBoard: number;
 }
 
-const TABLE_BASE = [130, 230, 370, 540, 760, 1050, 1450, 1950];
+const TABLE_BASE = [100, 175, 280, 410, 580, 800, 1100, 1480];
 const BOARD_SCALE = [1, 1.25, 1.55];
 const PER_TRICK = 25;
 const round10 = (n: number) => Math.round(n / 10) * 10;

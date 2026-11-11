@@ -33,7 +33,7 @@ export interface HeartsHand {
 export type HeartsAction = { t: 'pass'; cards: string[] } | { t: 'play'; card: string } | { t: 'playOut' };
 
 const TABLE_BASE = [25, 60, 123, 213, 357, 578, 950, 1528];
-const BOARD_SCALE = [1, 1.4, 1.9];
+const BOARD_SCALE = [1, 1.3, 1.65]; // as in Shoot the Moon
 const CLEAN_BONUS = 10;
 
 const round5 = (n: number) => (n < 100 ? Math.round(n / 5) * 5 : Math.round(n / 10) * 10);
