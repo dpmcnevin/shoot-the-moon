@@ -246,6 +246,7 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		const st = d.state!;
 		const won = play.declarerTricks(st, d.declarer);
 		const b = base(run, scoreCtx(run, d.contract!, won, play.summarise(st, d.declarer), st.tricks));
+		if (b.made && d.contract!.level >= 6) run.ext.slams = (run.ext.slams ?? 0) + 1;
 		b.played = st.tricks.flatMap((t) =>
 			t.plays.map((p) => ({ card: p.card, mine: cards.sameSide(p.seat, d.declarer), wonByUs: cards.sameSide(t.winner, d.declarer), winning: p.seat === t.winner }))
 		);
@@ -260,6 +261,12 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		{ key: 'short_rubber', name: 'The Short Rubber', text: 'Only two deals on this board', tier: 2, hands: 2 },
 		{ key: 'purist', name: 'The Purist', text: 'Overtricks cost 30 points each', tier: 3, score: (c) => (c.tricksWon > scoring.tricksNeeded(c.contract) ? { label: 'The Purist: overtricks', chips: -30 * (c.tricksWon - scoring.tricksNeeded(c.contract)) } : null) }
 	],
+	counters: (run) => ({ made: run.stats.made, slams: run.ext.slams ?? 0 }),
+	counterNames: { made: 'Contracts made', slams: 'Slams made' },
+	describeHand(run) {
+		const d = run.hand;
+		return `${cards.contractName(d.contract!)}${d.contract!.doubled ? ' doubled' : ''} · ${play.declarerTricks(d.state!, d.declarer)} tricks`;
+	},
 	bot(run, rng) {
 		if (run.phase === R.PHASE.PRE) {
 			const c = recommendBid(run);

@@ -200,6 +200,7 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 				lines.push({ label: 'Alone', xmult: 2 });
 			}
 		}
+		if (c.euchredThem) run.ext.euchres = (run.ext.euchres ?? 0) + 1;
 		if (c.euchredThem) {
 			title = 'You euchred them!';
 			lines.push({ label: 'Euchred them', chips: 60 });
@@ -218,6 +219,12 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 		{ key: 'grudge', name: 'The Grudge', text: 'Hands where they make trump score half', tier: 2, score: (c) => (!c.makers ? { label: 'The Grudge: their trump', xmult: 0.5 } : null) },
 		{ key: 'marcher', name: 'The Drill Sergeant', text: 'Only marches and euchres score levels; x0.6 otherwise', tier: 3, score: (c) => (!c.march && !c.euchredThem ? { label: 'The Drill Sergeant', xmult: 0.6 } : null) }
 	],
+	counters: (run) => ({ marches: run.ext.marches ?? 0, euchres: run.ext.euchres ?? 0 }),
+	counterNames: { marches: 'Marches', euchres: 'Euchres' },
+	describeHand(run) {
+		const h = run.hand;
+		return `${ai.seatName(h.maker!)} made ${cards.SUITS[h.trump!].name.toLowerCase()}${h.alone ? ' alone' : ''} · your side ${E.tricksFor(h, E.PLAYER)} tricks`;
+	},
 	bot(run) {
 		const h = run.hand;
 		if (run.phase === R.PHASE.PRE) {

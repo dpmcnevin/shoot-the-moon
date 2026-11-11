@@ -222,6 +222,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			title = ctx.myPoints === 0 ? 'Clean hand!' : `You took ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'}`;
 			lines.push({ label: ctx.myPoints ? `26 less ${ctx.myPoints} point${ctx.myPoints === 1 ? '' : 's'} taken` : 'Dodged every point', chips: dodged });
 			levels.push('dodge');
+			if (ctx.myPoints === 0) run.ext.clean = (run.ext.clean ?? 0) + 1;
 			if (ctx.myPoints === 0 && !R.bossIs(run, 'auditor')) {
 				lines.push({ label: 'Clean hand', chips: CLEAN_BONUS });
 				levels.push('clean');
@@ -264,6 +265,13 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 		{ key: 'widow', name: 'The Widow', text: 'The queen of spades counts double, and the hand you take her scores half', tier: 2, score: (c) => (c.tookQueen && c.shooter !== H.PLAYER ? { label: 'The Widow: you took her queen', xmult: 0.5 } : null) },
 		{ key: 'shortchanger', name: 'The Shortchanger', text: 'Only two hands on this board', tier: 3, hands: 2 }
 	],
+	counters: (run) => ({ moons: run.ext.moons ?? 0, clean: run.ext.clean ?? 0 }),
+	counterNames: { moons: 'Moons shot', clean: 'Clean hands' },
+	describeHand(run) {
+		const st = run.hand.state!;
+		const pts = H.pointsTaken(st);
+		return `pass ${run.hand.passDir} · points N${pts[1]} E${pts[2]} S${pts[3]} W${pts[4]}`;
+	},
 	bot(run, rng) {
 		const h = run.hand;
 		if (run.phase === R.PHASE.PRE) return { t: 'pass', cards: ai.choosePass(h.dealt[H.PLAYER], rng).map(cards.code) };

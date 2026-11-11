@@ -201,6 +201,12 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Card editions and seals change cards in the pack (off for a game
 	 *  whose pack must stay as dealt). Default on. */
 	cardMods?: boolean;
+	/** The game's own tallies across a run (moons, slams), for the profile. */
+	counters?(run: Run<H>): Record<string, number>;
+	/** What those tallies are called, for the stats screen. */
+	counterNames?: Record<string, string>;
+	/** One line about the hand just played, for the game log. */
+	describeHand?(run: Run<H>): string;
 	/** A sensible action for the player right now: autoplay and tests. Any
 	 *  randomness comes from `rng`, never the run's own (replays must match). */
 	bot(run: Run<H>, rng: RNG): A;

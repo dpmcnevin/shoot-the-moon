@@ -90,3 +90,21 @@ test('bosses rule the last board of each table; endless goes on after victory', 
 	assert.equal(run.phase, 'won');
 	assert.ok(run.endless);
 });
+
+import { buildLog } from '../src/run/gamelog.ts';
+import { emptyProfile, noteRun } from '../src/run/profile.ts';
+import { playRun } from '../tools/bot.ts';
+
+test('the profile and game log work for any game', () => {
+	for (const m of [hearts, bridge, euchre]) {
+		const { run, save } = playRun(m, 'LOG' + m.id);
+		const p = noteRun(emptyProfile(), run, 'r1');
+		noteRun(p, run, 'r1');
+		assert.equal(p.runs, 1, 'idempotent');
+		assert.equal(p.handsPlayed, run.stats.hands);
+		assert.ok(Object.keys(p.counters).length > 0, 'the game counts its own things');
+		const log = buildLog(m, save);
+		assert.ok(log.includes('save: {'), 'ends with the save');
+		assert.ok(log.split('\n').filter((l) => l.startsWith(`-- ${m.words.hand}`)).length === run.stats.hands, 'one entry per hand');
+	}
+});
