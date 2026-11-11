@@ -22,12 +22,17 @@
 {#key arcade.v}
 <aside>
 	<div class="title">{m.title.toUpperCase()}</div>
-	<div class="row"><span>{m.words.table} {run.table} of {m.tables}</span><span class="dim">{R.boardName(run)}</span></div>
+	<div class="row"><span>{m.words.table} {run.table} of {m.tables}</span><span class="tables">{#each Array(m.tables) as _, i}<span class:done={i + 1 < run.table} class:now={i + 1 === run.table}></span>{/each}</span></div>
+	<div class="row dim"><span>{R.boardName(run)}</span><span>Board {run.board} of {m.boardsPerTable}</span></div>
 	<div class="goal">
 		<div class="row dim"><span>Goal</span><span>Scored</span></div>
 		<div class="row big"><span>{run.target}</span><span class:good={run.score >= run.target}>{run.score}</span></div>
 		<div class="bar"><div style:width="{Math.min(100, (100 * run.score) / Math.max(1, run.target))}%"></div></div>
-		<div class="row dim"><span>{m.words.hands} left</span><span>{run.handsLeft} of {m.handsPerBoard}</span></div>
+		<div class="row dim hands">
+			<span>{m.words.hands} left</span>
+			<span class="dots">{#each Array(Math.max(run.handsThisBoard, run.handsLeft)) as _, i}<span class:on={i < run.handsLeft}></span>{/each}</span>
+			<span>{run.handsLeft} of {run.handsThisBoard}</span>
+		</div>
 	</div>
 	<div class="row"><span class="dim">Money</span><span class="money">${run.money}</span></div>
 	{#if run.boss}
@@ -148,6 +153,39 @@
 	.bar div {
 		height: 100%;
 		background: var(--good);
+	}
+	.hands {
+		align-items: center;
+		gap: 8px;
+	}
+	.dots {
+		flex: 1;
+		display: flex;
+		gap: 4px;
+	}
+	.dots span {
+		width: 12px;
+		height: 12px;
+		background: var(--bg);
+	}
+	.dots span.on {
+		background: var(--brass);
+	}
+	.tables {
+		display: flex;
+		gap: 3px;
+		align-items: center;
+	}
+	.tables span {
+		width: 9px;
+		height: 9px;
+		background: var(--panel-edge);
+	}
+	.tables span.done {
+		background: var(--brass-dim);
+	}
+	.tables span.now {
+		background: var(--ink);
 	}
 	.money {
 		color: var(--brass);

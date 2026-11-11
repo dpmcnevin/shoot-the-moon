@@ -5,6 +5,7 @@
 	import * as R from '$kit/src/run/run.ts';
 	import Button from './Button.svelte';
 	import ScorePanel from './ScorePanel.svelte';
+	import BoardWonPanel from './BoardWonPanel.svelte';
 
 	const run = $derived((void arcade.v, arcade.run!));
 	const m = $derived(run.module);
@@ -17,17 +18,7 @@
 {#if run.phase === R.PHASE.SCORED && b && !arcade.hold}
 	<ScorePanel />
 {:else if run.phase === R.PHASE.WON && run.lastPayout}
-	{@const p = run.lastPayout}
-	<div class="panel">
-		<h2>{R.boardName(run)} won</h2>
-		<div class="line"><span>Board</span><span class="money">${p.board}</span></div>
-		<div class="line"><span>{m.words.hands} left over</span><span class="money">${p.unused}</span></div>
-		<div class="line"><span>Interest</span><span class="money">${p.interest}</span></div>
-		{#if p.relics}<div class="line"><span>Relics</span><span class="money">${p.relics}</span></div>{/if}
-		{#if p.boss}<div class="line"><span>Boss beaten</span><span class="money">${p.boss}</span></div>{/if}
-		<div class="line big"><span>Total</span><span class="money">${p.total}</span></div>
-		<Button pulse onclick={() => arcade.do({ t: 'shop' })} style="width: 240px">To the club</Button>
-	</div>
+	<BoardWonPanel />
 {:else if run.phase === R.PHASE.OVER || run.phase === R.PHASE.VICTORY}
 	<div class="panel">
 		<h2>{run.phase === R.PHASE.VICTORY ? 'Victory!' : 'Run over'}</h2>
@@ -74,19 +65,6 @@
 		margin: 0 0 6px;
 		color: var(--brass);
 		font-size: 30px;
-	}
-	.line {
-		display: flex;
-		justify-content: space-between;
-		font-size: 17px;
-	}
-	.big {
-		font-size: 21px;
-		font-weight: 700;
-	}
-	.money {
-		color: var(--brass);
-		margin-left: 8px;
 	}
 	.endstats {
 		display: grid;
