@@ -10,6 +10,8 @@
 	import Shop from '$lib/components/Shop.svelte';
 	import * as sound from '$lib/audio/sound.ts';
 	import { setDeviceScale } from '$lib/ui/images.ts';
+	import Particles from '$lib/components/Particles.svelte';
+	import { fx } from '$lib/fx.svelte.ts';
 
 	let w = $state(1280),
 		h = $state(720);
@@ -26,7 +28,7 @@
 <svelte:window bind:innerWidth={w} bind:innerHeight={h} onpointerdown={() => sound.unlock()} onkeydown={() => sound.unlock()} />
 
 <div class="wrap">
-	<div class="stage" style:transform="scale({scale})">
+	<div class="stage" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
 		<Felt x={0} w={1280} h={720} />
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu />
@@ -45,6 +47,7 @@
 			{/if}
 		{/if}
 		{#if arcade.toast}<div class="toast">{arcade.toast}</div>{/if}
+		<Particles w={1280} h={720} {scale} />
 	</div>
 </div>
 

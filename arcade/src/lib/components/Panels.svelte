@@ -4,6 +4,7 @@
 	import { arcade } from '../app.svelte.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import Button from './Button.svelte';
+	import ScorePanel from './ScorePanel.svelte';
 
 	const run = $derived((void arcade.v, arcade.run!));
 	const m = $derived(run.module);
@@ -14,28 +15,7 @@
 <!-- The run is mutated in place: redraw when it changes. -->
 {#key arcade.v}
 {#if run.phase === R.PHASE.SCORED && b && !arcade.hold}
-	<div class="panel" class:bad={!b.made}>
-		<h2>{b.title}</h2>
-		{#each b.lines as l}
-			<div class="line">
-				<span>{l.label}</span>
-				<span>
-					{#if l.chips}<span class="chips">{l.chips > 0 ? '+' : ''}{fmt(l.chips)}</span>{/if}
-					{#if l.mult}<span class="mult">+{fmt(l.mult)}</span>{/if}
-					{#if l.xmult && l.xmult !== 1}<span class="mult">x{fmt(l.xmult)}</span>{/if}
-					{#if l.money}<span class="money">+${l.money}</span>{/if}
-				</span>
-			</div>
-		{/each}
-		<div class="total">
-			<span class="pill chips-bg">{fmt(b.chips)}</span> x <span class="pill mult-bg">{fmt(b.mult)}</span>
-			<span class="eq">= {b.total}</span>
-		</div>
-		<div class="dim">Board {run.score} / {run.target} · {run.handsLeft} {m.words.hands} left</div>
-		<Button pulse onclick={() => arcade.do({ t: 'next' })} style="width: 240px">
-			{run.score >= run.target ? 'Board won!' : run.handsLeft <= 0 ? 'Out of ' + m.words.hands : 'Next ' + m.words.hand}
-		</Button>
-	</div>
+	<ScorePanel />
 {:else if run.phase === R.PHASE.WON && run.lastPayout}
 	{@const p = run.lastPayout}
 	<div class="panel">
@@ -78,9 +58,6 @@
 		align-items: stretch;
 		z-index: 120;
 	}
-	.panel.bad {
-		border-color: var(--bad);
-	}
 	.panel :global(.btn) {
 		align-self: flex-end;
 	}
@@ -98,37 +75,9 @@
 		font-size: 21px;
 		font-weight: 700;
 	}
-	.chips {
-		color: var(--chips);
-		margin-left: 8px;
-	}
-	.mult {
-		color: var(--mult);
-		margin-left: 8px;
-	}
 	.money {
 		color: var(--brass);
 		margin-left: 8px;
-	}
-	.total {
-		margin-top: 8px;
-		font-size: 26px;
-		font-weight: 700;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-	.pill {
-		padding: 0 10px;
-	}
-	.chips-bg {
-		background: var(--chips);
-	}
-	.mult-bg {
-		background: var(--mult);
-	}
-	.eq {
-		margin-left: auto;
 	}
 	.dim {
 		color: var(--ink-dim);

@@ -1,15 +1,15 @@
 <!-- The table, drawn from a game's TableView: four seats, the trick in the
-     middle, your hand along the bottom. Cards are keyed by suit and rank, so
-     a card glides from a hand into the trick. -->
+     middle, your hand along the bottom. Each card is a sprite that springs to
+     where the view puts it; a new hand deals in from the deck. Your hand can
+     be sorted, dragged into any order, or a card dragged onto the table to
+     play it. -->
 <script lang="ts">
 	import { arcade } from '../app.svelte.ts';
-	import { cardFace, cardBack, artPixels, snap } from '../ui/images.ts';
 	import * as cards from '$kit/src/core/rules/cards.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
 	import type { Pos } from '../games/types.ts';
-	import SealBadge from './SealBadge.svelte';
-	import { editionColor } from './editions.ts';
+	import CardSprite from './CardSprite.svelte';
 
 	const X0 = 270,
 		W = 1010,
@@ -17,11 +17,17 @@
 		CY = 300,
 		CW = 80,
 		CH = 112;
+	/** Where new cards come from. */
+	const DECK = { x: X0 + W - 70, y: 640 };
 
+	const run = $derived((void arcade.v, arcade.run!));
 	const view = $derived((void arcade.v, arcade.ui!.view(arcade.run!)));
 	const pre = $derived((void arcade.v, arcade.run!.phase === R.PHASE.PRE));
 	const key = (c: Card) => `${c.suit}-${c.rank}`;
-	const back = $derived(R.allDecks(arcade.run!.module).find((d) => d.key === arcade.run!.deck)?.back ?? arcade.ui!.back);
+	const back = $derived(R.allDecks(run.module).find((d) => d.key === run.deck)?.back ?? arcade.ui!.back);
+	// One key per deal, so every hand deals in fresh (the same card in the next
+	// hand is a new sprite flying from the deck).
+	const deal = $derived((void arcade.v, `${run.table}.${run.board}.${run.stats.hands - (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY ? 0 : 1)}`));
 
 	interface Sprite {
 		k: string;
@@ -31,31 +37,63 @@
 		y: number;
 		s: number;
 		z: number;
+		order: number;
 		click?: () => void;
+		down?: (e: PointerEvent) => void;
 		dim?: boolean;
-		lift?: boolean;
+		lift?: number;
+		mine?: boolean;
 	}
 
 	const TRICK: Record<Pos, [number, number]> = { N: [0, -96], S: [0, 96], W: [-130, 0], E: [130, 0] };
 
+	// ---- your hand: order and dragging
+	let drag = $state<{ k: string; x: number; y: number; moved: boolean; sx: number; sy: number } | null>(null);
+	let suppress = false;
+	let stage: HTMLElement | null = null;
+	function toStage(e: PointerEvent): [number, number] {
+		stage ??= document.querySelector('.stage');
+		const r = stage!.getBoundingClientRect();
+		const k = 1280 / r.width;
+		return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
+	}
+
+	/** Your hand in your order (sorted, or as you dragged it). */
+	function ordered(hand: Card[]): Card[] {
+		const o = arcade.order;
+		if (o.length && hand.every((c) => o.includes(key(c)))) return hand.slice().sort((a, b) => o.indexOf(key(a)) - o.indexOf(key(b)));
+		const bySuit = (a: Card, b: Card) => b.suit - a.suit || b.rank - a.rank;
+		const byRank = (a: Card, b: Card) => b.rank - a.rank || b.suit - a.suit;
+		return hand.slice().sort(arcade.sortBy === 'rank' ? byRank : bySuit);
+	}
+
 	const sprites = $derived.by(() => {
 		const out: Sprite[] = [];
+		let n0 = 0;
 		for (const seat of view.seats) {
 			const n = seat.cards.length;
 			if (seat.pos === 'S') {
 				const s = 1.3,
 					w = CW * s;
+				const hand = ordered(seat.cards);
 				const gap = n > 1 ? Math.min(58, (880 - w) / (n - 1)) : 0;
 				const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
-				seat.cards.forEach((c, i) => {
+				hand.forEach((c, i) => {
 					const k = key(c);
 					const picking = pre && !!arcade.ui!.pick;
 					const legal = view.legal.has(k) && seat.playable;
+					const dragging = drag?.k === k && drag.moved;
 					out.push({
-						k, card: c, up: true, x: x0 + i * gap, y: 720 - (CH * s) / 2 - 22, s, z: 10 + i,
-						lift: arcade.picked.includes(k),
+						k, card: c, up: true, s, z: dragging ? 200 : 10 + i, order: n0 + i, mine: true,
+						x: dragging ? drag!.x : x0 + i * gap,
+						y: dragging ? drag!.y : 720 - (CH * s) / 2 - 22,
+						lift: arcade.picked.includes(k) ? 26 : 0,
 						dim: !pre && !arcade.busy && view.legal.size > 0 && seat.playable && !legal,
-						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
+						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined,
+						down: (e) => {
+							const [x, y] = toStage(e);
+							drag = { k, x, y, sx: x, sy: y, moved: false };
+						}
 					});
 				});
 			} else if (seat.pos === 'N') {
@@ -66,7 +104,7 @@
 					const k = key(c);
 					const legal = view.legal.has(k) && seat.playable;
 					out.push({
-						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 100 : 72, s, z: 5 + i,
+						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 100 : 72, s, z: 5 + i, order: n0 + i,
 						dim: seat.playable && view.legal.size > 0 && !legal,
 						click: legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
@@ -74,18 +112,47 @@
 			} else {
 				const x = seat.pos === 'W' ? X0 + 60 : X0 + W - 60;
 				const y0 = CY - (16 * (n - 1)) / 2;
-				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * 16, s: 0.55, z: 5 + i }));
+				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * 16, s: 0.55, z: 5 + i, order: n0 + i }));
 			}
+			n0 += n;
 		}
 		view.trick.forEach((t, i) => {
 			const [dx, dy] = TRICK[t.pos];
-			out.push({ k: key(t.card), card: t.card, up: true, x: CX + dx, y: CY + dy, s: 1.15, z: 50 + i });
+			out.push({ k: key(t.card), card: t.card, up: true, x: CX + dx, y: CY + dy, s: 1.15, z: 50 + i, order: 0 });
 		});
 		return out;
 	});
 
+	function move(e: PointerEvent) {
+		if (!drag) return;
+		const [x, y] = toStage(e);
+		if (!drag.moved && Math.hypot(x - drag.sx, y - drag.sy) < 8) return;
+		drag = { ...drag, x, y, moved: true };
+	}
+	function up() {
+		const d = drag;
+		drag = null;
+		if (!d?.moved) return;
+		suppress = true;
+		setTimeout(() => (suppress = false), 0);
+		const hand = view.seats.find((s) => s.pos === 'S')!;
+		const card = hand.cards.find((c) => key(c) === d.k)!;
+		// Dropped on the table: play it, if you may.
+		if (d.y < 480 && view.legal.has(d.k) && hand.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
+		// Otherwise, put it where it was dropped.
+		const rest = ordered(hand.cards).filter((c) => key(c) !== d.k);
+		const n = hand.cards.length,
+			w = CW * 1.3;
+		const gap = n > 1 ? Math.min(58, (880 - w) / (n - 1)) : 0;
+		const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
+		const at = Math.max(0, Math.min(rest.length, Math.round((d.x - x0) / Math.max(1, gap))));
+		rest.splice(at, 0, card);
+		arcade.order = rest.map(key);
+	}
 	const LABEL: Record<Pos, [number, number]> = { N: [CX, 16], S: [CX, 520], W: [X0 + 60, CY - 150], E: [X0 + W - 60, CY - 150] };
 </script>
+
+<svelte:window onpointermove={move} onpointerup={up} />
 
 <div class="table">
 	{#each view.seats as seat (seat.pos)}
@@ -99,30 +166,33 @@
 			<span class="tl">Trump</span><span class="tg">{cards.SUITS[view.trump].glyph + '\uFE0E'}</span>
 		</div>
 	{/if}
-	{#each sprites as sp (sp.k)}
-		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-		<img
-			class="card"
-			class:click={!!sp.click}
-			class:dim={sp.dim}
-			src={sp.up ? cardFace(sp.card, view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit, artPixels(sp.s)) : cardBack(back, artPixels(sp.s))}
-			alt=""
-			draggable="false"
-			style:left="{Math.round(sp.x - (CW * snap(sp.s)) / 2)}px"
-			style:top="{Math.round(sp.y - (CH * snap(sp.s)) / 2 - (sp.lift ? 26 : 0))}px"
-			style:width="{CW * snap(sp.s)}px"
-			style:height="{CH * snap(sp.s)}px"
-			style:z-index={sp.z}
-			style:--glow={sp.up && R.mod(arcade.run!, sp.card).edition ? editionColor(R.mod(arcade.run!, sp.card).edition) : 'transparent'}
-			class:ed={sp.up && !!R.mod(arcade.run!, sp.card).edition}
-			onclick={sp.click}
+	{#each sprites as sp (deal + sp.k)}
+		<CardSprite
+			card={sp.card}
+			x={sp.x}
+			y={sp.y}
+			s={sp.s}
+			z={sp.z}
+			faceUp={sp.up}
+			{back}
+			lift={sp.lift}
+			dim={sp.dim}
+			trump={sp.up && (view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit)}
+			edition={sp.up ? R.mod(run, sp.card).edition : undefined}
+			seal={sp.up ? R.sealOf(run, sp.card) : undefined}
+			spawn={{ x: DECK.x, y: DECK.y, faceUp: false, delay: sp.order * 0.035, sound: sp.order % 3 === 0 }}
+			flipDelay={sp.mine ? 0.25 : 0}
+			click={sp.click ? () => !suppress && sp.click!() : undefined}
+			pointerdown={sp.down && !arcade.busy ? sp.down : undefined}
 		/>
-		{#if sp.up && R.sealOf(arcade.run!, sp.card)}
-			<span class="seal" style:left="{sp.x + (CW * sp.s) / 2 - 16}px" style:top="{sp.y - (CH * sp.s) / 2 - (sp.lift ? 26 : 0) - 6}px" style:z-index={sp.z}>
-				<SealBadge seal={R.sealOf(arcade.run!, sp.card)!} size={Math.round(22 * sp.s)} />
-			</span>
-		{/if}
 	{/each}
+	{#if (view.seats.find((x) => x.pos === 'S')?.cards.length ?? 0) > 1}
+		<div class="sort">
+			<span>Sort</span>
+			<button class:on={arcade.sortBy === 'suit' && !arcade.order.length} onclick={() => arcade.sort('suit')}>Suit</button>
+			<button class:on={arcade.sortBy === 'rank' && !arcade.order.length} onclick={() => arcade.sort('rank')}>Rank</button>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -130,39 +200,29 @@
 		position: absolute;
 		inset: 0;
 	}
-	.card {
+	.sort {
 		position: absolute;
-		image-rendering: pixelated;
-		transition:
-			left 0.28s ease,
-			top 0.28s ease,
-			width 0.28s ease,
-			height 0.28s ease,
-			filter 0.15s;
-		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
-		border-radius: 4px;
+		left: 300px;
+		top: 512px;
+		display: flex;
+		gap: 6px;
+		align-items: center;
+		color: var(--ink-dim);
+		font-size: 15px;
+		z-index: 70;
 	}
-	/* A card edition: a glow in the edition's color. */
-	.card.ed {
-		box-shadow:
-			0 0 0 3px var(--glow),
-			0 4px 0 3px rgba(0, 0, 0, 0.35);
-	}
-	.seal {
-		position: absolute;
-		pointer-events: none;
-		transition:
-			left 0.28s ease,
-			top 0.28s ease;
-	}
-	.card.click {
+	.sort button {
+		font: inherit;
+		font-size: 14px;
+		padding: 3px 12px;
+		border: none;
+		background: var(--panel-edge);
+		color: var(--ink);
 		cursor: pointer;
 	}
-	.card.click:hover {
-		transform: translateY(-10px);
-	}
-	.card.dim {
-		filter: brightness(0.55);
+	.sort button.on {
+		background: var(--brass);
+		color: var(--bg);
 	}
 	.label {
 		position: absolute;

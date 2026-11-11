@@ -6,6 +6,8 @@ import { apply, replay, type Action, type Save } from '$kit/src/run/save.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import { byId } from './games/index.ts';
 import * as sound from './audio/sound.ts';
+import { fx } from './fx.svelte.ts';
+import { hex } from '$kit/src/core/ui/theme.ts';
 import type { GameUI } from './games/types.ts';
 
 const KEY = (id: string) => `cardkit-arcade-${id}`;
@@ -17,6 +19,13 @@ class Arcade {
 	/** Bumped on every change: views read it to refresh. */
 	v = $state(0);
 	picked = $state<string[]>([]);
+	/** Your hand's order: how it's sorted, or the order you dragged it into. */
+	sortBy = $state<'suit' | 'rank'>('suit');
+	order = $state<string[]>([]);
+	sort(by: 'suit' | 'rank') {
+		this.sortBy = by;
+		this.order = [];
+	}
 	toast = $state('');
 	/** The AI seats are playing (paced); the player waits. */
 	busy = $state(false);
@@ -114,8 +123,11 @@ class Arcade {
 
 	private phaseCue(phase: R.Phase) {
 		const run = this.run!;
-		if (phase === R.PHASE.SCORED) setTimeout(() => sound.play(run.result?.made ? 'made' : 'down'), 0);
-		else if (phase === R.PHASE.WON) sound.play('board_won');
+		// The score panel plays its own sounds as it counts up.
+		if (phase === R.PHASE.WON) {
+			sound.play('board_won');
+			fx.burst(775, 260, 60, [hex('#e8c873'), hex('#4fbf7a'), hex('#ece6d6'), hex('#d9a441')], 380, { life: 1.3, size: 8 });
+		}
 		else if (phase === R.PHASE.VICTORY) sound.play('board_won');
 		else if (phase === R.PHASE.OVER) sound.play('game_over');
 	}
