@@ -44,6 +44,7 @@
 		<div class="line"><span>{m.words.hands} left over</span><span class="money">${p.unused}</span></div>
 		<div class="line"><span>Interest</span><span class="money">${p.interest}</span></div>
 		{#if p.relics}<div class="line"><span>Relics</span><span class="money">${p.relics}</span></div>{/if}
+		{#if p.boss}<div class="line"><span>Boss beaten</span><span class="money">${p.boss}</span></div>{/if}
 		<div class="line big"><span>Total</span><span class="money">${p.total}</span></div>
 		<Button pulse onclick={() => arcade.do({ t: 'shop' })} style="width: 240px">To the club</Button>
 	</div>
@@ -51,6 +52,9 @@
 	<div class="panel">
 		<h2>{run.phase === R.PHASE.VICTORY ? 'Victory!' : 'Run over'}</h2>
 		<div class="dim">{m.words.table} {run.table}, {R.boardName(run)} · {run.stats.hands} {m.words.hands} · best {run.stats.best}</div>
+		{#if run.phase === R.PHASE.VICTORY}
+			<Button variant="ploy" onclick={() => arcade.do({ t: 'endless' })} style="width: 200px">Keep going</Button>
+		{/if}
 		<Button onclick={() => arcade.start(m.id)} style="width: 200px">New run</Button>
 		<Button variant="plain" onclick={() => arcade.toMenu()} style="width: 200px">Menu</Button>
 	</div>

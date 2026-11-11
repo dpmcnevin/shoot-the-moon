@@ -33,6 +33,22 @@ class Arcade {
 		}
 	}
 
+	/** The starting deck picked for each game. */
+	decks = $state<Record<string, string>>((() => {
+		try {
+			return JSON.parse(localStorage.getItem('cardkit-arcade-decks') ?? '{}');
+		} catch {
+			return {};
+		}
+	})());
+
+	setDeck(id: string, deck: string) {
+		this.decks = { ...this.decks, [id]: deck };
+		try {
+			localStorage.setItem('cardkit-arcade-decks', JSON.stringify(this.decks));
+		} catch {}
+	}
+
 	start(id: string, resume = false) {
 		const ui = byId(id)!;
 		let save: Save | null = null;
@@ -41,10 +57,18 @@ class Arcade {
 				save = JSON.parse(localStorage.getItem(KEY(id)) ?? 'null');
 			} catch {}
 		}
-		if (save) this.run = replay(ui.module, save);
-		else {
-			this.run = R.newRun(ui.module);
-			save = { version: 1, game: id, seed: this.run.seed, actions: [] };
+		if (save) {
+			// A save from an older build may not replay; start fresh then.
+			try {
+				this.run = replay(ui.module, save);
+			} catch {
+				save = null;
+			}
+		}
+		if (!save) {
+			const deck = this.decks[id] ?? 'standard';
+			this.run = R.newRun(ui.module, undefined, { deck });
+			save = { version: 1, game: id, seed: this.run.seed, deck, actions: [] };
 		}
 		this.save = save;
 		this.ui = ui;

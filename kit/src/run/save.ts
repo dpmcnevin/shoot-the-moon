@@ -21,6 +21,8 @@ export interface Save {
 	version: 1;
 	game: string;
 	seed: string | number;
+	/** The starting deck (Standard if absent). */
+	deck?: string;
 	actions: Action[];
 }
 
@@ -53,7 +55,7 @@ export function apply(run: Run, a: Action) {
 
 export function replay(module: GameModule, save: Save): Run {
 	if (save.game !== module.id) throw new Error(`save is for ${save.game}, not ${module.id}`);
-	const run = R.newRun(module, save.seed);
+	const run = R.newRun(module, save.seed, { deck: save.deck });
 	for (const a of save.actions) apply(run, a);
 	return run;
 }

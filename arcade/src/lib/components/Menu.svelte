@@ -4,6 +4,13 @@
 	import { GAMES } from '../games/index.ts';
 	import { cardBack } from '../ui/images.ts';
 	import Button from './Button.svelte';
+	import * as R from '$kit/src/run/run.ts';
+	const deckOf = (id: string, m: R.GameModule) => R.allDecks(m).find((d) => d.key === (arcade.decks[id] ?? 'standard')) ?? R.allDecks(m)[0];
+	function cycle(id: string, m: R.GameModule, step: number) {
+		const all = R.allDecks(m);
+		const i = all.findIndex((d) => d.key === deckOf(id, m).key);
+		arcade.setDeck(id, all[(i + step + all.length) % all.length].key);
+	}
 </script>
 
 <div class="menu">
@@ -11,11 +18,17 @@
 	<div class="dim">cardkit prototype: one engine, a module per game</div>
 	<div class="games">
 		{#each GAMES as g (g.module.id)}
+			{@const deck = deckOf(g.module.id, g.module)}
 			<div class="game">
-				<img src={cardBack(g.back)} alt="" />
+				<img src={cardBack(deck.key === 'standard' ? g.back : deck.back)} alt="" />
 				<h2>{g.module.title}</h2>
 				<div class="tag">{g.module.tagline}</div>
 				<p>{g.blurb}</p>
+				<div class="deck">
+					<button class="arrow" title="Previous deck" onclick={() => cycle(g.module.id, g.module, -1)}><span class="tri left"></span></button>
+					<div class="dn"><b>{deck.name}</b><span>{deck.text}</span></div>
+					<button class="arrow" title="Next deck" onclick={() => cycle(g.module.id, g.module, 1)}><span class="tri right"></span></button>
+				</div>
 				{#if arcade.saved(g.module.id)}
 					<Button onclick={() => arcade.start(g.module.id, true)} style="width: 100%">Continue</Button>
 				{/if}
@@ -76,5 +89,47 @@
 		margin: 0;
 		text-align: center;
 		min-height: 60px;
+	}
+	.deck {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.dn {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		min-height: 44px;
+	}
+	.dn b {
+		color: var(--brass);
+	}
+	.dn span {
+		font-size: 12px;
+		color: var(--ink-dim);
+	}
+	.arrow {
+		width: 32px;
+		height: 30px;
+		border: none;
+		background: var(--panel-edge);
+		color: var(--ink);
+		cursor: pointer;
+	}
+	/* Drawn arrows: the characters turn into emoji on Apple devices. */
+	.tri {
+		display: inline-block;
+		width: 9px;
+		height: 13px;
+		background: currentColor;
+	}
+	.tri.left {
+		clip-path: polygon(100% 0, 0 50%, 100% 100%);
+	}
+	.tri.right {
+		clip-path: polygon(0 0, 100% 50%, 0 100%);
 	}
 </style>

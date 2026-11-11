@@ -5,6 +5,7 @@ import type { Card } from '$kit/src/core/rules/cards.ts';
 import * as pixelcards from '$kit/src/core/ui/pixelcards.ts';
 import * as icons from '$kit/src/core/ui/icons.ts';
 import { toCanvas } from '$kit/src/core/ui/pixel.ts';
+import { sealBitmap } from '$kit/src/core/ui/sealart.ts';
 
 const cache = new Map<string, string>();
 const SCALE = 6;
@@ -25,4 +26,8 @@ export function cardBack(deck = 'standard'): string {
 
 export function icon(key: string): string {
 	return cached(`icon|${key}`, () => toCanvas(icons.bitmap(key), 8).toDataURL());
+}
+
+export function seal(glyph: string, color: string): string {
+	return cached(`seal|${glyph}|${color}`, () => toCanvas(sealBitmap(glyph, color), 8).toDataURL());
 }

@@ -13,7 +13,8 @@ function view(run: Run<EuchreHand>): TableView {
 	const out = E.sittingOut(h);
 	const seats = [1, 2, 3, 4].map((s) => ({
 		pos: POS[s],
-		name: `${seatName(s)}${s === h.dealer ? ' · dealer' : ''}${s === out ? ' · sitting out' : ''}`,
+		name: `${seatName(s)}${s === out ? ' · sitting out' : ''}`,
+		dealer: s === h.dealer,
 		cards: h.hands[s],
 		faceUp: s === E.PLAYER,
 		tally: h.trump !== null && (s === E.PLAYER || s === cards.EAST) ? `${E.tricksFor(h, s)} tricks` : undefined,
@@ -29,6 +30,8 @@ function view(run: Run<EuchreHand>): TableView {
 		trickDone: !h.trick.length && h.tricks.length > 0,
 		legal: new Set(yourTurn ? E.legalPlays(h, E.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
 		trump: h.trump ?? undefined,
+		// Both bowers are trumps: the left one is the other jack of trump's color.
+		isTrump: h.trump !== null ? (c) => E.isTrump(c, h.trump!) : undefined,
 		banner: h.trump !== null ? maker : undefined
 	};
 }

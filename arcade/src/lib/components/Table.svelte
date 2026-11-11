@@ -8,6 +8,8 @@
 	import * as R from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
 	import type { Pos } from '../games/types.ts';
+	import SealBadge from './SealBadge.svelte';
+	import { editionColor } from './editions.ts';
 
 	const X0 = 270,
 		W = 1010,
@@ -19,6 +21,7 @@
 	const view = $derived((void arcade.v, arcade.ui!.view(arcade.run!)));
 	const pre = $derived((void arcade.v, arcade.run!.phase === R.PHASE.PRE));
 	const key = (c: Card) => `${c.suit}-${c.rank}`;
+	const back = $derived(R.allDecks(arcade.run!.module).find((d) => d.key === arcade.run!.deck)?.back ?? arcade.ui!.back);
 
 	interface Sprite {
 		k: string;
@@ -87,7 +90,7 @@
 <div class="table">
 	{#each view.seats as seat (seat.pos)}
 		<div class="label" class:active={seat.active} style:left="{LABEL[seat.pos][0]}px" style:top="{LABEL[seat.pos][1]}px">
-			{seat.name}{#if seat.tally}<span class="tally">{seat.tally}</span>{/if}
+			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.tally}<span class="tally">{seat.tally}</span>{/if}
 		</div>
 	{/each}
 	{#if view.banner}<div class="banner" style:left="{CX}px">{view.banner}</div>{/if}
@@ -102,7 +105,7 @@
 			class="card"
 			class:click={!!sp.click}
 			class:dim={sp.dim}
-			src={sp.up ? cardFace(sp.card, view.trump === sp.card.suit) : cardBack(arcade.ui!.back)}
+			src={sp.up ? cardFace(sp.card, view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit) : cardBack(back)}
 			alt=""
 			draggable="false"
 			style:left="{sp.x - (CW * sp.s) / 2}px"
@@ -110,8 +113,15 @@
 			style:width="{CW * sp.s}px"
 			style:height="{CH * sp.s}px"
 			style:z-index={sp.z}
+			style:--glow={sp.up && R.mod(arcade.run!, sp.card).edition ? editionColor(R.mod(arcade.run!, sp.card).edition) : 'transparent'}
+			class:ed={sp.up && !!R.mod(arcade.run!, sp.card).edition}
 			onclick={sp.click}
 		/>
+		{#if sp.up && R.sealOf(arcade.run!, sp.card)}
+			<span class="seal" style:left="{sp.x + (CW * sp.s) / 2 - 16}px" style:top="{sp.y - (CH * sp.s) / 2 - (sp.lift ? 26 : 0) - 6}px" style:z-index={sp.z}>
+				<SealBadge seal={R.sealOf(arcade.run!, sp.card)!} size={Math.round(22 * sp.s)} />
+			</span>
+		{/if}
 	{/each}
 </div>
 
@@ -130,6 +140,17 @@
 			height 0.28s ease,
 			filter 0.15s;
 		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+	}
+	/* A card edition: a glow in the edition's color. */
+	.card.ed {
+		filter: drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 3px var(--glow)) drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+	}
+	.seal {
+		position: absolute;
+		pointer-events: none;
+		transition:
+			left 0.28s ease,
+			top 0.28s ease;
 	}
 	.card.click {
 		cursor: pointer;
@@ -150,6 +171,22 @@
 	}
 	.label.active {
 		color: var(--brass);
+	}
+	.dealer {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		margin-right: 8px;
+		border-radius: 50%;
+		background: var(--brass);
+		border: 3px solid #f3ead6;
+		box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+		color: #1b1d26;
+		font-size: 15px;
+		font-weight: 700;
+		vertical-align: middle;
 	}
 	.tally {
 		margin-left: 8px;

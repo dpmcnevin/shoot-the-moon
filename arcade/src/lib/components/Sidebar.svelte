@@ -4,6 +4,8 @@
 	import { arcade } from '../app.svelte.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
+	import Shine from './Shine.svelte';
+	import { TAGS } from '$kit/src/run/content.ts';
 	import Button from './Button.svelte';
 	import * as sound from '../audio/sound.ts';
 	import { settings } from '../settings.svelte.ts';
@@ -25,6 +27,17 @@
 		<div class="row dim"><span>{m.words.hands} left</span><span>{run.handsLeft} of {m.handsPerBoard}</span></div>
 	</div>
 	<div class="row"><span class="dim">Money</span><span class="money">${run.money}</span></div>
+	{#if run.boss}
+		<div class="boss" class:on={R.bossActive(run)} title={run.boss.text}>
+			<span class="bl">{R.bossActive(run) ? 'Boss now' : `${m.boardName?.({ ...run, board: m.boardsPerTable }) ?? 'Last board'} boss`}</span>
+			<span class="bn">{run.boss.name}</span>
+			<span class="bt">{run.boss.text}</span>
+		</div>
+	{/if}
+	{#if R.skipTag(run)}
+		{@const tag = TAGS[R.skipTag(run)!]}
+		<Button variant="ploy" size="sm" title={tag.text} onclick={() => arcade.do({ t: 'skip' })} style="width: 100%">Skip board for {tag.name}</Button>
+	{/if}
 
 	<div class="sub">Levels</div>
 	{#each levels as u}
@@ -43,7 +56,7 @@
 	<div class="sub">Relics {run.relics.length}/{R.RELIC_SLOTS}</div>
 	<div class="relics">
 		{#each run.relics as r}
-			<div class="relic" title="{r.name}: {r.def.describe?.(r) ?? r.def.text}"><Icon name={r.def.icon} scale={2} /></div>
+			<div class="relic" title="{r.name}: {r.def.describe?.(r) ?? r.def.text}"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine></div>
 		{/each}
 	</div>
 
@@ -111,6 +124,30 @@
 		color: var(--brass);
 		font-size: 26px;
 		font-weight: 700;
+	}
+	.boss {
+		display: flex;
+		flex-direction: column;
+		padding: 6px 8px;
+		border: 2px solid var(--panel-edge);
+		background: var(--panel);
+		font-size: 13px;
+	}
+	.boss.on {
+		border-color: var(--bad);
+	}
+	.bl {
+		color: var(--ink-dim);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		font-size: 11px;
+	}
+	.bn {
+		color: var(--bad);
+		font-size: 16px;
+	}
+	.bt {
+		color: var(--ink-dim);
 	}
 	.sub {
 		margin-top: 6px;

@@ -6,14 +6,37 @@
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
+	import Shine from './Shine.svelte';
+	import SealBadge from './SealBadge.svelte';
+	import CardPicker from './CardPicker.svelte';
+	import BundleOpen from './BundleOpen.svelte';
+	import { editionColor } from './editions.ts';
+	import { cardFace } from '../ui/images.ts';
+	import { RELIC_EDITIONS } from '$kit/src/run/content.ts';
+	import * as cards from '$kit/src/core/rules/cards.ts';
 
 	const run = $derived((void arcade.v, arcade.run!));
 	let picked = $state<number | null>(null);
+	/** A bought edition or seal waiting for its card. */
+	let choosing = $state<number | null>(null);
 	const EDGE = ['', '#9fb3a8', '#4fbf7a', '#4a9fe0', '#d9a441'];
-	const edge = (it: R.ShopItem) => (it.kind === 'relic' ? EDGE[it.def.rarity] : it.kind === 'ploy' ? '#8e6bd1' : '#d9a441');
-	const kind = (it: R.ShopItem) => (it.kind === 'relic' ? 'Relic' : it.kind === 'ploy' ? 'Ploy' : 'Upgrade');
+	const edge = (it: R.ShopItem) =>
+		it.kind === 'relic' ? EDGE[it.def.rarity] : it.kind === 'ploy' || it.kind === 'bundle' ? '#8e6bd1' : it.kind === 'edition' ? editionColor(it.def.key) : it.kind === 'seal' ? it.def.color : '#d9a441';
+	const KIND: Record<R.ShopItem['kind'], string> = { relic: 'Relic', ploy: 'Ploy', upgrade: 'Upgrade', edition: 'Card edition', seal: 'Seal', bundle: 'Bundle' };
 	const text = (it: R.ShopItem) =>
-		it.kind === 'upgrade' ? `${it.def.text}: +${it.def.chips} ${run.module.words.chips}, +${it.def.mult} mult a level (now Lv.${run.levels[it.def.key] ?? 1})` : it.def.text;
+		it.kind === 'upgrade'
+			? `${it.def.text}: +${it.def.chips} ${run.module.words.chips}, +${it.def.mult} mult a level (now Lv.${run.levels[it.def.key] ?? 1})`
+			: it.kind === 'relic' && it.edition
+				? `${it.def.text}. ${RELIC_EDITIONS[it.edition].name}: ${RELIC_EDITIONS[it.edition].text.toLowerCase()}`
+				: it.kind === 'edition' || it.kind === 'seal'
+					? `${it.def.text}. You choose the card.`
+					: it.def.text;
+	const SAMPLE = cards.card(3, 13);
+	function buy(i: number) {
+		picked = null;
+		if (R.needsCard(run.shop!.items[i])) choosing = i;
+		else arcade.do({ t: 'buy', slot: i });
+	}
 </script>
 
 <!-- The run is mutated in place: redraw when it changes. -->
@@ -30,9 +53,15 @@
 			<div class="item" class:sel={picked === i} class:sold={it.sold} style:--edge={edge(it)} onclick={(e) => { e.stopPropagation(); if (!it.sold) picked = picked === i ? null : i; }}>
 				{#if !it.sold}<div class="coin">${it.cost}</div>{/if}
 				<div class="card k-{it.kind}">
-					<div class="banner">{kind(it)}</div>
-					<div class="art"><Icon name={it.def.icon} scale={4} /></div>
-					{#if it.kind === 'relic'}<div class="rarity">{R.RARITY_NAME[it.def.rarity]}</div>{/if}
+					<div class="banner">{KIND[it.kind]}</div>
+					{#if it.kind === 'bundle'}<div class="ribbon"></div>{/if}
+					<div class="art">
+						{#if it.kind === 'relic'}<Shine edition={it.edition}><Icon name={it.def.icon} scale={4} /></Shine>
+						{:else if it.kind === 'edition'}<Shine edition={it.def.key}><img class="sample" src={cardFace(SAMPLE)} alt="" /></Shine>
+						{:else if it.kind === 'seal'}<SealBadge seal={it.def} size={64} />
+						{:else}<Icon name={it.def.icon} scale={4} />{/if}
+					</div>
+					{#if it.kind === 'relic'}<div class="rarity">{it.edition ? RELIC_EDITIONS[it.edition].name + ' · ' : ''}{R.RARITY_NAME[it.def.rarity]}</div>{/if}
 					<div class="name">{it.name}</div>
 					{#if it.sold}<div class="stamp">SOLD</div>{/if}
 				</div>
@@ -40,7 +69,7 @@
 					<div class="info">
 						<h3>{it.name}</h3>
 						<p>{text(it)}</p>
-						<Button enabled={can[0]} onclick={() => { picked = null; arcade.do({ t: 'buy', slot: i }); }} style="width: 100%">{can[0] ? `Buy $${it.cost}` : can[1]}</Button>
+						<Button enabled={can[0]} onclick={() => buy(i)} style="width: 100%">{can[0] ? `Buy $${it.cost}` : can[1]}</Button>
 					</div>
 				{/if}
 			</div>
@@ -49,12 +78,17 @@
 	<h3 class="sub">Your relics {run.relics.length}/{R.RELIC_SLOTS}</h3>
 	<div class="owned">
 		{#each run.relics as r, i}
-			<div class="relic" title={r.def.describe?.(r) ?? r.def.text}>
-				<div class="rh"><Icon name={r.def.icon} scale={2} /><span>{r.name}</span></div>
+			<div class="relic" title={r.def.describe?.(r) ?? r.def.text} style:border-color={r.edition ? editionColor(r.edition) : ''}>
+				<div class="rh"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine><span>{r.name}</span></div>
 				<Button variant="plain" size="sm" onclick={() => arcade.do({ t: 'sell', slot: i })} style="width: 100%">Sell ${Math.max(1, Math.floor(r.cost / 2))}</Button>
 			</div>
 		{/each}
 	</div>
+	{#if choosing !== null}
+		{@const it = run.shop!.items[choosing]}
+		<CardPicker {run} title={it.name} text={text(it)} cancel={() => (choosing = null)} choose={(c) => { const slot = choosing!; choosing = null; arcade.do({ t: 'buy', slot, card: c.id }); }} />
+	{/if}
+	{#if run.opening}<BundleOpen />{/if}
 	<div class="foot">
 		<Button variant="plain" enabled={run.money >= run.rerollCost} onclick={() => arcade.do({ t: 'reroll' })} style="width: 180px">Reroll ${run.rerollCost}</Button>
 		<Button pulse onclick={() => arcade.do({ t: 'leave' })} style="width: 200px">Next board</Button>
@@ -129,6 +163,32 @@
 	}
 	.card:not(.k-relic) {
 		background: color-mix(in srgb, var(--edge) 18%, #f3ead6);
+	}
+	.card.k-bundle {
+		background: #3b2a63;
+		color: #f3ead6;
+	}
+	.k-bundle .banner {
+		background: var(--brass);
+	}
+	.ribbon {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background:
+			linear-gradient(90deg, transparent calc(50% - 7px), var(--brass) calc(50% - 7px), var(--brass) calc(50% + 7px), transparent calc(50% + 7px)),
+			linear-gradient(180deg, transparent calc(50% - 7px), var(--brass) calc(50% - 7px), var(--brass) calc(50% + 7px), transparent calc(50% + 7px));
+	}
+	.k-bundle .art,
+	.k-bundle .name {
+		position: relative;
+		z-index: 1;
+	}
+	.sample {
+		width: 54px;
+		height: 76px;
+		image-rendering: pixelated;
+		display: block;
 	}
 	.banner {
 		align-self: stretch;

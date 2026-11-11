@@ -17,6 +17,8 @@ export interface SeatView {
 	tally?: string;
 	/** Whose turn it is. */
 	active?: boolean;
+	/** This seat dealt (a dealer button by it). */
+	dealer?: boolean;
 	/** The player plays from this seat now (South, or Bridge's dummy). */
 	playable?: boolean;
 }
@@ -27,8 +29,10 @@ export interface TableView {
 	trick: { pos: Pos; card: Card }[];
 	/** Card codes the player may play now. */
 	legal: Set<string>;
-	/** Trump suit, to tint those cards. */
+	/** Trump suit, for the badge. */
 	trump?: number;
+	/** Which cards are trumps, to tint them (default: the trump suit). */
+	isTrump?: (c: Card) => boolean;
 	/** A line over the table (the contract, the pass). */
 	banner?: string;
 	/** The trick shown is a finished one (no card led to the next yet). */
