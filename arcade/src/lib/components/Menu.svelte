@@ -26,9 +26,9 @@
 
 <div class="menu">
 	<div class="titlerow">
-		<div class="fan left">{#each FAN.slice(0, 2) as f, i}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" style:transform="rotate({-14 + i * 10}deg)" /></Shine>{/each}</div>
+		<div class="fan left">{#each FAN.slice(0, 2) as f, i}<span class="fc" style:transform="rotate({-14 + i * 10}deg)"><Shine edition={f.edition}><img src={cardFace(f.card)} alt="" /></Shine></span>{/each}</div>
 		<h1>CARD ARCADE</h1>
-		<div class="fan right">{#each FAN.slice(2) as f, i}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" style:transform="rotate({4 + i * 10}deg)" /></Shine>{/each}</div>
+		<div class="fan right">{#each FAN.slice(2) as f, i}<span class="fc" style:transform="rotate({4 + i * 10}deg)"><Shine edition={f.edition}><img src={cardFace(f.card)} alt="" /></Shine></span>{/each}</div>
 	</div>
 	<div class="dim">cardkit prototype: one engine, a module per game</div>
 	<div class="games">
@@ -68,12 +68,17 @@
 	.fan {
 		display: flex;
 	}
-	.fan img {
-		width: 56px;
-		height: 78px;
-		image-rendering: pixelated;
+	/* The card turns as a whole, so the shine's clipping can't cut it off. */
+	.fc {
+		display: inline-flex;
 		margin: 0 -8px;
 		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+	}
+	.fc img {
+		width: 56px;
+		height: 78px;
+		display: block;
+		image-rendering: pixelated;
 	}
 	.settings {
 		display: flex;
