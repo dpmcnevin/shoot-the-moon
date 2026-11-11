@@ -101,11 +101,13 @@ struct MenuView: View {
                     let i = decks.firstIndex(where: { $0.key == model.deck }) ?? 0
                     VStack(spacing: 2) {
                         HStack(spacing: 6) {
-                            GameButton("◀", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + decks.count - 1) % decks.count].key; showBack() }
+                            GameButton("", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + decks.count - 1) % decks.count].key; showBack() }
                                 .frame(width: 40)
+                                .overlay { Arrow(left: true).fill(Theme.ink).frame(width: 10, height: 14).allowsHitTesting(false) }
                             Text(decks[i].name).font(Theme.font(17)).foregroundStyle(Theme.brass).frame(maxWidth: .infinity)
-                            GameButton("▶", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + 1) % decks.count].key; showBack() }
+                            GameButton("", style: .plain, size: .small, sound: "select") { model.deck = decks[(i + 1) % decks.count].key; showBack() }
                                 .frame(width: 40)
+                                .overlay { Arrow(left: false).fill(Theme.ink).frame(width: 10, height: 14).allowsHitTesting(false) }
                         }
                         .frame(width: 260)
                         Text(decks[i].text).font(Theme.font(13)).foregroundStyle(Theme.inkDim)
@@ -167,6 +169,21 @@ struct HelpView: View {
                 .foregroundStyle(Theme.ink)
             }
             .frame(width: 760)
+        }
+    }
+}
+
+/// A drawn arrowhead: the ◀ ▶ characters turn into emoji on iOS.
+struct Arrow: Shape {
+    let left: Bool
+    func path(in r: CGRect) -> Path {
+        Path { p in
+            if left {
+                p.move(to: CGPoint(x: r.maxX, y: r.minY)); p.addLine(to: CGPoint(x: r.minX, y: r.midY)); p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+            } else {
+                p.move(to: CGPoint(x: r.minX, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.midY)); p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+            }
+            p.closeSubpath()
         }
     }
 }

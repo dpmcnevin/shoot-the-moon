@@ -200,9 +200,9 @@
 				maxlength="12"
 			/>
 			<div class="deck">
-				<Button variant="plain" size="sm" sound="select" title="Previous deck" onclick={() => cycleDeck(-1)} style="width: 36px">◀</Button>
+				<Button variant="plain" size="sm" sound="select" title="Previous deck" onclick={() => cycleDeck(-1)} style="width: 36px"><span class="tri left"></span></Button>
 				<div class="deck-name" title={decksLib.DECKS[settings.deck].text}>{decksLib.DECKS[settings.deck].name}</div>
-				<Button variant="plain" size="sm" sound="select" title="Next deck" onclick={() => cycleDeck(1)} style="width: 36px">▶</Button>
+				<Button variant="plain" size="sm" sound="select" title="Next deck" onclick={() => cycleDeck(1)} style="width: 36px"><span class="tri right"></span></Button>
 			</div>
 			<div class="deck-text">{decksLib.DECKS[settings.deck].text}</div>
 			<div class="pair">
@@ -358,5 +358,19 @@
 		margin-top: 20px;
 		flex-wrap: wrap;
 		justify-content: center;
+	}
+	/* Drawn arrows: the ◀ ▶ characters turn into emoji on Apple devices. */
+	.tri {
+		display: inline-block;
+		width: 10px;
+		height: 14px;
+		background: currentColor;
+		vertical-align: middle;
+	}
+	.tri.left {
+		clip-path: polygon(100% 0, 0 50%, 100% 100%);
+	}
+	.tri.right {
+		clip-path: polygon(0 0, 100% 50%, 0 100%);
 	}
 </style>
