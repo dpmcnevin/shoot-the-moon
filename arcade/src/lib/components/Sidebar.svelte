@@ -80,8 +80,8 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		width: 270px;
-		height: 720px;
+		width: var(--sw);
+		height: var(--sh);
 		box-sizing: border-box;
 		padding: 14px 16px;
 		background: var(--sidebar);
@@ -90,6 +90,24 @@
 		flex-direction: column;
 		gap: 8px;
 		z-index: 100;
+	}
+	/* Portrait: the sidebar runs along the top, in columns. */
+	:global(.stage.portrait) aside {
+		flex-wrap: wrap;
+		align-content: flex-start;
+		column-gap: 18px;
+		border-right: none;
+		border-bottom: 3px solid var(--brass-dim);
+	}
+	:global(.stage.portrait) aside > :global(*) {
+		width: 236px;
+		box-sizing: border-box;
+	}
+	:global(.stage.portrait) .foot {
+		flex-wrap: wrap;
+	}
+	:global(.stage.portrait) .grow {
+		display: none;
 	}
 	.title {
 		color: var(--brass);

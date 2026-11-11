@@ -11,14 +11,11 @@
 	import type { Pos } from '../games/types.ts';
 	import CardSprite from './CardSprite.svelte';
 
-	const X0 = 270,
-		W = 1010,
-		CX = X0 + W / 2,
-		CY = 300,
-		CW = 80,
+	const CW = 80,
 		CH = 112;
-	/** Where new cards come from. */
-	const DECK = { x: X0 + W - 70, y: 640 };
+	const L = $derived(arcade.layout);
+	const CX = $derived(L.cx),
+		CY = $derived(L.cy);
 
 	const run = $derived((void arcade.v, arcade.run!));
 	const view = $derived((void arcade.v, arcade.ui!.view(arcade.run!)));
@@ -55,7 +52,7 @@
 	function toStage(e: PointerEvent): [number, number] {
 		stage ??= document.querySelector('.stage');
 		const r = stage!.getBoundingClientRect();
-		const k = 1280 / r.width;
+		const k = L.W / r.width;
 		return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
 	}
 
@@ -77,7 +74,7 @@
 				const s = 1.3,
 					w = CW * s;
 				const hand = ordered(seat.cards);
-				const gap = n > 1 ? Math.min(58, (880 - w) / (n - 1)) : 0;
+				const gap = n > 1 ? Math.min(58, (L.handW - w) / (n - 1)) : 0;
 				const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
 				hand.forEach((c, i) => {
 					const k = key(c);
@@ -87,7 +84,7 @@
 					out.push({
 						k, card: c, up: true, s, z: dragging ? 200 : 10 + i, order: n0 + i, mine: true,
 						x: dragging ? drag!.x : x0 + i * gap,
-						y: dragging ? drag!.y : 720 - (CH * s) / 2 - 22,
+						y: dragging ? drag!.y : L.handY,
 						lift: arcade.picked.includes(k) ? 26 : 0,
 						dim: !pre && !arcade.busy && view.legal.size > 0 && seat.playable && !legal,
 						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined,
@@ -105,13 +102,13 @@
 					const k = key(c);
 					const legal = view.legal.has(k) && seat.playable;
 					out.push({
-						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: seat.faceUp ? 86 : 72, s, z: 5 + i, order: n0 + i,
+						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: L.northY + (seat.faceUp ? 14 : 0), s, z: 5 + i, order: n0 + i,
 						dim: seat.playable && view.legal.size > 0 && !legal,
 						click: legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
 				});
 			} else {
-				const x = seat.pos === 'W' ? X0 + 60 : X0 + W - 60;
+				const x = seat.pos === 'W' ? L.westX : L.eastX;
 				const y0 = CY - (16 * (n - 1)) / 2;
 				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * 16, s: 0.55, z: 5 + i, order: n0 + i }));
 			}
@@ -139,18 +136,18 @@
 		const hand = view.seats.find((s) => s.pos === 'S')!;
 		const card = hand.cards.find((c) => key(c) === d.k)!;
 		// Dropped on the table: play it, if you may.
-		if (d.y < 480 && view.legal.has(d.k) && hand.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
+		if (d.y < L.handY - 90 && view.legal.has(d.k) && hand.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
 		// Otherwise, put it where it was dropped.
 		const rest = ordered(hand.cards).filter((c) => key(c) !== d.k);
 		const n = hand.cards.length,
 			w = CW * 1.3;
-		const gap = n > 1 ? Math.min(58, (880 - w) / (n - 1)) : 0;
+		const gap = n > 1 ? Math.min(58, (L.handW - w) / (n - 1)) : 0;
 		const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
 		const at = Math.max(0, Math.min(rest.length, Math.round((d.x - x0) / Math.max(1, gap))));
 		rest.splice(at, 0, card);
 		arcade.order = rest.map(key);
 	}
-	const LABEL: Record<Pos, [number, number]> = { N: [CX, 16], S: [CX, 520], W: [X0 + 60, CY - 150], E: [X0 + W - 60, CY - 150] };
+	const LABEL = $derived(L.label);
 </script>
 
 <svelte:window onpointermove={move} onpointerup={up} />
@@ -161,9 +158,9 @@
 			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.tally}<span class="tally">{seat.tally}</span>{/if}
 		</div>
 	{/each}
-	{#if view.banner}<div class="banner" style:left="{CX}px">{view.banner}</div>{/if}
+	{#if view.banner}<div class="banner" style:left="{CX}px" style:top="{L.bannerY}px">{view.banner}</div>{/if}
 	{#if view.trump}
-		<div class="trump" class:red={cards.SUITS[view.trump].red} title="Trump: {cards.SUITS[view.trump].name}">
+		<div class="trump" style:left="{L.table.x + 20}px" style:top="{L.table.y + 16}px" class:red={cards.SUITS[view.trump].red} title="Trump: {cards.SUITS[view.trump].name}">
 			<span class="tl">Trump</span><span class="tg">{cards.SUITS[view.trump].glyph + '\uFE0E'}</span>
 		</div>
 	{/if}
@@ -181,18 +178,18 @@
 			trump={sp.up && (view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit)}
 			edition={sp.up ? R.mod(run, sp.card).edition : undefined}
 			seal={sp.up ? R.sealOf(run, sp.card) : undefined}
-			spawn={{ x: DECK.x, y: DECK.y, faceUp: false, delay: sp.order * 0.035, sound: sp.order % 3 === 0 }}
+			spawn={{ x: L.deck.x, y: L.deck.y, faceUp: false, delay: sp.order * 0.035, sound: sp.order % 3 === 0 }}
 			flipDelay={sp.mine ? 0.25 : 0}
 			click={sp.click ? () => !suppress && sp.click!() : undefined}
 			pointerdown={sp.down && !arcade.busy ? sp.down : undefined}
 		/>
 	{/each}
-	<div class="peek">
+	<div class="peek" style:right="{L.W - L.peekAt[0]}px" style:top="{L.peekAt[1]}px">
 		<button disabled={!view.lastTrick} onclick={() => (arcade.overlay = 'last')}>Last trick</button>
 		<button onclick={() => (arcade.overlay = 'deck')}>Deck</button>
 	</div>
 	{#if (view.seats.find((x) => x.pos === 'S')?.cards.length ?? 0) > 1}
-		<div class="sort">
+		<div class="sort" style:left="{L.sortAt[0]}px" style:top="{L.sortAt[1]}px">
 			<span>Sort</span>
 			<button class:on={arcade.sortBy === 'suit' && !arcade.order.length} onclick={() => arcade.sort('suit')}>Suit</button>
 			<button class:on={arcade.sortBy === 'rank' && !arcade.order.length} onclick={() => arcade.sort('rank')}>Rank</button>

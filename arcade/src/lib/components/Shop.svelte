@@ -99,10 +99,10 @@
 <style>
 	.shop {
 		position: absolute;
-		left: 270px;
-		top: 0;
-		width: 1010px;
-		height: 720px;
+		left: var(--tx);
+		top: var(--ty);
+		width: var(--tw);
+		height: var(--th);
 		box-sizing: border-box;
 		padding: 18px 30px 24px;
 		display: flex;
@@ -125,11 +125,13 @@
 		color: var(--brass);
 	}
 	.wares {
-		height: 270px;
+		min-height: 270px;
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: center;
 		align-items: center;
 		gap: 30px;
+		padding: 30px 0;
 		background: radial-gradient(ellipse at center, var(--felt-light), var(--felt-edge) 80%);
 		border: 3px solid var(--brass-dim);
 	}

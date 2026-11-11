@@ -74,7 +74,10 @@
 	.games {
 		margin-top: 40px;
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 		gap: 30px;
+		max-width: 1100px;
 	}
 	.game {
 		width: 300px;

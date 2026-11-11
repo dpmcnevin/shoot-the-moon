@@ -1,4 +1,5 @@
-<!-- A 1280x720 stage, scaled to fit the window. -->
+<!-- The stage (1280x720 landscape, or 800x1280 portrait on a tall window),
+     scaled to fit. -->
 <script lang="ts">
 	import { arcade } from '$lib/app.svelte.ts';
 	import * as R from '$kit/src/run/run.ts';
@@ -16,10 +17,15 @@
 	import LastTrick from '$lib/components/LastTrick.svelte';
 	import DeckView from '$lib/components/DeckView.svelte';
 	import { fx } from '$lib/fx.svelte.ts';
+	import { layoutFor, cssVars } from '$lib/layout.ts';
 
 	let w = $state(1280),
 		h = $state(720);
-	const scale = $derived(Math.min(w / 1280, h / 720));
+	const L = $derived(layoutFor(w, h));
+	$effect.pre(() => {
+		arcade.layout = L;
+	});
+	const scale = $derived(Math.min(w / L.W, h / L.H));
 	// Rasterise card art for the real screen size, before anything draws it.
 	$effect.pre(() => setDeviceScale(scale * (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)));
 	// The run is mutated in place; `arcade.v` is what changes.
@@ -35,8 +41,8 @@
 <svelte:window bind:innerWidth={w} bind:innerHeight={h} onpointerdown={() => sound.unlock()} onkeydown={() => sound.unlock()} />
 
 <div class="wrap">
-	<div class="stage" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
-		<Felt x={0} w={1280} h={720} />
+	<div class="stage" class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
+		{#key L.portrait}<Felt x={0} w={L.W} h={L.H} />{/key}
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu />
 		{:else}
@@ -48,7 +54,7 @@
 				{#if phase === R.PHASE.PRE}
 					<div class="pre"><ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} /></div>
 				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
-					<div class="out"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
+					<div class="out" style:top="{L.outAt[1]}px"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
 				{/if}
 				<Panels />
 				{#if fresh && arcade.seen !== boardKey}
@@ -62,7 +68,7 @@
 			{:else if arcade.overlay === 'deck'}<DeckView />{/if}
 		{/if}
 		{#if arcade.toast}<div class="toast {arcade.toastTone ?? ''}">{arcade.toast}</div>{/if}
-		<Particles w={1280} h={720} {scale} />
+		<Particles w={L.W} h={L.H} {scale} />
 	</div>
 </div>
 
@@ -85,9 +91,9 @@
 	}
 	.pre {
 		position: absolute;
-		left: 270px;
-		width: 1010px;
-		top: 120px;
+		left: var(--tx);
+		width: var(--tw);
+		top: calc(var(--ty) + 120px);
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
@@ -99,7 +105,7 @@
 	.out {
 		position: absolute;
 		right: 24px;
-		top: 420px;
+		top: var(--out-y, 420px);
 		z-index: 90;
 	}
 	.out button {

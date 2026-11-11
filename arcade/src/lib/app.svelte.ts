@@ -5,6 +5,7 @@ import * as R from '$kit/src/run/run.ts';
 import { apply, replay, type Action, type Save } from '$kit/src/run/save.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import { byId } from './games/index.ts';
+import { LANDSCAPE, type Layout } from './layout.ts';
 import * as sound from './audio/sound.ts';
 import { fx } from './fx.svelte.ts';
 import { hex } from '$kit/src/core/ui/theme.ts';
@@ -17,6 +18,8 @@ const KEY = (id: string) => `cardkit-arcade-${id}`;
 
 class Arcade {
 	screen = $state<'menu' | 'run'>('menu');
+	/** Landscape or portrait, from the window's shape. */
+	layout = $state.raw<Layout>(LANDSCAPE);
 	ui = $state.raw<GameUI | null>(null);
 	run = $state.raw<Run | null>(null);
 	/** Bumped on every change: views read it to refresh. */

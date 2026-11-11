@@ -112,8 +112,8 @@
 <style>
 	.panel {
 		position: absolute;
-		left: calc(270px + 505px);
-		top: 110px;
+		left: var(--tcx);
+		top: calc(var(--ty) + 110px);
 		transform: translateX(-50%);
 		width: 580px;
 		box-sizing: border-box;

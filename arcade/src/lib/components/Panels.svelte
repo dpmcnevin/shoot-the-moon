@@ -53,8 +53,8 @@
 <style>
 	.panel {
 		position: absolute;
-		left: calc(270px + 505px);
-		top: 120px;
+		left: var(--tcx);
+		top: calc(var(--ty) + 120px);
 		transform: translateX(-50%);
 		width: 560px;
 		box-sizing: border-box;

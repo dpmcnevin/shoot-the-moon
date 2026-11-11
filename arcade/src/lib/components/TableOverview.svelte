@@ -54,10 +54,10 @@
 <style>
 	.veil {
 		position: absolute;
-		left: 270px;
-		top: 0;
-		width: 1010px;
-		height: 720px;
+		left: var(--tx);
+		top: var(--ty);
+		width: var(--tw);
+		height: var(--th);
 		background: rgba(0, 0, 0, 0.45);
 		display: flex;
 		align-items: center;
@@ -65,7 +65,7 @@
 		z-index: 140;
 	}
 	.panel {
-		width: 820px;
+		width: min(820px, calc(var(--tw) - 40px));
 		padding: 20px 26px;
 		background: rgba(12, 22, 18, 0.97);
 		border: 3px solid var(--brass-dim);
