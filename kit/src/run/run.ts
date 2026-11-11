@@ -98,6 +98,8 @@ export interface UpgradeDef {
 	key: string;
 	name: string;
 	icon: string;
+	/** A glyph to show in place of the icon (a suit, NT). */
+	glyph?: string;
 	text: string;
 	chips: number;
 	mult: number;

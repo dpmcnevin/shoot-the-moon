@@ -166,6 +166,7 @@ const UPGRADES: UpgradeDef[] = conventions.DEFS.map((c) => ({
 	key: c.key,
 	name: c.name,
 	icon: c.key,
+	glyph: cards.STRAINS[c.strain].glyph,
 	text: c.text,
 	chips: conventions.POINTS_PER_LEVEL,
 	mult: conventions.MULT_PER_LEVEL

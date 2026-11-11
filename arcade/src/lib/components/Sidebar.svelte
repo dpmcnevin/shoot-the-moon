@@ -1,0 +1,149 @@
+<!-- The run at a glance, for any game: progress, the goal, money, relics,
+     ploys and upgrade levels. -->
+<script lang="ts">
+	import { arcade } from '../app.svelte.ts';
+	import * as R from '$kit/src/run/run.ts';
+	import Icon from './Icon.svelte';
+	import Button from './Button.svelte';
+
+	const run = $derived((void arcade.v, arcade.run!));
+	const m = $derived(run.module);
+	const levels = $derived(m.upgrades);
+</script>
+
+<!-- The run is mutated in place: redraw when it changes. -->
+{#key arcade.v}
+<aside>
+	<div class="title">{m.title.toUpperCase()}</div>
+	<div class="row"><span>{m.words.table} {run.table} of {m.tables}</span><span class="dim">{R.boardName(run)}</span></div>
+	<div class="goal">
+		<div class="row dim"><span>Goal</span><span>Scored</span></div>
+		<div class="row big"><span>{run.target}</span><span class:good={run.score >= run.target}>{run.score}</span></div>
+		<div class="bar"><div style:width="{Math.min(100, (100 * run.score) / Math.max(1, run.target))}%"></div></div>
+		<div class="row dim"><span>{m.words.hands} left</span><span>{run.handsLeft} of {m.handsPerBoard}</span></div>
+	</div>
+	<div class="row"><span class="dim">Money</span><span class="money">${run.money}</span></div>
+
+	<div class="sub">Levels</div>
+	{#each levels as u}
+		<div class="lv">{#if u.glyph}<span class="glyph">{u.glyph}</span>{:else}<Icon name={u.icon} scale={1} />{/if}<span>{u.name}</span><span class="dim">Lv.{run.levels[u.key] ?? 1}</span></div>
+	{/each}
+
+	<div class="sub">Ploys {run.ploys.length}/{R.PLOY_SLOTS}</div>
+	<div class="ploys">
+		{#each run.ploys as key, i}
+			{@const def = R.ployDef(run, key)!}
+			{@const ok = R.canUsePloy(run, i)}
+			<Button variant="ploy" size="sm" enabled={ok[0]} title={def.text} onclick={() => arcade.do({ t: 'ploy', slot: i })} style="width: 100%">{def.name}</Button>
+		{/each}
+	</div>
+
+	<div class="sub">Relics {run.relics.length}/{R.RELIC_SLOTS}</div>
+	<div class="relics">
+		{#each run.relics as r}
+			<div class="relic" title="{r.name}: {r.def.describe?.(r) ?? r.def.text}"><Icon name={r.def.icon} scale={2} /></div>
+		{/each}
+	</div>
+
+	<div class="foot">
+		<span class="dim">Seed {run.seed}</span>
+		<Button variant="plain" size="sm" onclick={() => arcade.toMenu()}>Menu</Button>
+	</div>
+</aside>
+{/key}
+
+<style>
+	aside {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 270px;
+		height: 720px;
+		box-sizing: border-box;
+		padding: 14px 16px;
+		background: var(--sidebar);
+		border-right: 3px solid var(--brass-dim);
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		z-index: 100;
+	}
+	.title {
+		color: var(--brass);
+		font-size: 22px;
+		font-weight: 700;
+	}
+	.row {
+		display: flex;
+		justify-content: space-between;
+	}
+	.dim {
+		color: var(--ink-dim);
+	}
+	.goal {
+		padding: 8px 10px;
+		border: 2px solid var(--brass-dim);
+		background: var(--panel);
+	}
+	.big {
+		font-size: 30px;
+		font-weight: 700;
+	}
+	.good {
+		color: var(--good);
+	}
+	.bar {
+		height: 6px;
+		background: var(--bg);
+		margin: 4px 0;
+	}
+	.bar div {
+		height: 100%;
+		background: var(--good);
+	}
+	.money {
+		color: var(--brass);
+		font-size: 26px;
+		font-weight: 700;
+	}
+	.sub {
+		margin-top: 6px;
+		color: var(--ink-dim);
+		font-size: 14px;
+	}
+	.lv {
+		display: flex;
+		gap: 8px;
+		align-items: center;
+		font-size: 14px;
+	}
+	.lv span:nth-child(2) {
+		flex: 1;
+	}
+	.glyph {
+		width: 18px;
+		text-align: center;
+		color: var(--brass);
+	}
+	.ploys {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 6px;
+	}
+	.relics {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.relic {
+		padding: 3px;
+		background: var(--panel);
+	}
+	.foot {
+		margin-top: auto;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 13px;
+	}
+</style>

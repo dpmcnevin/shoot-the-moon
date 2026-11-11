@@ -6,7 +6,8 @@
 	"workspaces": [
 		"engine",
 		"web",
-		"kit"
+		"kit",
+		"arcade"
 	],
 	"scripts": {
 		"test": "npm -w engine test",
@@ -14,6 +15,7 @@
 		"dev": "npm -w web run dev --",
 		"build": "npm -w web run build --",
 		"simulate": "npm -w engine run simulate --",
-		"test:kit": "npm -w kit test"
+		"test:kit": "npm -w kit test",
+		"arcade": "npm -w arcade run dev --"
 	}
 }
