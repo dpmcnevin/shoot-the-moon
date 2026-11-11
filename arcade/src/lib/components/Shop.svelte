@@ -10,6 +10,7 @@
 	import SealBadge from './SealBadge.svelte';
 	import CardPicker from './CardPicker.svelte';
 	import BundleOpen from './BundleOpen.svelte';
+	import RelicInfo from './RelicInfo.svelte';
 	import { editionColor } from './editions.ts';
 	import { cardFace } from '../ui/images.ts';
 	import { RELIC_EDITIONS } from '$kit/src/run/content.ts';
@@ -17,6 +18,8 @@
 
 	const run = $derived((void arcade.v, arcade.run!));
 	let picked = $state<number | null>(null);
+	/** An owned relic whose details are open. */
+	let reading = $state<number | null>(null);
 	/** A bought edition or seal waiting for its card. */
 	let choosing = $state<number | null>(null);
 	const EDGE = ['', '#9fb3a8', '#4fbf7a', '#4a9fe0', '#d9a441'];
@@ -42,7 +45,7 @@
 <!-- The run is mutated in place: redraw when it changes. -->
 {#key arcade.v}
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="shop" onclick={() => (picked = null)}>
+<div class="shop" onclick={() => { picked = null; reading = null; }}>
 	<div class="head">
 		<h1>The Club</h1>
 		<div class="money">${run.money}</div>
@@ -78,7 +81,9 @@
 	<h3 class="sub">Your relics {R.relicSlotsUsed(run)}/{R.relicSlots(run)}</h3>
 	<div class="owned">
 		{#each run.relics as r, i}
-			<div class="relic" title={r.def.describe?.(r) ?? r.def.text} style:border-color={r.edition ? editionColor(r.edition) : ''}>
+			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+			<div class="relic" class:open={reading === i} style:border-color={r.edition ? editionColor(r.edition) : ''} onclick={(e) => { e.stopPropagation(); picked = null; reading = reading === i ? null : i; }}>
+				{#if reading === i}<div class="pop"><RelicInfo relic={r} note="Sells for ${Math.max(1, Math.floor(r.cost / 2))}" /></div>{/if}
 				<div class="rh"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine><span>{r.name}</span></div>
 				<Button variant="plain" size="sm" onclick={() => arcade.do({ t: 'sell', slot: i })} style="width: 100%">Sell ${Math.max(1, Math.floor(r.cost / 2))}</Button>
 			</div>
@@ -283,6 +288,20 @@
 		flex-direction: column;
 		justify-content: space-between;
 		gap: 6px;
+	}
+	.relic {
+		position: relative;
+		cursor: pointer;
+	}
+	.relic.open {
+		border-color: var(--brass) !important;
+	}
+	.pop {
+		position: absolute;
+		left: 0;
+		bottom: calc(100% + 8px);
+		z-index: 30;
+		cursor: default;
 	}
 	.rh {
 		display: flex;

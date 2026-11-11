@@ -5,6 +5,8 @@
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
 	import Shine from './Shine.svelte';
+	import RelicInfo from './RelicInfo.svelte';
+	let reading = $state<string | null>(null);
 	import { TAGS } from '$kit/src/run/content.ts';
 	import Button from './Button.svelte';
 	import * as sound from '../audio/sound.ts';
@@ -57,12 +59,17 @@
 	<div class="sub">Relics {R.relicSlotsUsed(run)}/{R.relicSlots(run)}</div>
 	<div class="relics">
 		{#each run.relics as r}
-			<div class="relic" class:jinxed={R.bossActive(run) && run.jinxed === r.key} title="{r.name}: {r.def.describe?.(r) ?? r.def.text}{R.bossActive(run) && run.jinxed === r.key ? ' (jinxed this board)' : ''}"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine></div>
+			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+			<div onclick={() => (reading = reading === r.key ? null : r.key)} class:sel={reading === r.key} class="relic" class:jinxed={R.bossActive(run) && run.jinxed === r.key} title="{r.name}: {r.def.describe?.(r) ?? r.def.text}{R.bossActive(run) && run.jinxed === r.key ? ' (jinxed this board)' : ''}"><Shine edition={r.edition}><Icon name={r.def.icon} scale={2} /></Shine></div>
 		{/each}
 	</div>
 
 	<div class="grow"></div>
 	<SpeedSlider />
+	{#if reading && run.relics.find((r) => r.key === reading)}
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<div class="pop" onclick={() => (reading = null)}><RelicInfo relic={run.relics.find((r) => r.key === reading)!} note={R.bossActive(run) && run.jinxed === reading ? 'Jinxed this board' : undefined} /></div>
+	{/if}
 	<div class="toggles">
 		<Button variant="plain" size="sm" onclick={() => sound.toggleSfx()} style="width: 100%">Sound {settings.sfx ? 'on' : 'off'}</Button>
 		<Button variant="plain" size="sm" onclick={() => sound.toggleMusic()} style="width: 100%">Music {settings.music ? 'on' : 'off'}</Button>
@@ -203,6 +210,23 @@
 	.relic {
 		padding: 3px;
 		background: var(--panel);
+	}
+	.relic {
+		cursor: pointer;
+	}
+	.relic.sel {
+		outline: 2px solid var(--brass);
+	}
+	.pop {
+		position: absolute;
+		left: calc(100% + 8px);
+		top: 300px;
+		z-index: 160;
+		cursor: pointer;
+	}
+	:global(.stage.portrait) .pop {
+		left: 16px;
+		top: calc(100% + 8px);
 	}
 	.relic.jinxed {
 		opacity: 0.3;
