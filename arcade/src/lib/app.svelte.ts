@@ -8,6 +8,9 @@ import { byId } from './games/index.ts';
 import * as sound from './audio/sound.ts';
 import { fx } from './fx.svelte.ts';
 import { hex } from '$kit/src/core/ui/theme.ts';
+import { settings } from './settings.svelte.ts';
+import { emptyProfile, noteRun, parseProfile, type Profile } from '$kit/src/run/profile.ts';
+import { buildLog } from '$kit/src/run/gamelog.ts';
 import type { GameUI } from './games/types.ts';
 
 const KEY = (id: string) => `cardkit-arcade-${id}`;
@@ -81,6 +84,7 @@ class Arcade {
 		}
 		this.save = save;
 		this.ui = ui;
+		this.runId = resume ? (this.profile(id).history.find((e) => e.seed === String(save!.seed))?.id ?? '') : '';
 		this.picked = [];
 		this.screen = 'run';
 		this.busy = false;
@@ -146,13 +150,13 @@ class Arcade {
 					if (done && run.phase === R.PHASE.SCORED) {
 						this.hold = true;
 						this.v++;
-						await sleep(1100);
+						await sleep(1100 / settings.speed);
 						this.hold = false;
 					}
 					break;
 				}
 				if (!R.aiToMove(run)) break;
-				await sleep(done ? 1000 : 430);
+				await sleep((done ? 1000 : 430) / settings.speed);
 				if (this.run !== run) return;
 				const before = run.phase;
 				const r = R.stepAI(run);
@@ -187,11 +191,42 @@ class Arcade {
 		setTimeout(() => this.toast === text && (this.toast = ''), 1800);
 	}
 
+	/** This run's id in the profile (one per run, made when it starts). */
+	private runId = '';
+
 	private persist() {
 		try {
 			localStorage.setItem(KEY(this.save!.game), JSON.stringify(this.save));
+			const id = this.save!.game;
+			if (!this.runId) this.runId = `${Date.now().toString(36)}-${this.save!.seed}`;
+			const p = this.profile(id);
+			noteRun(p, this.run!, this.runId);
+			localStorage.setItem(`cardkit-arcade-profile-${id}`, JSON.stringify(p));
 		} catch {}
 	}
+
+	/** A game's profile: totals, collection marks, recent runs. */
+	profile(id: string): Profile {
+		try {
+			return parseProfile(localStorage.getItem(`cardkit-arcade-profile-${id}`));
+		} catch {
+			return emptyProfile();
+		}
+	}
+
+	/** Download this run's log as a text file. */
+	downloadLog() {
+		if (!this.save || !this.ui) return;
+		const text = buildLog(this.ui.module, this.save);
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		a.download = `${this.ui.module.id}-${this.save.seed}.txt`;
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+	}
+
+	/** Overlays: help, the collection, the last trick, the deck. */
+	overlay = $state<'help' | 'collection' | 'last' | 'deck' | null>(null);
 
 	toMenu() {
 		this.screen = 'menu';

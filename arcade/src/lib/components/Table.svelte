@@ -187,6 +187,10 @@
 			pointerdown={sp.down && !arcade.busy ? sp.down : undefined}
 		/>
 	{/each}
+	<div class="peek">
+		<button disabled={!view.lastTrick} onclick={() => (arcade.overlay = 'last')}>Last trick</button>
+		<button onclick={() => (arcade.overlay = 'deck')}>Deck</button>
+	</div>
 	{#if (view.seats.find((x) => x.pos === 'S')?.cards.length ?? 0) > 1}
 		<div class="sort">
 			<span>Sort</span>
@@ -200,6 +204,27 @@
 	.table {
 		position: absolute;
 		inset: 0;
+	}
+	.peek {
+		position: absolute;
+		right: 24px;
+		top: 470px;
+		display: flex;
+		gap: 6px;
+		z-index: 70;
+	}
+	.peek button {
+		font: inherit;
+		font-size: 14px;
+		padding: 4px 12px;
+		border: none;
+		background: var(--panel-edge);
+		color: var(--ink);
+		cursor: pointer;
+	}
+	.peek button:disabled {
+		color: var(--ink-faint);
+		cursor: default;
 	}
 	.sort {
 		position: absolute;

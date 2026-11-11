@@ -28,6 +28,8 @@ function view(run: Run<EuchreHand>): TableView {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
 		trickDone: !h.trick.length && h.tricks.length > 0,
+		lastTrick: (() => { const t = h.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
+		played: h.tricks.flatMap((t) => t.plays.map((p) => p.card)).concat(h.trick.map((p) => p.card)),
 		legal: new Set(yourTurn ? E.legalPlays(h, E.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
 		trump: h.trump ?? undefined,
 		// Both bowers are trumps: the left one is the other jack of trump's color.
@@ -41,5 +43,10 @@ export const euchreUI: GameUI = {
 	blurb: 'Order it up or name trump, ride the bowers, march your partnership, and euchre the other side.',
 	back: 'collector',
 	view: view as GameUI['view'],
-	Pre: EuchreCall
+	Pre: EuchreCall,
+	help: [
+		{ title: 'The hand', text: 'Twenty-four cards, nine to ace; you and partner (North) against East and West, five cards each. A card is turned up: order it up as trump, or pass; in the second round name another suit. The dealer is stuck and must name one.' },
+		{ title: 'Trumps', text: 'The jack of trumps (the right bower) is highest, then the other jack of the same color (the left bower, which counts as a trump), then A K Q 10 9. Follow the led suit if you can.' },
+		{ title: 'Scoring', text: 'Your side scores 25 chips a trick. Making trump and taking all five is a march (+50, x2 alone); euchring them (they made trump, you took three) +60. Make trump and take fewer than three, and the hand scores nothing.' }
+	]
 };

@@ -12,6 +12,9 @@
 	import { setDeviceScale } from '$lib/ui/images.ts';
 	import Particles from '$lib/components/Particles.svelte';
 	import TableOverview from '$lib/components/TableOverview.svelte';
+	import Help from '$lib/components/Help.svelte';
+	import LastTrick from '$lib/components/LastTrick.svelte';
+	import DeckView from '$lib/components/DeckView.svelte';
 	import { fx } from '$lib/fx.svelte.ts';
 
 	let w = $state(1280),
@@ -52,6 +55,11 @@
 					<TableOverview close={() => (arcade.seen = boardKey)} />
 				{/if}
 			{/if}
+		{/if}
+		{#if arcade.screen === 'run' && run && ui}
+			{#if arcade.overlay === 'help'}<Help />
+			{:else if arcade.overlay === 'last'}<LastTrick />
+			{:else if arcade.overlay === 'deck'}<DeckView />{/if}
 		{/if}
 		{#if arcade.toast}<div class="toast">{arcade.toast}</div>{/if}
 		<Particles w={1280} h={720} {scale} />

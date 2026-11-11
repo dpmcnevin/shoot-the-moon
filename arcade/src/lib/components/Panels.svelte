@@ -31,7 +31,16 @@
 {:else if run.phase === R.PHASE.OVER || run.phase === R.PHASE.VICTORY}
 	<div class="panel">
 		<h2>{run.phase === R.PHASE.VICTORY ? 'Victory!' : 'Run over'}</h2>
-		<div class="dim">{m.words.table} {run.table}, {R.boardName(run)} · {run.stats.hands} {m.words.hands} · best {run.stats.best}</div>
+		<div class="dim">Reached {m.words.table} {run.table}, {R.boardName(run)}</div>
+		<div class="endstats">
+			<div><span>{m.words.hands}</span><b>{run.stats.hands}</b></div>
+			<div><span>Best {m.words.hand}</span><b>{run.stats.best.toLocaleString()}</b></div>
+			<div><span>Total</span><b>{run.stats.total.toLocaleString()}</b></div>
+			<div><span>Ploys used</span><b>{run.stats.ploysUsed}</b></div>
+			{#each Object.entries(m.counterNames ?? {}) as [k, label]}<div><span>{label}</span><b>{m.counters?.(run)[k] ?? 0}</b></div>{/each}
+		</div>
+		<div class="dim">Relics: {run.relics.map((r) => r.name).join(', ') || 'none'} · seed {run.seed}</div>
+		<Button variant="plain" size="sm" onclick={() => arcade.downloadLog()} style="width: 200px">Download the game log</Button>
 		{#if run.phase === R.PHASE.VICTORY}
 			<Button variant="ploy" onclick={() => arcade.do({ t: 'endless' })} style="width: 200px">Keep going</Button>
 		{/if}
@@ -78,6 +87,25 @@
 	.money {
 		color: var(--brass);
 		margin-left: 8px;
+	}
+	.endstats {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+	}
+	.endstats div {
+		display: flex;
+		flex-direction: column;
+		padding: 6px 8px;
+		background: var(--panel);
+	}
+	.endstats span {
+		font-size: 12px;
+		color: var(--ink-dim);
+	}
+	.endstats b {
+		font-size: 22px;
+		color: var(--brass);
 	}
 	.dim {
 		color: var(--ink-dim);

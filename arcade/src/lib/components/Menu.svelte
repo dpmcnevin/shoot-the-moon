@@ -5,6 +5,10 @@
 	import { cardBack } from '../ui/images.ts';
 	import Button from './Button.svelte';
 	import * as R from '$kit/src/run/run.ts';
+	import Collection from './Collection.svelte';
+	import { settings } from '../settings.svelte.ts';
+	import type { GameUI } from '../games/types.ts';
+	let showing = $state<GameUI | null>(null);
 	const deckOf = (id: string, m: R.GameModule) => R.allDecks(m).find((d) => d.key === (arcade.decks[id] ?? 'standard')) ?? R.allDecks(m)[0];
 	function cycle(id: string, m: R.GameModule, step: number) {
 		const all = R.allDecks(m);
@@ -33,12 +37,22 @@
 					<Button onclick={() => arcade.start(g.module.id, true)} style="width: 100%">Continue</Button>
 				{/if}
 				<Button variant={arcade.saved(g.module.id) ? 'plain' : 'brass'} onclick={() => arcade.start(g.module.id)} style="width: 100%">New run</Button>
+				<Button variant="plain" size="sm" onclick={() => (showing = g)} style="width: 100%">Collection & stats</Button>
 			</div>
 		{/each}
 	</div>
+	<div class="settings">
+		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 160px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
+	</div>
+	{#if showing}<Collection ui={showing} close={() => (showing = null)} />{/if}
 </div>
 
 <style>
+	.settings {
+		position: absolute;
+		right: 24px;
+		top: 20px;
+	}
 	.menu {
 		position: absolute;
 		inset: 0;

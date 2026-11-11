@@ -6,6 +6,7 @@ import * as pixelcards from '$kit/src/core/ui/pixelcards.ts';
 import * as icons from '$kit/src/core/ui/icons.ts';
 import { toCanvas } from '$kit/src/core/ui/pixel.ts';
 import { sealBitmap } from '$kit/src/core/ui/sealart.ts';
+import { settings } from '../settings.svelte.ts';
 
 const cache = new Map<string, string>();
 
@@ -33,7 +34,8 @@ function cached(key: string, build: () => string): string {
 }
 
 export function cardFace(card: Card, trump = false, px = SCALE): string {
-	return cached(`${cards.code(card)}|${trump}|${px}`, () => toCanvas(pixelcards.faceBitmap(card, trump, false), px).toDataURL());
+	const four = settings.fourColor;
+	return cached(`${cards.code(card)}|${trump}|${px}|${four}`, () => toCanvas(pixelcards.faceBitmap(card, trump, four), px).toDataURL());
 }
 
 export function cardBack(deck = 'standard', px = SCALE): string {

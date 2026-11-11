@@ -25,6 +25,8 @@ function view(run: Run<Deal>): TableView {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
 		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
+		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
+		played: st ? st.played.map((p) => p.card) : [],
 		legal: new Set(st && isPlayerTurn(run) ? play.legalPlays(st, st.turn).map((x) => `${x.suit}-${x.rank}`) : []),
 		trump: c && c.strain !== cards.NOTRUMP ? c.strain : undefined,
 		banner: c ? `${cards.contractName(c)}${c.doubled ? ' doubled' : ''} · need ${6 + c.level} tricks` : undefined
@@ -36,5 +38,10 @@ export const bridgeUI: GameUI = {
 	blurb: 'Bid from your hand and partner’s, declare, play dummy, and score by the duplicate table.',
 	back: 'royal',
 	view: view as GameUI['view'],
-	Pre: BridgeBid
+	Pre: BridgeBid,
+	help: [
+		{ title: 'The deal', text: 'You declare every deal from South and play dummy (North) too, against two defenders. Partner’s hand is shown only as a bid: a point range, a long suit, balanced or not.' },
+		{ title: 'Bidding', text: 'Pick a contract: a level (tricks over six) and a strain. The grid shows each contract’s chance of making and the least it would score; the star is the recommended bid. Bid too high and the defenders may double you.' },
+		{ title: 'Scoring', text: 'A made contract scores by the duplicate table (contract points, overtricks, part-score, game and slam bonuses, vulnerability) as points. A failed contract scores nothing. Conventions level up a strain.' }
+	]
 };

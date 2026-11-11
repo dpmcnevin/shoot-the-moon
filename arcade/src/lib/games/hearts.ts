@@ -24,6 +24,8 @@ function view(run: Run<HeartsHand>): TableView {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
 		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
+		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
+		played: st ? st.played.map((p) => p.card) : [],
 		legal: new Set(st && !st.complete && st.turn === H.PLAYER ? H.legalPlays(st, H.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
 		banner: !st ? `Pass ${h.passDir}` : h.passDir === 'hold' ? 'No passing this hand' : undefined
 	};
@@ -35,5 +37,10 @@ export const heartsUI: GameUI = {
 	back: 'standard',
 	view: view as GameUI['view'],
 	Pre: HeartsPass,
+	help: [
+		{ title: 'The hand', text: 'Pass three cards (left, right, across, then a hand with no passing). Follow suit if you can; the highest card of the led suit wins the trick. Hearts are 1 point each and the queen of spades 13; you can’t lead hearts until one has been played.' },
+		{ title: 'Scoring', text: 'Every hand scores the 26 points you dodged as chips, +10 for a clean hand (no points). Take all 26 and you shoot the moon: 78 chips, x2.' },
+		{ title: 'Upgrades', text: 'The Dodge levels every hand, Clean Sheet hands where you take nothing, Moonshot the moon.' }
+	],
 	pick: 3
 };

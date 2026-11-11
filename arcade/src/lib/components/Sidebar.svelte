@@ -8,6 +8,7 @@
 	import { TAGS } from '$kit/src/run/content.ts';
 	import Button from './Button.svelte';
 	import * as sound from '../audio/sound.ts';
+	import SpeedSlider from './SpeedSlider.svelte';
 	import { settings } from '../settings.svelte.ts';
 
 	const run = $derived((void arcade.v, arcade.run!));
@@ -60,12 +61,15 @@
 		{/each}
 	</div>
 
+	<div class="grow"></div>
+	<SpeedSlider />
 	<div class="toggles">
 		<Button variant="plain" size="sm" onclick={() => sound.toggleSfx()} style="width: 100%">Sound {settings.sfx ? 'on' : 'off'}</Button>
 		<Button variant="plain" size="sm" onclick={() => sound.toggleMusic()} style="width: 100%">Music {settings.music ? 'on' : 'off'}</Button>
 	</div>
 	<div class="foot">
-		<span class="dim">Seed {run.seed}</span>
+		<span class="dim">Seed {run.seed} · <button class="link" onclick={() => arcade.downloadLog()}>log</button></span>
+		<Button variant="plain" size="sm" onclick={() => (arcade.overlay = 'help')}>Help</Button>
 		<Button variant="plain" size="sm" onclick={() => arcade.toMenu()}>Menu</Button>
 	</div>
 </aside>
@@ -182,13 +186,25 @@
 		padding: 3px;
 		background: var(--panel);
 	}
+	.link {
+		font: inherit;
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--ink-dim);
+		text-decoration: underline;
+		cursor: pointer;
+	}
 	.toggles {
-		margin-top: auto;
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 6px;
 	}
+	.grow {
+		flex: 1;
+	}
 	.foot {
+		gap: 6px;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;

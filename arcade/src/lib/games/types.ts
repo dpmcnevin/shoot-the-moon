@@ -37,6 +37,10 @@ export interface TableView {
 	banner?: string;
 	/** The trick shown is a finished one (no card led to the next yet). */
 	trickDone?: boolean;
+	/** The last finished trick and who won it (the Last trick viewer). */
+	lastTrick?: { plays: { pos: Pos; card: Card }[]; winner: Pos };
+	/** Cards played so far this hand (the deck view greys them). */
+	played?: Card[];
 }
 
 export interface PreProps {
@@ -57,6 +61,8 @@ export interface GameUI {
 	view(run: Run): TableView;
 	/** The pre-play panel. */
 	Pre: Component<PreProps>;
+	/** How to play this game: titled sections for the help screen. */
+	help: { title: string; text: string }[];
 	/** In the pre-play step, picking this many cards from your hand. */
 	pick?: number;
 }
